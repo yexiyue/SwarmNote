@@ -1,0 +1,14 @@
+pre-commit:
+  parallel: true
+  commands:
+    biome-check:
+      glob: "*.{ts,tsx,js,jsx,json}"
+      run: pnpm biome check --no-errors-on-unmatched {staged_files}
+    cargo-fmt:
+      glob: "*.rs"
+      run: cd src-tauri && cargo fmt --check
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm commitlint --edit {1}
