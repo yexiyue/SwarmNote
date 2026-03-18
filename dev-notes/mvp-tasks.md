@@ -22,7 +22,7 @@
 
 **1. 项目基础设施（Day 1）**
 
-- [ ] 前端依赖：yjs, y-codemirror.next, @uiw/react-codemirror, zustand, tailwindcss, shadcn/ui
+- [ ] 前端依赖：yjs, @blocknote/core, @blocknote/react, @blocknote/mantine, zustand, tailwindcss, shadcn/ui
 - [ ] Rust 依赖：yrs, rusqlite (bundled), swarm-p2p-core (git submodule)
 - [ ] Tailwind CSS + shadcn/ui 初始化
 
@@ -35,8 +35,8 @@
 
 **3. 编辑器（Day 2-3）**
 
-- [ ] CodeMirror 6 + Markdown 语法高亮
-- [ ] y-codemirror.next 绑定 yjs Y.Doc
+- [ ] BlockNote 编辑器初始化（@blocknote/react + @blocknote/mantine）
+- [ ] yjs collaboration 配置（Y.Doc + XmlFragment）
 - [ ] 前端 Y.Doc ←→ Rust yrs::Doc 的 IPC 通道
 - [ ] 自动保存：编辑后 debounce 500ms 写入 SQLite
 

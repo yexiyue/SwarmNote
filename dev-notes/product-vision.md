@@ -114,7 +114,7 @@ swarm-p2p-core      — P2P 网络 SDK（已完成，待添加 GossipSub）
 
 | 选择 | 理由 |
 |------|------|
-| CodeMirror 6 + y-codemirror.next | Markdown 原生，yjs 官方绑定 |
+| BlockNote + yjs | Notion 风格块编辑器，yjs 协作内置一等支持 |
 | yrs（后端）+ yjs（前端） | CRDT 是产品基座，离线合并必须从第一天就有 |
 | swarm-p2p-core + GossipSub | 从 SwarmDrop 复用，需先集成 pub/sub |
 | SQLite + rusqlite | 表结构简单，raw SQL 更快 |
