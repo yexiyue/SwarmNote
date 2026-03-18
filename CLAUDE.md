@@ -9,6 +9,9 @@ SwarmNote is a decentralized, local-first, peer-to-peer note-taking app built wi
 ## Development Commands
 
 ```bash
+# Install dependencies (first time or after package.json changes)
+pnpm install
+
 # Launch full Tauri desktop app (starts frontend + Rust backend)
 pnpm tauri dev
 
@@ -48,8 +51,8 @@ No test framework is configured for the frontend yet.
 
 ## Code Quality Toolchain
 
-- **Biome** (`biome.json`): 前端 lint + format（替代 ESLint + Prettier），`recommended` 规则集，自动 organize imports，行宽 100
-- **rustfmt** (`src-tauri/rustfmt.toml`): Rust 代码格式化
+- **Biome** (`biome.json`): 前端 lint + format（替代 ESLint + Prettier），`recommended` 规则集，自动 organize imports，2空格缩进，行宽 100
+- **rustfmt** (`src-tauri/rustfmt.toml`): Rust 代码格式化，4空格缩进（`.editorconfig` 控制）
 - **Clippy**: Rust 静态分析，CI 中以 `-D warnings` 运行
 - **Lefthook** (`lefthook.yml`): Git hooks 管理
   - `pre-commit`: Biome check（前端）+ cargo fmt --check（Rust），并行执行
@@ -72,6 +75,8 @@ swarmnote/
 │   └── tauri.conf.json   # Tauri config (window, build, CSP)
 ├── docs/                 # Astro + Starlight documentation site
 ├── openspec/             # Spec-driven change management (OpenSpec)
+│   ├── project.md        # Tech stack & conventions reference
+│   └── changes/          # Proposed changes (not yet implemented)
 └── dev-notes/            # Planning docs, PRD, tech selection
 ```
 
@@ -90,7 +95,6 @@ The Rust lib is named `swarmnote_lib` (not `swarmnote`) to avoid a Windows namin
 - **Rust**: standard rustfmt, `#[tauri::command]` pattern, snake_case
 - **Package manager**: pnpm (not npm/yarn)
 - **Git flow**: `main` → `develop` → `feature/*` branches, PRs required
-- **Formatter**: Biome indent 2 spaces, line width 100
 
 ## Key Config Files
 
@@ -100,6 +104,7 @@ The Rust lib is named `swarmnote_lib` (not `swarmnote`) to avoid a Windows namin
 - `biome.json` — Biome lint + format config, scoped to `src/` and root config files
 - `lefthook.yml` — pre-commit and commit-msg hooks
 - `cliff.toml` — git-cliff changelog generation config
+- `.editorconfig` — cross-editor formatting: UTF-8, LF, 前端 2空格 / Rust 4空格
 
 ## Sister Project: SwarmDrop & swarm-p2p-core
 
@@ -148,5 +153,5 @@ SwarmDrop 已验证的模块可直接参考：密钥管理（Stronghold）、设
 Development is phased (see `dev-notes/`):
 
 1. **Phase 1**: P2P networking via swarm-p2p-core, SQLite local storage, device discovery
-2. **Phase 2**: Editor with CodeMirror, CRDT sync via yrs/yjs
+2. **Phase 2**: Editor with BlockNote (block-based, built on ProseMirror + yjs), CRDT sync, Rust 端透传 yjs 二进制
 3. **Phase 3**: E2E encryption, key distribution, secure document sharing

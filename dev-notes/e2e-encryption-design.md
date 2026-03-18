@@ -33,7 +33,7 @@
 
 ## 加密消息格式
 
-对每个 yrs Update 二进制整体加密后广播：
+对每个 yjs Update 二进制整体加密后广播：
 
 ```
 +--------+-------+---------+----------------+----------+
@@ -109,7 +109,7 @@ fn derive_doc_key(folder_key: &[u8; 32], doc_id: &str) -> [u8; 32] {
 
 | 数据 | 是否加密 | 原因 |
 |------|---------|------|
-| GossipSub yrs Update | 加密 | 文档内容 |
+| GossipSub yjs Update | 加密 | 文档内容 |
 | Request-Response 全量同步 | 加密 | 文档内容 |
 | Awareness 数据 | 不加密 | 不含文档内容（光标位置等） |
 | DHT Provider Records | 不加密 | 仅含 hash(doc_id)，不暴露原始 ID |
@@ -129,7 +129,7 @@ rand = "0.8"
 
 | 阶段 | 内容 |
 |------|------|
-| Phase 1 | 每文档对称加密 yrs updates |
+| Phase 1 | 每文档对称加密 yjs updates |
 | Phase 2 | Lockbox 密钥分发（X25519 密钥交换） |
 | Phase 3 | 文件夹级密钥派生（HKDF） |
 | Phase 4 | 密钥轮换（新快照 + 重新加密） |

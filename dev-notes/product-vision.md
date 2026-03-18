@@ -45,9 +45,9 @@
 
 核心循环跑通：两台电脑局域网自动发现、同步笔记、离线自动合并。
 
-- 基础 Markdown 编辑器（CodeMirror 6 + yjs）
+- Block 编辑器（BlockNote + yjs）
 - 文档列表管理
-- SQLite + yrs 持久化
+- SQLite 持久化（存储 yjs 二进制更新）
 - mDNS 局域网发现 + CRDT 增量/全量同步
 - 离线编辑重连自动合并
 - 设备标识与连接状态
@@ -115,7 +115,7 @@ swarm-p2p-core      — P2P 网络 SDK（已完成，待添加 GossipSub）
 | 选择 | 理由 |
 |------|------|
 | BlockNote + yjs | Notion 风格块编辑器，yjs 协作内置一等支持 |
-| yrs（后端）+ yjs（前端） | CRDT 是产品基座，离线合并必须从第一天就有 |
+| yjs（前端 CRDT） | CRDT 是产品基座，离线合并必须从第一天就有，Rust 端透传二进制 |
 | swarm-p2p-core + GossipSub | 从 SwarmDrop 复用，需先集成 pub/sub |
 | SQLite + rusqlite | 表结构简单，raw SQL 更快 |
 | shadcn/ui + Tailwind + Zustand | 和 SwarmDrop 同技术栈 |

@@ -23,21 +23,21 @@
 **1. 项目基础设施（Day 1）**
 
 - [ ] 前端依赖：yjs, @blocknote/core, @blocknote/react, @blocknote/mantine, zustand, tailwindcss, shadcn/ui
-- [ ] Rust 依赖：yrs, rusqlite (bundled), swarm-p2p-core (git submodule)
+- [ ] Rust 依赖：rusqlite (bundled), swarm-p2p-core (git submodule)
 - [ ] Tailwind CSS + shadcn/ui 初始化
 
 **2. SQLite 持久化层（Day 1-2）**
 
 - [ ] 数据库初始化（Tauri app_data_dir）
-- [ ] documents 表：doc_id, title, yrs_state (BLOB), state_vector (BLOB), created_at, updated_at
+- [ ] documents 表：doc_id, title, yjs_state (BLOB), state_vector (BLOB), created_at, updated_at
 - [ ] 基础 CRUD：create_doc, get_doc, list_docs, delete_doc, rename_doc
-- [ ] yrs Update 追加写入 + 定期合并压缩
+- [ ] yjs Update 二进制追加写入 + 定期合并压缩
 
 **3. 编辑器（Day 2-3）**
 
 - [ ] BlockNote 编辑器初始化（@blocknote/react + @blocknote/mantine）
 - [ ] yjs collaboration 配置（Y.Doc + XmlFragment）
-- [ ] 前端 Y.Doc ←→ Rust yrs::Doc 的 IPC 通道
+- [ ] 前端 Y.Doc 更新 → Rust 存储的 IPC 通道（Rust 透传二进制 blob）
 - [ ] 自动保存：编辑后 debounce 500ms 写入 SQLite
 
 **4. 文档管理 UI（Day 3-4）**
@@ -58,7 +58,7 @@
 
 **6. 离线合并（Day 6-7）**
 
-- [ ] 启动时加载所有文档的 yrs state
+- [ ] 启动时加载所有文档的 yjs state
 - [ ] 重连后自动全量同步（双向 state_vector 交换）
 - [ ] 合并后更新 SQLite + 通知前端刷新
 
@@ -90,8 +90,8 @@
 ┌─────────────────────────────────┐
 │          React 前端              │
 │                                 │
-│  CodeMirror 6                   │
-│    ↕ y-codemirror.next          │
+│  BlockNote                      │
+│    ↕ 内置 yjs 协作支持           │
 │  Y.Doc (yjs)                    │
 │    ↕ Uint8Array                 │
 │  invoke() / listen()            │
@@ -100,7 +100,7 @@
 ┌────────────▼────────────────────┐
 │        Rust 后端                 │
 │                                 │
-│  yrs::Doc (CRDT 引擎)           │
+│  yjs blob 透传（存储/转发）      │
 │    ↕                            │
 │  ┌──────────┐  ┌──────────────┐ │
 │  │ SQLite   │  │ swarm-p2p-   │ │

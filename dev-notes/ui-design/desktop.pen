@@ -1,5 +1,5 @@
 {
-  "version": "2.6",
+  "version": "2.9",
   "children": [
     {
       "type": "frame",
@@ -1346,6 +1346,8 @@
                     {
                       "type": "text",
                       "id": "vIMKE",
+                      "x": 0,
+                      "y": 0,
                       "name": "0",
                       "enabled": false,
                       "fill": "$--foreground",
@@ -1377,6 +1379,8 @@
                     {
                       "type": "text",
                       "id": "qM9xF",
+                      "x": 0,
+                      "y": 0,
                       "name": "0",
                       "enabled": false,
                       "fill": "$--foreground",
@@ -1414,6 +1418,8 @@
                     {
                       "type": "text",
                       "id": "dL6MK",
+                      "x": 0,
+                      "y": 0,
                       "name": "0",
                       "enabled": false,
                       "fill": "$--foreground",
@@ -1483,6 +1489,8 @@
                     {
                       "type": "text",
                       "id": "Hlbwf",
+                      "x": 0,
+                      "y": 0,
                       "name": "0",
                       "enabled": false,
                       "fill": "$--foreground",
@@ -1514,6 +1522,8 @@
                     {
                       "type": "text",
                       "id": "MBOXD",
+                      "x": 0,
+                      "y": 0,
                       "name": "0",
                       "enabled": false,
                       "fill": "$--foreground",
@@ -1551,6 +1561,8 @@
                     {
                       "type": "text",
                       "id": "iEjWl",
+                      "x": 0,
+                      "y": 0,
                       "name": "0",
                       "enabled": false,
                       "fill": "$--foreground",
@@ -2100,7 +2112,15 @@
           "ref": "pfIN1",
           "x": 200,
           "y": 352,
+          "height": "fit_content",
           "descendants": {
+            "ekbu5": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "CPImI": {
+              "y": 16
+            },
             "9eSLt": {
               "type": "frame",
               "id": "hqut2",
@@ -2133,7 +2153,11 @@
               ]
             },
             "h6oCR": {
-              "enabled": false
+              "enabled": false,
+              "height": "fit_content"
+            },
+            "IaDRg": {
+              "width": "fill_container"
             }
           }
         },
@@ -2150,7 +2174,17 @@
             "fill": "$--destructive"
           },
           "width": "fill_container(480)",
+          "height": "fit_content",
           "descendants": {
+            "LuqyG": {
+              "width": "fit_content",
+              "height": "fit_content",
+              "x": 16,
+              "y": 16
+            },
+            "LGayV": {
+              "y": 2
+            },
             "DeaWZ": {
               "stroke": {
                 "align": "center",
@@ -2178,11 +2212,19 @@
                 "fill": "$--destructive"
               }
             },
+            "Q1t8n": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "x": 48,
+              "y": 16
+            },
             "nbvca": {
               "fill": "$--destructive"
             },
             "W4UBy": {
-              "fill": "$--destructive"
+              "fill": "$--destructive",
+              "width": "fill_container",
+              "y": 28
             }
           }
         },
@@ -2215,9 +2257,13 @@
           "y": 1296,
           "fill": "$--secondary",
           "name": "Badge/Secondary",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
             "zHpCv": {
-              "fill": "$--secondary-foreground"
+              "fill": "$--secondary-foreground",
+              "x": 8,
+              "y": 2
             }
           }
         },
@@ -2230,9 +2276,13 @@
           "y": 1356,
           "fill": "$--destructive",
           "name": "Badge/Destructive",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
             "zHpCv": {
-              "fill": "$--white"
+              "fill": "$--white",
+              "x": 8,
+              "y": 2
             }
           }
         },
@@ -2250,9 +2300,13 @@
             "fill": "$--border"
           },
           "name": "Badge/Outline",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
             "zHpCv": {
-              "fill": "$--foreground"
+              "fill": "$--foreground",
+              "x": 8,
+              "y": 2
             }
           }
         },
@@ -2265,6 +2319,8 @@
           "y": 1536,
           "fill": [],
           "name": "Breadcrumb Item/Default",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
             "Xm9Ew": {
               "fill": "$--muted-foreground"
@@ -2322,7 +2378,13 @@
           "y": 1656,
           "padding": 8,
           "name": "Icon Button/Large/Default",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "RO4Ll": {
+              "x": 8,
+              "y": 8
+            },
             "NEMHS": {
               "enabled": false
             }
@@ -2337,7 +2399,13 @@
           "y": 1732,
           "padding": 8,
           "name": "Icon Button/Large/Secondary",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "AOTZ7": {
+              "x": 8,
+              "y": 8
+            },
             "g9Wxn": {
               "enabled": false
             }
@@ -2352,7 +2420,13 @@
           "y": 1808,
           "padding": 8,
           "name": "Icon Button/Large/Destructive",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "4wJMf": {
+              "x": 8,
+              "y": 8
+            },
             "HazGS": {
               "enabled": false
             }
@@ -2367,7 +2441,13 @@
           "y": 1884,
           "padding": 8,
           "name": "Icon Button/Large/Outline",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "vLff5": {
+              "x": 8,
+              "y": 8
+            },
             "ydXf3": {
               "enabled": false
             }
@@ -2382,7 +2462,13 @@
           "y": 1960,
           "padding": 8,
           "name": "Icon Button/Large/Ghost",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "h6Jgb": {
+              "x": 8,
+              "y": 8
+            },
             "ujxmL": {
               "enabled": false
             }
@@ -2397,7 +2483,13 @@
           "y": 1656,
           "padding": 8,
           "name": "Icon Button/Default",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "8jVfJ": {
+              "x": 8,
+              "y": 8
+            },
             "8tnXG": {
               "enabled": false
             }
@@ -2412,7 +2504,13 @@
           "y": 1732,
           "padding": 8,
           "name": "Icon Button/Secondary",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "soROh": {
+              "x": 8,
+              "y": 8
+            },
             "Tr3Fv": {
               "enabled": false
             }
@@ -2427,7 +2525,13 @@
           "y": 1808,
           "padding": 8,
           "name": "Icon Button/Destructive",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "PqjlB": {
+              "x": 8,
+              "y": 8
+            },
             "NDadS": {
               "enabled": false
             }
@@ -2442,7 +2546,13 @@
           "y": 1884,
           "padding": 8,
           "name": "Icon Button/Outline",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "l8v2I": {
+              "x": 8,
+              "y": 8
+            },
             "poRwU": {
               "enabled": false
             }
@@ -2456,7 +2566,13 @@
           "x": 544,
           "y": 1960,
           "padding": 8,
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "AeXMI": {
+              "x": 8,
+              "y": 8
+            },
             "UZfKV": {
               "enabled": false
             }
@@ -2590,9 +2706,13 @@
           "name": "Tab Item/Inactive",
           "fill": [],
           "effect": [],
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
             "qYQHc": {
-              "fill": "$--muted-foreground"
+              "fill": "$--muted-foreground",
+              "x": 12,
+              "y": 6
             }
           }
         },
@@ -2634,9 +2754,13 @@
               "ref": "coMmv",
               "x": 4,
               "y": 4,
+              "width": "fit_content",
+              "height": "fit_content",
               "descendants": {
                 "qYQHc": {
-                  "content": "Integrations"
+                  "content": "Integrations",
+                  "x": 12,
+                  "y": 6
                 }
               }
             },
@@ -2646,9 +2770,13 @@
               "ref": "QY0Ka",
               "x": 116,
               "y": 4,
+              "width": "fit_content",
+              "height": "fit_content",
               "descendants": {
                 "qYQHc": {
-                  "content": "Billing"
+                  "content": "Billing",
+                  "x": 12,
+                  "y": 6
                 }
               }
             },
@@ -2658,9 +2786,13 @@
               "ref": "QY0Ka",
               "x": 189,
               "y": 4,
+              "width": "fit_content",
+              "height": "fit_content",
               "descendants": {
                 "qYQHc": {
-                  "content": "Profile"
+                  "content": "Profile",
+                  "x": 12,
+                  "y": 6
                 }
               }
             },
@@ -2670,9 +2802,13 @@
               "ref": "QY0Ka",
               "x": 265,
               "y": 4,
+              "width": "fit_content",
+              "height": "fit_content",
               "descendants": {
                 "qYQHc": {
-                  "content": "Advanced"
+                  "content": "Advanced",
+                  "x": 12,
+                  "y": 6
                 }
               }
             }
@@ -2693,6 +2829,7 @@
           "descendants": {
             "CgJv7": {
               "height": "fit_content",
+              "width": "fill_container",
               "children": [
                 {
                   "type": "text",
@@ -2730,6 +2867,7 @@
             "bvhSM": {
               "width": "fill_container",
               "height": "fit_content",
+              "y": 104,
               "children": [
                 {
                   "id": "NtF0f",
@@ -2737,12 +2875,16 @@
                   "ref": "VSnC2",
                   "x": 24,
                   "y": 24,
+                  "width": "fit_content",
+                  "height": "fit_content",
                   "descendants": {
                     "8jVfJ": {
                       "enabled": false
                     },
                     "8tnXG": {
-                      "content": "Continue"
+                      "content": "Continue",
+                      "x": 16,
+                      "y": 8
                     }
                   }
                 },
@@ -2752,12 +2894,16 @@
                   "ref": "C10zH",
                   "x": 125,
                   "y": 24,
+                  "width": "fit_content",
+                  "height": "fit_content",
                   "descendants": {
                     "l8v2I": {
                       "enabled": false
                     },
                     "poRwU": {
-                      "content": "Cancel"
+                      "content": "Cancel",
+                      "x": 16,
+                      "y": 8
                     }
                   }
                 }
@@ -3013,9 +3159,31 @@
           "x": 900,
           "y": 530,
           "name": "List Item/Unchecked",
+          "height": "fit_content",
           "descendants": {
+            "kxJ89": {
+              "width": "fit_content",
+              "height": "fit_content",
+              "x": 8,
+              "y": 6
+            },
+            "Jj249": {
+              "y": 2
+            },
             "RTXW4": {
               "enabled": false
+            },
+            "R8Ps1": {
+              "x": 24
+            },
+            "22sgp": {
+              "width": "fit_content",
+              "height": "fit_content",
+              "x": 175,
+              "y": 8
+            },
+            "MW4DH": {
+              "x": 41
             }
           }
         },
@@ -3106,9 +3274,17 @@
           "x": 900,
           "y": 674,
           "name": "List Search Box/Default",
+          "height": "fit_content",
           "descendants": {
+            "emAje": {
+              "x": 8,
+              "y": 8
+            },
             "tAA5L": {
-              "fill": "$--muted-foreground"
+              "fill": "$--muted-foreground",
+              "width": "fill_container",
+              "x": 32,
+              "y": 6
             },
             "9e0Mf": {
               "enabled": false
@@ -3123,9 +3299,17 @@
           "x": 2100,
           "y": 1212,
           "name": "Radio/Unselected",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
+            "9ebgg": {
+              "y": 2
+            },
             "A16Ri": {
               "enabled": false
+            },
+            "GPiWl": {
+              "x": 24
             }
           }
         },
@@ -3137,11 +3321,21 @@
           "x": 2100,
           "y": 1396,
           "name": "Switch/Unchecked",
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
             "AgS9m": {
               "justifyContent": "start",
               "alignItems": "center",
               "fill": "$--input"
+            },
+            "Fin40": {
+              "x": 2,
+              "y": 2
+            },
+            "HsFun": {
+              "x": 56,
+              "y": 2
             }
           }
         },
@@ -3228,6 +3422,8 @@
           "ref": "ovuDP",
           "x": 2100,
           "y": 1580,
+          "width": "fit_content",
+          "height": "fit_content",
           "descendants": {
             "kfU2y": {
               "stroke": {
@@ -3235,10 +3431,16 @@
                 "thickness": 1,
                 "fill": "$--input"
               },
-              "fill": "$--primary-foreground"
+              "fill": "$--primary-foreground",
+              "y": 2
             },
             "5n2yq": {
               "enabled": false
+            },
+            "dszbm": {
+              "width": "fit_content",
+              "height": "fit_content",
+              "x": 24
             }
           }
         },
@@ -3250,13 +3452,26 @@
           "x": 2100,
           "y": 1806,
           "name": "Input Group/Filled",
+          "height": "fit_content",
           "descendants": {
             "QRy7x": {
-              "enabled": true
+              "enabled": true,
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "BX0XX": {
+              "width": "fill_container"
+            },
+            "i0Z3E": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 26
             },
             "SDRKn": {
               "fill": "$--foreground",
-              "content": "Input Value"
+              "content": "Input Value",
+              "x": 12,
+              "y": 10
             }
           }
         },
@@ -3268,9 +3483,22 @@
           "x": 2100,
           "y": 1912,
           "name": "Input/Default",
+          "height": "fit_content",
           "descendants": {
             "QRy7x": {
-              "enabled": false
+              "enabled": false,
+              "height": "fit_content"
+            },
+            "BX0XX": {
+              "width": "fill_container"
+            },
+            "i0Z3E": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "SDRKn": {
+              "x": 12,
+              "y": 10
             }
           }
         },
@@ -3282,13 +3510,24 @@
           "x": 2100,
           "y": 1992,
           "name": "Input/Filled",
+          "height": "fit_content",
           "descendants": {
             "QRy7x": {
-              "enabled": false
+              "enabled": false,
+              "height": "fit_content"
+            },
+            "BX0XX": {
+              "width": "fill_container"
+            },
+            "i0Z3E": {
+              "width": "fill_container",
+              "height": "fit_content"
             },
             "SDRKn": {
               "fill": "$--foreground",
-              "content": "Input Value"
+              "content": "Input Value",
+              "x": 12,
+              "y": 10
             }
           }
         },
@@ -3300,10 +3539,30 @@
           "x": 2100.160669376255,
           "y": 2239,
           "name": "Select Group/Filled",
+          "height": "fit_content",
           "descendants": {
+            "c8G05": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "Yd2lV": {
+              "width": "fill_container"
+            },
+            "Ch62V": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 26
+            },
             "V1STL": {
               "fill": "$--foreground",
-              "content": "Selected Option"
+              "content": "Selected Option",
+              "width": "fill_container",
+              "x": 12,
+              "y": 10
+            },
+            "lsKbB": {
+              "x": 246,
+              "y": 12
             }
           }
         },
@@ -3410,10 +3669,30 @@
           "x": 2100.160669376255,
           "y": 2513,
           "name": "Combobox/Default",
+          "height": "fit_content",
           "descendants": {
+            "dkouC": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "mNzWI": {
+              "width": "fill_container"
+            },
+            "SS77i": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 26
+            },
             "bj34E": {
               "content": "Selected Option",
-              "fill": "$--foreground"
+              "fill": "$--foreground",
+              "width": "fill_container",
+              "x": 12,
+              "y": 10
+            },
+            "zNxvQ": {
+              "x": 246,
+              "y": 12
             }
           }
         },
@@ -3425,24 +3704,79 @@
           "x": 2100,
           "y": 2786,
           "name": "Input OTP Group/Filled",
+          "height": "fit_content",
           "descendants": {
+            "Dnb63": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "3RstF": {
+              "width": "fill_container"
+            },
+            "nGQJv": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 26
+            },
+            "0TODM": {
+              "width": "fill_container"
+            },
             "vIMKE": {
-              "enabled": true
+              "enabled": true,
+              "x": 15.5,
+              "y": 10
+            },
+            "gUH1w": {
+              "width": "fill_container",
+              "x": 39
             },
             "qM9xF": {
-              "enabled": true
+              "enabled": true,
+              "x": 15.5,
+              "y": 10
+            },
+            "m9owt": {
+              "width": "fill_container",
+              "x": 78
             },
             "dL6MK": {
-              "enabled": true
+              "enabled": true,
+              "x": 15.5,
+              "y": 10
+            },
+            "lRQJN": {
+              "x": 117
+            },
+            "wgSK2": {
+              "x": 16,
+              "y": 10
+            },
+            "6lyN0": {
+              "width": "fill_container",
+              "x": 156
             },
             "Hlbwf": {
-              "enabled": true
+              "enabled": true,
+              "x": 15.5,
+              "y": 10
+            },
+            "CLUSe": {
+              "width": "fill_container",
+              "x": 195
             },
             "MBOXD": {
-              "enabled": true
+              "enabled": true,
+              "x": 15.5,
+              "y": 10
+            },
+            "6gzzE": {
+              "width": "fill_container",
+              "x": 234
             },
             "iEjWl": {
-              "enabled": true
+              "enabled": true,
+              "x": 15.5,
+              "y": 10
             }
           }
         },
@@ -3454,10 +3788,24 @@
           "x": 2100,
           "y": 3098,
           "name": "Textarea Group/Filled",
+          "height": "fit_content",
           "descendants": {
+            "uAcGD": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "a78kl": {
+              "width": "fill_container"
+            },
+            "pzw5I": {
+              "width": "fill_container",
+              "y": 26
+            },
             "S4qWY": {
               "content": "Input Value",
-              "fill": "$--foreground"
+              "fill": "$--foreground",
+              "x": 12,
+              "y": 8
             }
           }
         },
@@ -3501,6 +3849,7 @@
           "descendants": {
             "CgJv7": {
               "height": "fit_content",
+              "width": "fill_container",
               "children": [
                 {
                   "type": "text",
@@ -3530,8 +3879,14 @@
                 }
               ]
             },
+            "frWPV": {
+              "width": "fill_container",
+              "y": 104
+            },
             "bvhSM": {
               "height": "fit_content",
+              "width": "fill_container",
+              "y": 172,
               "children": [
                 {
                   "id": "L6Ngo",
@@ -3540,9 +3895,16 @@
                   "x": 24,
                   "y": 24.019943701668048,
                   "width": "fill_container",
+                  "height": "fit_content",
                   "descendants": {
+                    "RO4Ll": {
+                      "x": 39,
+                      "y": 8
+                    },
                     "NEMHS": {
-                      "content": "Action"
+                      "content": "Action",
+                      "x": 69,
+                      "y": 10
                     }
                   }
                 },
@@ -3554,9 +3916,16 @@
                   "y": 24.039888780686216,
                   "rotation": 0.015035913220233593,
                   "width": "fill_container",
+                  "height": "fit_content",
                   "descendants": {
+                    "vLff5": {
+                      "x": 39,
+                      "y": 8
+                    },
                     "ydXf3": {
-                      "content": "Action"
+                      "content": "Action",
+                      "x": 69,
+                      "y": 10
                     }
                   }
                 }
@@ -3572,12 +3941,57 @@
           "x": 2100,
           "y": 500,
           "name": "Modal/Center",
+          "height": "fit_content",
           "descendants": {
+            "CgJv7": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
             "EOpIo": {
-              "textAlign": "center"
+              "textAlign": "center",
+              "width": "fill_container",
+              "x": 24,
+              "y": 24
             },
             "bVY1H": {
-              "textAlign": "center"
+              "textAlign": "center",
+              "width": "fill_container",
+              "x": 24,
+              "y": 60
+            },
+            "frWPV": {
+              "width": "fill_container",
+              "y": 104
+            },
+            "bvhSM": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 172
+            },
+            "L6Ngo": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 24.019943701668048
+            },
+            "L6Ngo/RO4Ll": {
+              "x": 39,
+              "y": 8
+            },
+            "L6Ngo/NEMHS": {
+              "x": 69,
+              "y": 10
+            },
+            "T9BdN": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "T9BdN/vLff5": {
+              "x": 39,
+              "y": 8
+            },
+            "T9BdN/ydXf3": {
+              "x": 69,
+              "y": 10
             }
           }
         },
@@ -3589,7 +4003,12 @@
           "x": 2100,
           "y": 800,
           "name": "Modal/Icon",
+          "height": "fit_content",
           "descendants": {
+            "CgJv7": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
             "EOpIo": {
               "type": "frame",
               "id": "vbPtf",
@@ -3619,6 +4038,40 @@
             },
             "bVY1H": {
               "enabled": false
+            },
+            "frWPV": {
+              "width": "fill_container",
+              "y": 96
+            },
+            "bvhSM": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 164
+            },
+            "L6Ngo": {
+              "width": "fill_container",
+              "height": "fit_content",
+              "y": 24.019943701668048
+            },
+            "L6Ngo/RO4Ll": {
+              "x": 39,
+              "y": 8
+            },
+            "L6Ngo/NEMHS": {
+              "x": 69,
+              "y": 10
+            },
+            "T9BdN": {
+              "width": "fill_container",
+              "height": "fit_content"
+            },
+            "T9BdN/vLff5": {
+              "x": 39,
+              "y": 8
+            },
+            "T9BdN/ydXf3": {
+              "x": 69,
+              "y": 10
             }
           }
         },
@@ -3677,7 +4130,13 @@
             "align": "inside",
             "thickness": 1
           },
-          "effect": []
+          "effect": [],
+          "descendants": {
+            "JP14e": {
+              "x": 17,
+              "y": 10
+            }
+          }
         },
         {
           "id": "MqebB",
@@ -3721,12 +4180,16 @@
               "ref": "l7zpS",
               "x": 0,
               "y": 2,
+              "width": "fit_content",
+              "height": "fit_content",
               "descendants": {
                 "h6Jgb": {
                   "enabled": false
                 },
                 "ujxmL": {
-                  "content": "Previous"
+                  "content": "Previous",
+                  "x": 24,
+                  "y": 8
                 }
               }
             },
@@ -3754,12 +4217,16 @@
                 8,
                 24
               ],
+              "width": "fit_content",
+              "height": "fit_content",
               "descendants": {
                 "h6Jgb": {
                   "enabled": false
                 },
                 "ujxmL": {
-                  "content": "Next"
+                  "content": "Next",
+                  "x": 24,
+                  "y": 8
                 }
               }
             }
@@ -3781,6 +4248,7 @@
           "descendants": {
             "CgJv7": {
               "height": "fit_content",
+              "width": "fill_container",
               "children": [
                 {
                   "type": "text",
@@ -3799,6 +4267,8 @@
             },
             "frWPV": {
               "height": "fit_content",
+              "width": "fill_container",
+              "y": 72,
               "children": [
                 {
                   "type": "text",
@@ -3817,6 +4287,8 @@
             },
             "bvhSM": {
               "height": "fit_content",
+              "width": "fill_container",
+              "y": 168,
               "children": [
                 {
                   "id": "C8MFo",
@@ -3824,9 +4296,17 @@
                   "ref": "C10zH",
                   "x": 24,
                   "y": 24,
+                  "width": "fit_content",
+                  "height": "fit_content",
                   "descendants": {
+                    "l8v2I": {
+                      "x": 16,
+                      "y": 8
+                    },
                     "poRwU": {
-                      "content": "Request"
+                      "content": "Request",
+                      "x": 42,
+                      "y": 8
                     }
                   }
                 }
@@ -3843,9 +4323,11 @@
           "y": 2959,
           "width": 320,
           "name": "Card Plain",
+          "height": "fit_content",
           "descendants": {
             "CgJv7": {
               "height": "fit_content",
+              "width": "fill_container",
               "children": [
                 {
                   "type": "text",
@@ -3864,6 +4346,8 @@
             },
             "frWPV": {
               "height": "fit_content",
+              "width": "fill_container",
+              "y": 72,
               "children": [
                 {
                   "type": "text",
@@ -3884,9 +4368,13 @@
                   "ref": "UjXug",
                   "x": 24,
                   "y": 68,
+                  "width": "fit_content",
+                  "height": "fit_content",
                   "descendants": {
                     "zHpCv": {
-                      "content": "-12%"
+                      "content": "-12%",
+                      "x": 8,
+                      "y": 2
                     }
                   }
                 }
@@ -3914,6 +4402,7 @@
           "descendants": {
             "CgJv7": {
               "height": "fit_content",
+              "width": "fill_container",
               "children": [
                 {
                   "type": "frame",
@@ -3935,6 +4424,8 @@
             },
             "frWPV": {
               "height": "fit_content",
+              "width": "fill_container",
+              "y": 208,
               "children": [
                 {
                   "type": "text",
@@ -3966,6 +4457,8 @@
             },
             "bvhSM": {
               "justifyContent": "space_between",
+              "width": "fill_container",
+              "y": 318,
               "children": [
                 {
                   "id": "Jt3oM",
@@ -3973,9 +4466,13 @@
                   "ref": "UjXug",
                   "x": 24,
                   "y": 24,
+                  "width": "fit_content",
+                  "height": "fit_content",
                   "descendants": {
                     "zHpCv": {
-                      "content": "$45.00"
+                      "content": "$45.00",
+                      "x": 8,
+                      "y": 2
                     }
                   }
                 },
@@ -3985,9 +4482,17 @@
                   "ref": "C10zH",
                   "x": 131,
                   "y": 16,
+                  "width": "fit_content",
+                  "height": "fit_content",
                   "descendants": {
+                    "l8v2I": {
+                      "x": 16,
+                      "y": 8
+                    },
                     "poRwU": {
-                      "content": "Add to favorites"
+                      "content": "Add to favorites",
+                      "x": 42,
+                      "y": 8
                     }
                   }
                 }
@@ -4141,7 +4646,28 @@
           "y": 2303,
           "name": "Sidebar Item/Default",
           "fill": [],
-          "rotation": 0
+          "rotation": 0,
+          "height": "fit_content",
+          "descendants": {
+            "SxIMP": {
+              "width": "fit_content",
+              "height": "fit_content",
+              "x": 8,
+              "y": 6
+            },
+            "nmQwi": {
+              "y": 2
+            },
+            "0Ru22": {
+              "x": 24
+            },
+            "ttBco": {
+              "width": "fit_content",
+              "height": "fit_content",
+              "x": 216,
+              "y": 8
+            }
+          }
         },
         {
           "type": "frame",
@@ -4165,9 +4691,22 @@
               "ref": "fEUdI",
               "x": 0,
               "y": 0,
+              "height": "fit_content",
               "descendants": {
+                "QRy7x": {
+                  "height": "fit_content"
+                },
+                "BX0XX": {
+                  "width": "fill_container"
+                },
+                "i0Z3E": {
+                  "width": "fill_container",
+                  "height": "fit_content"
+                },
                 "SDRKn": {
-                  "content": "Search"
+                  "content": "Search",
+                  "x": 12,
+                  "y": 10
                 }
               }
             },
@@ -4176,7 +4715,19 @@
               "type": "ref",
               "ref": "ghKmL",
               "x": 902,
-              "y": 0
+              "y": 0,
+              "width": "fit_content",
+              "height": "fit_content",
+              "descendants": {
+                "vLff5": {
+                  "x": 24,
+                  "y": 8
+                },
+                "ydXf3": {
+                  "x": 54,
+                  "y": 10
+                }
+              }
             }
           ]
         },
@@ -4212,7 +4763,31 @@
               "type": "ref",
               "ref": "U5noB",
               "x": 797,
-              "y": 0
+              "y": 0,
+              "width": "fit_content",
+              "height": "fit_content",
+              "descendants": {
+                "dL111": {
+                  "width": "fit_content",
+                  "height": "fit_content"
+                },
+                "dL111/ujxmL": {
+                  "x": 24,
+                  "y": 8
+                },
+                "VBg6X": {
+                  "x": 107
+                },
+                "mQBD7": {
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 147
+                },
+                "mQBD7/ujxmL": {
+                  "x": 24,
+                  "y": 8
+                }
+              }
             }
           ]
         },
@@ -4355,9 +4930,11 @@
                     {
                       "type": "frame",
                       "id": "sdtLabel1",
+                      "x": 0,
+                      "y": 0,
                       "name": "Label Text",
                       "enabled": false,
-                      "width": "fill_container",
+                      "width": "fill_container(0)",
                       "fill": {
                         "type": "color",
                         "color": "$--white",
@@ -4427,7 +5004,19 @@
                   "type": "ref",
                   "ref": "ghKmL",
                   "x": 902,
-                  "y": 0
+                  "y": 0,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "descendants": {
+                    "vLff5": {
+                      "x": 24,
+                      "y": 8
+                    },
+                    "ydXf3": {
+                      "x": 54,
+                      "y": 10
+                    }
+                  }
                 }
               ]
             },
@@ -4450,7 +5039,38 @@
               "type": "ref",
               "ref": "RXiR9",
               "x": 0,
-              "y": 332
+              "y": 332,
+              "height": "fit_content",
+              "descendants": {
+                "9PRbJ": {
+                  "y": 10
+                },
+                "SMRMo": {
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 797
+                },
+                "SMRMo/dL111": {
+                  "width": "fit_content",
+                  "height": "fit_content"
+                },
+                "SMRMo/dL111/ujxmL": {
+                  "x": 24,
+                  "y": 8
+                },
+                "SMRMo/VBg6X": {
+                  "x": 107
+                },
+                "SMRMo/mQBD7": {
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 147
+                },
+                "SMRMo/mQBD7/ujxmL": {
+                  "x": 24,
+                  "y": 8
+                }
+              }
             }
           ]
         }
@@ -4565,7 +5185,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -4786,9 +5414,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -5085,10 +5719,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -5289,11 +5927,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -5311,11 +5953,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -5331,13 +5977,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -5456,7 +6108,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -5504,7 +6156,7 @@
                       "id": "k2dRW",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -5515,7 +6167,7 @@
                       "id": "eaoca",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -5671,7 +6323,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -5893,9 +6553,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -6192,10 +6858,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -6396,11 +7066,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -6418,11 +7092,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -6438,13 +7116,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -6563,7 +7247,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -6611,7 +7295,7 @@
                       "id": "LLSwk",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -6622,7 +7306,7 @@
                       "id": "DR8ev",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -6858,11 +7542,15 @@
                                 "thickness": 2,
                                 "fill": "$--background"
                               },
+                              "x": 0,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "AX",
                                   "fill": "#FFFFFF",
-                                  "fontSize": 8
+                                  "fontSize": 8,
+                                  "x": 6,
+                                  "y": 6.5
                                 }
                               }
                             },
@@ -6880,11 +7568,15 @@
                                 "thickness": 2,
                                 "fill": "$--background"
                               },
+                              "x": 18,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "BD",
                                   "fill": "#FFFFFF",
-                                  "fontSize": 8
+                                  "fontSize": 8,
+                                  "x": 6,
+                                  "y": 6.5
                                 }
                               }
                             }
@@ -7498,11 +8190,15 @@
                               "height": 32,
                               "cornerRadius": 9999,
                               "fill": "#6366F1",
+                              "x": 0,
+                              "y": 2.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "YG",
                                   "fill": "#FFFFFF",
-                                  "fontSize": 11
+                                  "fontSize": 11,
+                                  "x": 8,
+                                  "y": 8
                                 }
                               }
                             },
@@ -7835,7 +8531,15 @@
                               "type": "ref",
                               "ref": "c8fiq",
                               "name": "mdnsSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 22,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -7889,7 +8593,15 @@
                               "type": "ref",
                               "ref": "fcMl6",
                               "name": "dhtSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 2,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -7974,7 +8686,15 @@
                               "type": "ref",
                               "ref": "c8fiq",
                               "name": "relaySwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 22,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -8028,7 +8748,15 @@
                               "type": "ref",
                               "ref": "fcMl6",
                               "name": "natSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 2,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -8106,7 +8834,15 @@
                               "type": "ref",
                               "ref": "c8fiq",
                               "name": "powerSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 22,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -8560,12 +9296,17 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "trustBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
                               "enabled": false
                             },
                             "NEMHS": {
-                              "content": "信任此设备"
+                              "content": "信任此设备",
+                              "x": 101,
+                              "y": 8
                             }
                           }
                         },
@@ -8575,12 +9316,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "rejectBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 48,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "拒绝"
+                              "content": "拒绝",
+                              "x": 122,
+                              "y": 8
                             }
                           }
                         }
@@ -8781,8 +9527,13 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "pCopyBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
+                              "x": 107,
+                              "y": 8,
                               "children": [
                                 {
                                   "type": "icon_font",
@@ -8798,7 +9549,9 @@
                               ]
                             },
                             "NEMHS": {
-                              "content": "复制"
+                              "content": "复制",
+                              "x": 137,
+                              "y": 10
                             }
                           }
                         },
@@ -8808,12 +9561,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "pCancelBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 52,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "取消"
+                              "content": "取消",
+                              "x": 122,
+                              "y": 8
                             }
                           }
                         }
@@ -9101,12 +9859,17 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "iConfirmBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
                               "enabled": false
                             },
                             "NEMHS": {
-                              "content": "确认配对"
+                              "content": "确认配对",
+                              "x": 108,
+                              "y": 8
                             }
                           }
                         },
@@ -9116,12 +9879,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "iCancelBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 48,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "取消"
+                              "content": "取消",
+                              "x": 122,
+                              "y": 8
                             }
                           }
                         }
@@ -9347,12 +10115,17 @@
                       "ref": "C3KOZ",
                       "width": "fill_container",
                       "name": "startBtn",
+                      "height": "fit_content",
+                      "x": 32,
+                      "y": 32,
                       "descendants": {
                         "RO4Ll": {
                           "enabled": false
                         },
                         "NEMHS": {
-                          "content": "开始使用"
+                          "content": "开始使用",
+                          "x": 135,
+                          "y": 8
                         }
                       }
                     },
@@ -9616,10 +10389,14 @@
                               "height": 44,
                               "fill": "#6366F1",
                               "name": "thisDeviceAvatar",
+                              "x": 0,
+                              "y": 12,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "📱",
-                                  "fontSize": 20
+                                  "fontSize": 20,
+                                  "x": 9,
+                                  "y": 7.5
                                 }
                               }
                             },
@@ -9723,10 +10500,14 @@
                               "height": 44,
                               "fill": "#10B981",
                               "name": "device1Avatar",
+                              "x": 0,
+                              "y": 12,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "💻",
-                                  "fontSize": 20
+                                  "fontSize": 20,
+                                  "x": 9,
+                                  "y": 7.5
                                 }
                               }
                             },
@@ -9809,10 +10590,14 @@
                               "height": 44,
                               "fill": "#F59E0B",
                               "name": "device2Avatar",
+                              "x": 0,
+                              "y": 12,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "🖥️",
-                                  "fontSize": 20
+                                  "fontSize": 20,
+                                  "x": 9,
+                                  "y": 7.5
                                 }
                               }
                             },
@@ -10137,10 +10922,14 @@
                               "height": 36,
                               "fill": "#6366F1",
                               "name": "sCollab1",
+                              "x": 0,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "张",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 11,
+                                  "y": 8
                                 }
                               }
                             },
@@ -10152,10 +10941,14 @@
                               "height": 36,
                               "fill": "#10B981",
                               "name": "sCollab2",
+                              "x": 44,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "李",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 11,
+                                  "y": 8
                                 }
                               }
                             },
@@ -10205,8 +10998,13 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "sShareBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
+                              "x": 89,
+                              "y": 8,
                               "children": [
                                 {
                                   "type": "icon_font",
@@ -10222,7 +11020,9 @@
                               ]
                             },
                             "NEMHS": {
-                              "content": "复制分享链接"
+                              "content": "复制分享链接",
+                              "x": 119,
+                              "y": 10
                             }
                           }
                         },
@@ -10232,12 +11032,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "sCloseBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 52,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "关闭"
+                              "content": "关闭",
+                              "x": 132,
+                              "y": 8
                             }
                           }
                         }
@@ -10550,10 +11355,14 @@
                               "height": 40,
                               "fill": "#6366F1",
                               "name": "peer1Avatar",
+                              "x": 0,
+                              "y": 12.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "张",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 13,
+                                  "y": 10
                                 }
                               }
                             },
@@ -10587,10 +11396,16 @@
                                       "type": "ref",
                                       "ref": "UjXug",
                                       "name": "peer1Badge",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "x": 0,
+                                      "y": 0,
                                       "descendants": {
                                         "zHpCv": {
                                           "content": "已信任",
-                                          "fontSize": 10
+                                          "fontSize": 10,
+                                          "x": 8,
+                                          "y": 2
                                         }
                                       }
                                     },
@@ -10637,10 +11452,14 @@
                               "height": 40,
                               "fill": "#10B981",
                               "name": "peer2Avatar",
+                              "x": 0,
+                              "y": 12.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "李",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 13,
+                                  "y": 10
                                 }
                               }
                             },
@@ -10674,10 +11493,16 @@
                                       "type": "ref",
                                       "ref": "UjXug",
                                       "name": "peer2Badge",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "x": 0,
+                                      "y": 0,
                                       "descendants": {
                                         "zHpCv": {
                                           "content": "已信任",
-                                          "fontSize": 10
+                                          "fontSize": 10,
+                                          "x": 8,
+                                          "y": 2
                                         }
                                       }
                                     },
@@ -10717,10 +11542,14 @@
                               "height": 40,
                               "fill": "#F59E0B",
                               "name": "peer3Avatar",
+                              "x": 0,
+                              "y": 12.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "?",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 16,
+                                  "y": 10
                                 }
                               }
                             },
@@ -10754,10 +11583,16 @@
                                       "type": "ref",
                                       "ref": "WuUMk",
                                       "name": "peer3Badge",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "x": 0,
+                                      "y": 0,
                                       "descendants": {
                                         "zHpCv": {
                                           "content": "待确认",
-                                          "fontSize": 10
+                                          "fontSize": 10,
+                                          "x": 8,
+                                          "y": 2
                                         }
                                       }
                                     },
@@ -10780,12 +11615,18 @@
                               "type": "ref",
                               "ref": "VSnC2",
                               "name": "peer3Action",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 266,
+                              "y": 14.5,
                               "descendants": {
                                 "8jVfJ": {
                                   "enabled": false
                                 },
                                 "8tnXG": {
-                                  "content": "信任"
+                                  "content": "信任",
+                                  "x": 16,
+                                  "y": 8
                                 }
                               }
                             }
@@ -10934,7 +11775,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -11155,9 +12004,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -11454,10 +12309,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -12289,7 +13148,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -12510,9 +13377,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -12809,10 +13682,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -13137,7 +14014,15 @@
                           "type": "ref",
                           "ref": "c8fiq",
                           "name": "mdnsSwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 22,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -13194,7 +14079,15 @@
                           "type": "ref",
                           "ref": "c8fiq",
                           "name": "dhtSwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 22,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -13251,7 +14144,15 @@
                           "type": "ref",
                           "ref": "c8fiq",
                           "name": "relaySwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 22,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -13308,7 +14209,15 @@
                           "type": "ref",
                           "ref": "fcMl6",
                           "name": "natSwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 2,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -13436,7 +14345,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -13657,9 +14574,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -13956,10 +14879,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -14162,11 +15089,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -14184,11 +15115,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -14204,13 +15139,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -14329,7 +15270,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -14377,7 +15318,7 @@
                       "id": "TFPMN",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -14388,7 +15329,7 @@
                       "id": "1ilJO",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -14828,7 +15769,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -15049,9 +15998,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -15348,10 +16303,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -15554,11 +16513,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -15576,11 +16539,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -15596,13 +16563,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -15721,7 +16694,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -15769,7 +16742,7 @@
                       "id": "cl5sl",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -15780,7 +16753,7 @@
                       "id": "KBCgr",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -16388,7 +17361,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -16609,9 +17590,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -16908,10 +17895,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -17114,11 +18105,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -17136,11 +18131,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -17156,13 +18155,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -17281,7 +18286,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -17329,7 +18334,7 @@
                       "id": "5XODA",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -17340,7 +18345,7 @@
                       "id": "ARoaE",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -17941,7 +18946,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -18162,9 +19175,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -18461,10 +19480,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -18667,11 +19690,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -18689,11 +19716,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -18709,13 +19740,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -18834,7 +19871,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -18882,7 +19919,7 @@
                       "id": "ALROx",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -18893,7 +19930,7 @@
                       "id": "N7E3e",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -19405,7 +20442,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -19626,9 +20671,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -19925,10 +20976,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -20131,11 +21186,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -20153,11 +21212,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -20173,13 +21236,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -20298,7 +21367,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -20346,7 +21415,7 @@
                       "id": "5Fwog",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -20357,7 +21426,7 @@
                       "id": "GfL6H",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -21755,7 +22824,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -21976,9 +23053,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -22275,10 +23358,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -23637,7 +24724,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -23858,9 +24953,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -24157,10 +25258,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -24468,7 +25573,15 @@
                           "name": "copyBtn",
                           "cornerRadius": 6,
                           "padding": 6,
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 434,
+                          "y": 16,
                           "descendants": {
+                            "l8v2I": {
+                              "x": 6,
+                              "y": 6
+                            },
                             "HDFDp": {
                               "iconFontName": "copy",
                               "width": 14,
@@ -24568,7 +25681,15 @@
                               "name": "copyBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 251,
+                              "y": 0,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "copy",
                                   "width": 14,
@@ -24613,7 +25734,15 @@
                               "name": "copyBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 314,
+                              "y": 0,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "copy",
                                   "width": 14,
@@ -24658,7 +25787,15 @@
                               "name": "copyBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 173,
+                              "y": 0,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "copy",
                                   "width": 14,
@@ -24727,7 +25864,15 @@
                             6,
                             12
                           ],
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1072,
+                          "y": 7,
                           "descendants": {
+                            "l8v2I": {
+                              "x": 12,
+                              "y": 6
+                            },
                             "HDFDp": {
                               "iconFontName": "plus",
                               "width": 14,
@@ -24816,7 +25961,15 @@
                               "name": "delBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 1068,
+                              "y": 14,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "trash-2",
                                   "width": 14,
@@ -24892,7 +26045,15 @@
                               "name": "delBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 1068,
+                              "y": 14,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "trash-2",
                                   "width": 14,
@@ -25087,7 +26248,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -25308,9 +26477,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -25607,10 +26782,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -26442,7 +27621,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -26663,9 +27850,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -26962,10 +28155,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -27290,7 +28487,15 @@
                           "type": "ref",
                           "ref": "c8fiq",
                           "name": "mdnsSwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 22,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -27347,7 +28552,15 @@
                           "type": "ref",
                           "ref": "c8fiq",
                           "name": "dhtSwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 22,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -27404,7 +28617,15 @@
                           "type": "ref",
                           "ref": "c8fiq",
                           "name": "relaySwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 22,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -27461,7 +28682,15 @@
                           "type": "ref",
                           "ref": "fcMl6",
                           "name": "natSwitch",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1004,
+                          "y": 19.5,
                           "descendants": {
+                            "Fin40": {
+                              "x": 2,
+                              "y": 2
+                            },
                             "HsFun": {
                               "enabled": false
                             }
@@ -27586,7 +28815,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -27807,9 +29044,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -28106,10 +29349,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -29468,7 +30715,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -29689,9 +30944,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -29988,10 +31249,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -30299,7 +31564,15 @@
                           "name": "copyBtn",
                           "cornerRadius": 6,
                           "padding": 6,
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 434,
+                          "y": 16,
                           "descendants": {
+                            "l8v2I": {
+                              "x": 6,
+                              "y": 6
+                            },
                             "HDFDp": {
                               "iconFontName": "copy",
                               "width": 14,
@@ -30399,7 +31672,15 @@
                               "name": "copyBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 251,
+                              "y": 0,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "copy",
                                   "width": 14,
@@ -30444,7 +31725,15 @@
                               "name": "copyBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 314,
+                              "y": 0,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "copy",
                                   "width": 14,
@@ -30489,7 +31778,15 @@
                               "name": "copyBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 173,
+                              "y": 0,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "copy",
                                   "width": 14,
@@ -30558,7 +31855,15 @@
                             6,
                             12
                           ],
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "x": 1072,
+                          "y": 7,
                           "descendants": {
+                            "l8v2I": {
+                              "x": 12,
+                              "y": 6
+                            },
                             "HDFDp": {
                               "iconFontName": "plus",
                               "width": 14,
@@ -30647,7 +31952,15 @@
                               "name": "delBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 1068,
+                              "y": 14,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "trash-2",
                                   "width": 14,
@@ -30723,7 +32036,15 @@
                               "name": "delBtn",
                               "cornerRadius": 6,
                               "padding": 6,
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 1068,
+                              "y": 14,
                               "descendants": {
+                                "l8v2I": {
+                                  "x": 6,
+                                  "y": 6
+                                },
                                 "HDFDp": {
                                   "iconFontName": "trash-2",
                                   "width": 14,
@@ -30909,7 +32230,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -31130,9 +32459,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -31429,10 +32764,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -31635,11 +32974,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -31657,11 +33000,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -31677,13 +33024,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -31802,7 +33155,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -31850,7 +33203,7 @@
                       "id": "lTA4Y",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -31861,7 +33214,7 @@
                       "id": "lB19Q",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -32301,7 +33654,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -32522,9 +33883,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -32821,10 +34188,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -33027,11 +34398,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -33049,11 +34424,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -33069,13 +34448,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -33194,7 +34579,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -33242,7 +34627,7 @@
                       "id": "MJ4Ts",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -33253,7 +34638,7 @@
                       "id": "INduJ",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -33861,7 +35246,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -34082,9 +35475,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -34381,10 +35780,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -34587,11 +35990,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -34609,11 +36016,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -34629,13 +36040,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -34754,7 +36171,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -34802,7 +36219,7 @@
                       "id": "81v29",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -34813,7 +36230,7 @@
                       "id": "8cs9Z",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -35414,7 +36831,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -35635,9 +37060,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -35934,10 +37365,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -36140,11 +37575,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -36162,11 +37601,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -36182,13 +37625,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -36307,7 +37756,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -36355,7 +37804,7 @@
                       "id": "e3XVi",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -36366,7 +37815,7 @@
                       "id": "Tq3Uv",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -36877,7 +38326,15 @@
                   "name": "newDocBtn",
                   "padding": 6,
                   "cornerRadius": 6,
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "x": 200,
+                  "y": 4,
                   "descendants": {
+                    "l8v2I": {
+                      "x": 6,
+                      "y": 6
+                    },
                     "HDFDp": {
                       "iconFontName": "square-pen"
                     }
@@ -37098,9 +38555,15 @@
                       "type": "ref",
                       "ref": "WuUMk",
                       "name": "sharedBadge",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 125,
+                      "y": 6,
                       "descendants": {
                         "zHpCv": {
-                          "content": "已共享"
+                          "content": "已共享",
+                          "x": 8,
+                          "y": 2
                         }
                       }
                     }
@@ -37397,10 +38860,14 @@
                       "height": 28,
                       "cornerRadius": 9999,
                       "name": "avatar",
+                      "x": 0,
+                      "y": 0,
                       "descendants": {
                         "wVlpW": {
                           "content": "YG",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "x": 6,
+                          "y": 6
                         }
                       }
                     },
@@ -37603,11 +39070,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab1",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "YG",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         },
@@ -37625,11 +39096,15 @@
                             "fill": "$--background"
                           },
                           "name": "collab2",
+                          "x": 20,
+                          "y": 0,
                           "descendants": {
                             "wVlpW": {
                               "content": "AX",
                               "fontSize": 10,
-                              "fill": "#FFFFFF"
+                              "fill": "#FFFFFF",
+                              "x": 6.5,
+                              "y": 7
                             }
                           }
                         }
@@ -37645,13 +39120,19 @@
                       ],
                       "cornerRadius": 6,
                       "name": "shareBtn",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "x": 60,
+                      "y": 0,
                       "descendants": {
                         "l8v2I": {
                           "enabled": false
                         },
                         "poRwU": {
                           "content": "分享",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "x": 14,
+                          "y": 6
                         }
                       }
                     },
@@ -37770,7 +39251,7 @@
                       "fill": "$--foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "- **CRDT**：yrs/yjs 实现无冲突实时协作",
+                      "content": "- **CRDT**：yjs 实现无冲突实时协作",
                       "lineHeight": 1.7,
                       "fontFamily": "Inter",
                       "fontSize": 15,
@@ -37818,7 +39299,7 @@
                       "id": "nRO9r",
                       "name": "codeLine1",
                       "fill": "$--foreground",
-                      "content": "Frontend:  React 19 + CodeMirror 6 + yjs",
+                      "content": "Frontend:  React 19 + BlockNote + yjs",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -37829,7 +39310,7 @@
                       "id": "UlVth",
                       "name": "codeLine2",
                       "fill": "$--foreground",
-                      "content": "Backend:   Rust + Tauri v2 + yrs",
+                      "content": "Backend:   Rust + Tauri v2",
                       "lineHeight": 1.6,
                       "fontFamily": "JetBrains Mono, monospace",
                       "fontSize": 13,
@@ -39318,11 +40799,15 @@
                                 "thickness": 2,
                                 "fill": "$--background"
                               },
+                              "x": 0,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "AX",
                                   "fill": "#FFFFFF",
-                                  "fontSize": 8
+                                  "fontSize": 8,
+                                  "x": 6,
+                                  "y": 6.5
                                 }
                               }
                             },
@@ -39340,11 +40825,15 @@
                                 "thickness": 2,
                                 "fill": "$--background"
                               },
+                              "x": 18,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "BD",
                                   "fill": "#FFFFFF",
-                                  "fontSize": 8
+                                  "fontSize": 8,
+                                  "x": 6,
+                                  "y": 6.5
                                 }
                               }
                             }
@@ -39958,11 +41447,15 @@
                               "height": 32,
                               "cornerRadius": 9999,
                               "fill": "#6366F1",
+                              "x": 0,
+                              "y": 2.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "YG",
                                   "fill": "#FFFFFF",
-                                  "fontSize": 11
+                                  "fontSize": 11,
+                                  "x": 8,
+                                  "y": 8
                                 }
                               }
                             },
@@ -40295,7 +41788,15 @@
                               "type": "ref",
                               "ref": "c8fiq",
                               "name": "mdnsSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 22,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -40349,7 +41850,15 @@
                               "type": "ref",
                               "ref": "fcMl6",
                               "name": "dhtSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 2,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -40434,7 +41943,15 @@
                               "type": "ref",
                               "ref": "c8fiq",
                               "name": "relaySwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 22,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -40488,7 +42005,15 @@
                               "type": "ref",
                               "ref": "fcMl6",
                               "name": "natSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 2,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -40566,7 +42091,15 @@
                               "type": "ref",
                               "ref": "c8fiq",
                               "name": "powerSwitch",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 282,
+                              "y": 24,
                               "descendants": {
+                                "Fin40": {
+                                  "x": 22,
+                                  "y": 2
+                                },
                                 "HsFun": {
                                   "enabled": false
                                 }
@@ -41020,12 +42553,17 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "trustBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
                               "enabled": false
                             },
                             "NEMHS": {
-                              "content": "信任此设备"
+                              "content": "信任此设备",
+                              "x": 101,
+                              "y": 8
                             }
                           }
                         },
@@ -41035,12 +42573,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "rejectBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 48,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "拒绝"
+                              "content": "拒绝",
+                              "x": 122,
+                              "y": 8
                             }
                           }
                         }
@@ -41241,8 +42784,13 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "pCopyBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
+                              "x": 107,
+                              "y": 8,
                               "children": [
                                 {
                                   "type": "icon_font",
@@ -41258,7 +42806,9 @@
                               ]
                             },
                             "NEMHS": {
-                              "content": "复制"
+                              "content": "复制",
+                              "x": 137,
+                              "y": 10
                             }
                           }
                         },
@@ -41268,12 +42818,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "pCancelBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 52,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "取消"
+                              "content": "取消",
+                              "x": 122,
+                              "y": 8
                             }
                           }
                         }
@@ -41561,12 +43116,17 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "iConfirmBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
                               "enabled": false
                             },
                             "NEMHS": {
-                              "content": "确认配对"
+                              "content": "确认配对",
+                              "x": 108,
+                              "y": 8
                             }
                           }
                         },
@@ -41576,12 +43136,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "iCancelBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 48,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "取消"
+                              "content": "取消",
+                              "x": 122,
+                              "y": 8
                             }
                           }
                         }
@@ -41807,12 +43372,17 @@
                       "ref": "C3KOZ",
                       "width": "fill_container",
                       "name": "startBtn",
+                      "height": "fit_content",
+                      "x": 32,
+                      "y": 32,
                       "descendants": {
                         "RO4Ll": {
                           "enabled": false
                         },
                         "NEMHS": {
-                          "content": "开始使用"
+                          "content": "开始使用",
+                          "x": 135,
+                          "y": 8
                         }
                       }
                     },
@@ -42076,10 +43646,14 @@
                               "height": 44,
                               "fill": "#6366F1",
                               "name": "thisDeviceAvatar",
+                              "x": 0,
+                              "y": 12,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "📱",
-                                  "fontSize": 20
+                                  "fontSize": 20,
+                                  "x": 9,
+                                  "y": 7.5
                                 }
                               }
                             },
@@ -42183,10 +43757,14 @@
                               "height": 44,
                               "fill": "#10B981",
                               "name": "device1Avatar",
+                              "x": 0,
+                              "y": 12,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "💻",
-                                  "fontSize": 20
+                                  "fontSize": 20,
+                                  "x": 9,
+                                  "y": 7.5
                                 }
                               }
                             },
@@ -42269,10 +43847,14 @@
                               "height": 44,
                               "fill": "#F59E0B",
                               "name": "device2Avatar",
+                              "x": 0,
+                              "y": 12,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "🖥️",
-                                  "fontSize": 20
+                                  "fontSize": 20,
+                                  "x": 9,
+                                  "y": 7.5
                                 }
                               }
                             },
@@ -42597,10 +44179,14 @@
                               "height": 36,
                               "fill": "#6366F1",
                               "name": "sCollab1",
+                              "x": 0,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "张",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 11,
+                                  "y": 8
                                 }
                               }
                             },
@@ -42612,10 +44198,14 @@
                               "height": 36,
                               "fill": "#10B981",
                               "name": "sCollab2",
+                              "x": 44,
+                              "y": 0,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "李",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 11,
+                                  "y": 8
                                 }
                               }
                             },
@@ -42665,8 +44255,13 @@
                           "ref": "C3KOZ",
                           "width": "fill_container",
                           "name": "sShareBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 0,
                           "descendants": {
                             "RO4Ll": {
+                              "x": 89,
+                              "y": 8,
                               "children": [
                                 {
                                   "type": "icon_font",
@@ -42682,7 +44277,9 @@
                               ]
                             },
                             "NEMHS": {
-                              "content": "复制分享链接"
+                              "content": "复制分享链接",
+                              "x": 119,
+                              "y": 10
                             }
                           }
                         },
@@ -42692,12 +44289,17 @@
                           "ref": "ghKmL",
                           "width": "fill_container",
                           "name": "sCloseBtn",
+                          "height": "fit_content",
+                          "x": 0,
+                          "y": 52,
                           "descendants": {
                             "vLff5": {
                               "enabled": false
                             },
                             "ydXf3": {
-                              "content": "关闭"
+                              "content": "关闭",
+                              "x": 132,
+                              "y": 8
                             }
                           }
                         }
@@ -43010,10 +44612,14 @@
                               "height": 40,
                               "fill": "#6366F1",
                               "name": "peer1Avatar",
+                              "x": 0,
+                              "y": 12.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "张",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 13,
+                                  "y": 10
                                 }
                               }
                             },
@@ -43047,10 +44653,16 @@
                                       "type": "ref",
                                       "ref": "UjXug",
                                       "name": "peer1Badge",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "x": 0,
+                                      "y": 0,
                                       "descendants": {
                                         "zHpCv": {
                                           "content": "已信任",
-                                          "fontSize": 10
+                                          "fontSize": 10,
+                                          "x": 8,
+                                          "y": 2
                                         }
                                       }
                                     },
@@ -43097,10 +44709,14 @@
                               "height": 40,
                               "fill": "#10B981",
                               "name": "peer2Avatar",
+                              "x": 0,
+                              "y": 12.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "李",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 13,
+                                  "y": 10
                                 }
                               }
                             },
@@ -43134,10 +44750,16 @@
                                       "type": "ref",
                                       "ref": "UjXug",
                                       "name": "peer2Badge",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "x": 0,
+                                      "y": 0,
                                       "descendants": {
                                         "zHpCv": {
                                           "content": "已信任",
-                                          "fontSize": 10
+                                          "fontSize": 10,
+                                          "x": 8,
+                                          "y": 2
                                         }
                                       }
                                     },
@@ -43177,10 +44799,14 @@
                               "height": 40,
                               "fill": "#F59E0B",
                               "name": "peer3Avatar",
+                              "x": 0,
+                              "y": 12.5,
                               "descendants": {
                                 "wVlpW": {
                                   "content": "?",
-                                  "fontSize": 14
+                                  "fontSize": 14,
+                                  "x": 16,
+                                  "y": 10
                                 }
                               }
                             },
@@ -43214,10 +44840,16 @@
                                       "type": "ref",
                                       "ref": "WuUMk",
                                       "name": "peer3Badge",
+                                      "width": "fit_content",
+                                      "height": "fit_content",
+                                      "x": 0,
+                                      "y": 0,
                                       "descendants": {
                                         "zHpCv": {
                                           "content": "待确认",
-                                          "fontSize": 10
+                                          "fontSize": 10,
+                                          "x": 8,
+                                          "y": 2
                                         }
                                       }
                                     },
@@ -43240,12 +44872,18 @@
                               "type": "ref",
                               "ref": "VSnC2",
                               "name": "peer3Action",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "x": 266,
+                              "y": 14.5,
                               "descendants": {
                                 "8jVfJ": {
                                   "enabled": false
                                 },
                                 "8tnXG": {
-                                  "content": "信任"
+                                  "content": "信任",
+                                  "x": 16,
+                                  "y": 8
                                 }
                               }
                             }

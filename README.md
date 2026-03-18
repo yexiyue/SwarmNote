@@ -7,7 +7,7 @@
 ## 特性
 
 - **P2P 同步**：基于 libp2p，设备间直接通信，不经过任何第三方服务器
-- **CRDT 自动合并**：基于 yrs/yjs，离线编辑后重连零冲突合并，不会丢失任何内容
+- **CRDT 自动合并**：基于 yjs，离线编辑后重连零冲突合并，不会丢失任何内容
 - **本地优先**：数据完全存储在本地 SQLite，网络断开也能正常使用
 - **局域网自动发现**：mDNS 自动发现同一网络下的设备，零配置
 - **跨平台**：基于 Tauri v2，支持 Windows / macOS / Linux（移动端规划中）
@@ -17,9 +17,9 @@
 
 | 层 | 技术 |
 |----|------|
-| 前端 | React 19 + TypeScript + CodeMirror 6 + Tailwind CSS |
+| 前端 | React 19 + TypeScript + BlockNote + Tailwind CSS |
 | 后端 | Rust + Tauri v2 |
-| CRDT | yrs (Rust) + yjs (JS) |
+| CRDT | yjs (BlockNote 内置协作支持) |
 | P2P 网络 | [swarm-p2p-core](https://github.com/yexiyue/swarm-p2p) (libp2p) |
 | 存储 | SQLite (rusqlite) |
 
