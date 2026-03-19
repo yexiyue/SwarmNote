@@ -14,6 +14,7 @@
 | [07-data-model.md](07-data-model.md) | SQLite 数据模型（全局 db + 工作区 db） |
 | [08-e2e-encryption.md](08-e2e-encryption.md) | E2E 加密底层实现（XChaCha20、Lockbox、HKDF 派生） |
 | [09-decisions.md](09-decisions.md) | 设计决策记录、开放问题、分阶段实现路线 |
+| [10-ui-requirements.md](10-ui-requirements.md) | UI 设计需求：页面清单、交互细节、快捷键 |
 
 ## 设计原则
 
