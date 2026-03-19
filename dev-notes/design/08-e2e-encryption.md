@@ -1,7 +1,7 @@
 # E2E 加密设计方案
 
-> 本文档从早期 Phase 3 设计中提取，供 SwarmNote Phase 3 实现时参考。
 > 参考架构：SecSync（Serenity Notes 使用的 E2E 加密 CRDT 方案，NLnet 资助）。
+> 本文档描述底层加密实现细节，权限模型层面的密钥分发规则见 [04-permissions.md](04-permissions.md)。
 
 ## 设计原则
 
@@ -23,17 +23,19 @@
 ## 密钥层级
 
 ```
-用户主密钥（OS Keychain 保护）
+用户主密钥（Stronghold 保护）
   ├── Ed25519 签名密钥对（验证消息来源、签名文档更新）
   ├── X25519 密钥交换密钥对（与其他用户安全交换文档对称密钥）
-  ├── 文件夹密钥（256-bit 对称密钥，通过 Lockbox 分发）
-  │     └── 文档密钥（HKDF 从文件夹密钥 + doc_id 派生）
-  └── 独立文档密钥（256-bit 对称密钥，单篇分享时使用）
+  ├── 工作区密钥组（见 04-permissions.md）
+  │     ├── read_key   → 解密文档内容
+  │     ├── write_key   → 签署编辑操作
+  │     └── admin_key   → 签署权限变更
+  └── 文件夹级密钥（可选扩展，HKDF 派生文档密钥）
 ```
 
 ## 加密消息格式
 
-对每个 yjs Update 二进制整体加密后广播：
+对每个同步消息整体加密后传输：
 
 ```
 +--------+-------+---------+----------------+----------+
@@ -58,17 +60,6 @@
 5. Bob 计算相同 `shared_secret = X25519(bob_sk, alice_pk)`
 6. Bob 解密 Lockbox 获得文档密钥
 
-```
-文档元数据（不加密）：
-{
-  doc_id: "abc123",
-  lockboxes: [
-    { recipient_pubkey: "alice_pk", encrypted_doc_key: "..." },
-    { recipient_pubkey: "bob_pk", encrypted_doc_key: "..." },
-  ]
-}
-```
-
 ## 文件夹级密钥派生（HKDF）
 
 ```
@@ -90,27 +81,19 @@ fn derive_doc_key(folder_key: &[u8; 32], doc_id: &str) -> [u8; 32] {
 
 ## 密钥轮换（移除协作者时）
 
-1. 拥有者移除协作者 Charlie
-2. 生成新文档密钥（key_id + 1）
-3. 用新密钥加密当前 CRDT 状态快照
+1. Owner 移除协作者 Charlie
+2. 生成新密钥组（key_version + 1）
+3. 用新密钥加密当前状态快照
 4. 为剩余协作者创建新 Lockbox
-5. 后续所有 update 使用新密钥加密
+5. 后续所有消息使用新密钥加密
 6. Charlie 仍持有旧密钥，可读取轮换前的数据（P2P 系统无法避免）
-
-## 文档分享
-
-分享码格式：`swarmnote://<base58 编码>`
-
-解码后内容：`{ doc_id, doc_key, bootstrap（可选引导节点地址）}`
-
-注意：分享码包含明文密钥，需通过安全渠道传递。
 
 ## 网络层集成
 
 | 数据 | 是否加密 | 原因 |
 |------|---------|------|
-| GossipSub yjs Update | 加密 | 文档内容 |
-| Request-Response 全量同步 | 加密 | 文档内容 |
+| yjs Update / FastCDC chunk | 加密 | 文档内容 |
+| 资源文件传输 | 加密 | 用户数据 |
 | Awareness 数据 | 不加密 | 不含文档内容（光标位置等） |
 | DHT Provider Records | 不加密 | 仅含 hash(doc_id)，不暴露原始 ID |
 
@@ -124,12 +107,3 @@ hkdf = "0.12"
 sha2 = "0.10"
 rand = "0.8"
 ```
-
-## 实现分阶段
-
-| 阶段 | 内容 |
-|------|------|
-| Phase 1 | 每文档对称加密 yjs updates |
-| Phase 2 | Lockbox 密钥分发（X25519 密钥交换） |
-| Phase 3 | 文件夹级密钥派生（HKDF） |
-| Phase 4 | 密钥轮换（新快照 + 重新加密） |
