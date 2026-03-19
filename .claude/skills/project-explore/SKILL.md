@@ -76,6 +76,8 @@ description: Guided requirement exploration for a version milestone. Use when th
 
 展示生成的文件清单和关键内容摘要，让用户 review。如用户要求修改，直接编辑对应文件。
 
+完成后提示用户：「接下来可以用 `/project-plan <version>` 将功能文档拆分为 GitHub Issues。」
+
 ## 共享资源
 
 - 版本文档模板：`project/templates/version-readme.md`
