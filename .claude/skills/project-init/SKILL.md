@@ -24,6 +24,7 @@ description: Initialize GitHub project management infrastructure with standardiz
    - `priority:` — critical / high / medium / low
    - `size:` — xs / s / m / l / xl
    - `status:` — ready / in-progress / blocked / review
+   - `layer:` — L0（无依赖） / L1（依赖 L0） / L2（依赖 L0+L1）
    - 特殊 — mvp / tech-debt / good-first-issue
 
 4. **创建 milestones 目录**（如不存在）：`mkdir -p milestones/`

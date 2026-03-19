@@ -32,12 +32,25 @@ description: Guided requirement exploration for a version milestone. Use when th
 - 对每个功能逐个讨论优先级（P0/P1/P2）
 - P0 功能深入探讨：
   - "用户操作流程是什么？"
-  - "技术上倾向什么方案？有什么约束？"
   - "验收标准是什么？怎么判断做完了？"
 
-**第三轮：风险与依赖**
+**第三轮：技术选型**（如涉及基础设施搭建）
+- 逐个讨论关键技术决策点，用 AskUserQuestion 提供选项：
+  - 后端技术选型（数据库、框架、库）
+  - 前端技术选型（UI 框架、路由、状态管理）
+  - 其他基础设施（存储、安全、工具链）
+- 将确定的选型记录到 README.md 的「技术选型」section
+
+**第四轮：依赖关系**
+- 梳理功能之间的依赖，分层标注：
+  - L0：无依赖，可立即并行开始
+  - L1：依赖 L0 完成后可开始
+  - L2：依赖 L0+L1 完成后可开始
+- 画出 Mermaid 依赖关系图
+- 确认分层是否符合用户理解
+
+**第五轮：风险与时间**
 - "有什么技术风险或不确定性？"
-- "依赖哪些前置工作或外部条件？"
 - "时间预期？"
 
 **原则**：
@@ -45,6 +58,7 @@ description: Guided requirement exploration for a version milestone. Use when th
 - 用户回答模糊时追问具体细节
 - 主动提出建议和方案供用户选择
 - 随时根据新信息调整讨论方向
+- 如果用户想跳过某轮讨论（如技术选型），直接跳过
 
 ### 3. 生成文档
 
@@ -54,8 +68,8 @@ description: Guided requirement exploration for a version milestone. Use when th
 - 功能文档模板：`project/templates/feature.md`
 
 生成目标：
-- `milestones/<version>/README.md` — 版本目标、范围、功能清单、验收标准
-- `milestones/<version>/features/<name>.md` — 每个功能一个文档
+- `milestones/<version>/README.md` — 版本目标、范围、功能清单（含依赖列）、依赖关系图、技术选型、验收标准
+- `milestones/<version>/features/<name>.md` — 每个功能一个文档（含依赖字段）
 - `milestones/<version>/design/` — 创建空目录，后续放设计稿
 
 ### 4. 确认

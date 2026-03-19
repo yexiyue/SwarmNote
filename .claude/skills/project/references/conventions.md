@@ -45,8 +45,27 @@ Issue body 结构：
 
 ## 依赖关系
 
-- Issue 间依赖用 `Depends on #N` 评论
+### Issue 级别
+
+- Issue 正文中用 `Depends on #N` 标注前置依赖
 - PR 关联 Issue 用 `Closes #N`
+
+### Labels 分层
+
+用 `layer:` 前缀标签标注功能所在的依赖层级，便于过滤和排序：
+
+| Label | 含义 | 说明 |
+|-------|------|------|
+| `layer:L0` | 无依赖，可立即开始 | 基础设施类任务 |
+| `layer:L1` | 依赖 L0 | L0 完成后可开始 |
+| `layer:L2` | 依赖 L0 + L1 | 需等待大部分功能完成 |
+
+### GitHub Projects 自定义字段
+
+在 GitHub Projects 中添加 `Layer` 单选字段（`L0` / `L1` / `L2`），用于：
+- Board 视图按 Layer 分列展示
+- Table 视图按 Layer 分组排序
+- 直观看到哪些任务可以并行、哪些需要等待
 
 ## Sprint 规范
 

@@ -40,6 +40,14 @@ gh label create "status:blocked" --color "B60205" --description "被阻塞"
 gh label create "status:review" --color "D4C5F9" --description "等待 Review"
 ```
 
+## 依赖层级
+
+```bash
+gh label create "layer:L0" --color "0E8A16" --description "无依赖，可立即开始"
+gh label create "layer:L1" --color "1D76DB" --description "依赖 L0 完成后可开始"
+gh label create "layer:L2" --color "D93F0B" --description "依赖 L0+L1 完成后可开始"
+```
+
 ## 特殊
 
 ```bash
