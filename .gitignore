@@ -22,6 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.claude
+# Claude Code - ignore all except project management skills
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/project/
+!.claude/skills/project-*/
 **/openspec
 **/.obsidian

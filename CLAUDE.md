@@ -77,8 +77,17 @@ swarmnote/
 ├── openspec/             # Spec-driven change management (OpenSpec)
 │   ├── project.md        # Tech stack & conventions reference
 │   └── changes/          # Proposed changes (not yet implemented)
-└── dev-notes/            # Planning docs, PRD, tech selection
+├── dev-notes/            # Planning docs, PRD, tech selection
+├── milestones/           # Version planning: requirements + design per version
+│   └── v0.1.0/           # Per-version: README.md + features/ + design/
+└── ...
 ```
+
+### Version Planning (milestones/)
+
+每个版本在 `milestones/vX.Y.Z/` 下管理需求和设计。模板和规范由 `/project` skill 管理（`.claude/skills/project/`），milestones 目录只保留实际内容。
+
+工作流：`/project explore` 讨论需求生成文档 → `/project plan` 拆分为 GitHub Issues + Milestone → `/project sprint` 管理开发迭代。
 
 ### Frontend-Backend Bridge
 
@@ -87,6 +96,10 @@ Frontend calls Rust via `invoke()` from `@tauri-apps/api/core`. Rust exposes fun
 ### Rust Library Naming
 
 The Rust lib is named `swarmnote_lib` (not `swarmnote`) to avoid a Windows naming conflict between the lib and bin targets.
+
+## Documentation Conventions
+
+- **图表统一使用 Mermaid**：文档中的流程图、架构图、时序图等一律使用 Mermaid 语法（```mermaid），不使用 ASCII art 画图
 
 ## Code Conventions
 
