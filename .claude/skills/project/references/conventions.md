@@ -33,9 +33,9 @@ milestones/
 |------|------|-----|------|
 | **Status** | 内置 | Todo / In Progress / Done | Issue 状态流转 |
 | **Layer** | 单选 | L0 / L1 / L2 | 依赖层级，决定开发顺序 |
-| **Sprint** | 单选 | Sprint 1 / Sprint 2 / ... | 当前所属 Sprint |
+| **Sprint** | Iteration | 自动按周期生成 | 当前所属 Sprint，支持 Roadmap 时间轴 |
 
-> Sprint 字段用 SINGLE_SELECT 而非 Iteration 类型，因为 CLI 对 Iteration 支持有限。如需日期范围功能，可在 Web UI 中手动改为 Iteration。
+> Sprint 字段使用 Iteration 类型（自带开始/结束日期），支持 Roadmap 视图按时间轴展示。CLI 设置 Iteration 字段值需通过 GraphQL API。
 
 ### 推荐视图
 
@@ -146,9 +146,11 @@ GH_PAGER=cat gh api graphql -f query='
 ## Sprint 规范
 
 - 周期：1-2 周
-- 命名：`Sprint 1`, `Sprint 2`, ...（使用 Milestone）
-- Sprint Goal 写在 Milestone description 中
-- GitHub Project 中通过 Sprint 单选字段标记，支持按 Sprint 过滤和分组
+- **不使用 Milestone 管理 Sprint**，Milestone 只用于版本（v0.1.0、v0.2.0）
+- Sprint 通过 GitHub Project 的 **Iteration 字段**管理（自带开始/结束日期）
+- Sprint Goal 记录在 Sprint 创建时的输出中
+- Roadmap 视图可按 Iteration 时间轴展示 Sprint 排期
+- CLI 设置 Iteration 字段值需通过 GraphQL API（`updateProjectV2ItemFieldValue`）
 
 ## Definition of Done
 

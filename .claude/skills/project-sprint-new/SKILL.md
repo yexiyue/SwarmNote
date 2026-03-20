@@ -3,21 +3,28 @@ name: project-sprint-new
 description: Create a new Sprint by selecting Issues from backlog and setting a Sprint Goal. Use when starting a new development iteration.
 ---
 
-创建新的 Sprint，从 backlog 选择 Issue 纳入，同步更新 GitHub Project 的 Sprint 字段。
+创建新的 Sprint，从 backlog 选择 Issue 纳入，通过 GitHub Project 的 Iteration 字段管理。
 
 前置条件：`gh` CLI 已认证（含 `project` scope）。所有 `gh` 命令前加 `GH_PAGER=cat`。
 
+**重要**：Sprint 不使用 Milestone。Milestone 只用于版本（v0.1.0、v0.2.0）。Sprint 通过 GitHub Project 的 Iteration 字段管理。
+
 ## 步骤
 
-### 1. 获取 Sprint 编号
+### 1. 获取 Project 和 Sprint 字段信息
 
 ```bash
-SPRINT_NUM=$(GH_PAGER=cat gh api repos/{owner}/{repo}/milestones --jq '[.[] | select(.title | startswith("Sprint"))] | length + 1')
+OWNER=$(GH_PAGER=cat gh repo view --json owner -q '.owner.login')
+GH_PAGER=cat gh project field-list <PROJECT_NUM> --owner "@me" --format json
 ```
+
+从返回的 fields 中找到 Sprint 字段（类型为 `ProjectV2IterationField`），记录：
+- Sprint 字段 ID
+- 当前可用的 Iteration 周期
 
 ### 2. 列出 Backlog
 
-列出版本 Milestone 中尚未分配 Sprint 的 open Issue：
+列出所有 open Issue（可按版本 Milestone 过滤）：
 ```bash
 GH_PAGER=cat gh issue list --milestone "<version>" --state open \
   --json number,title,labels \
@@ -34,52 +41,36 @@ GH_PAGER=cat gh issue list --milestone "<version>" --state open \
 用 AskUserQuestion 让用户：
 - 选择本次 Sprint 包含哪些 Issue
 - 定义 Sprint Goal（一句话描述这个 Sprint 最重要的产出）
-- 确认 Sprint 周期（默认 2 周）
+- 确认 Sprint 周期（默认 1 周）
 
-### 4. 创建 Sprint Milestone
+### 4. 设置 GitHub Project Sprint Iteration 字段
 
-```bash
-DUE_DATE=$(python3 -c "from datetime import datetime, timedelta; print((datetime.utcnow()+timedelta(days=14)).strftime('%Y-%m-%dT00:00:00Z'))")
-
-GH_PAGER=cat gh api repos/{owner}/{repo}/milestones --method POST \
-  --field title="Sprint ${SPRINT_NUM}" \
-  --field description="Sprint Goal: <goal>" \
-  --field due_on="$DUE_DATE"
-```
-
-### 5. 分配 Issue 到 Sprint Milestone
-
-将选中的 Issue 加入 Sprint Milestone，并更新状态标签：
-```bash
-GH_PAGER=cat gh issue edit <number> --milestone "Sprint ${SPRINT_NUM}"
-GH_PAGER=cat gh issue edit <number> --remove-label "status:ready" --add-label "status:in-progress"
-```
-
-### 6. 更新 GitHub Project Sprint 字段
-
-如果有 GitHub Project，更新每个 Issue 的 Sprint 字段：
+通过 GraphQL API 将选中的 Issue 分配到当前 Iteration：
 
 ```bash
-OWNER=$(GH_PAGER=cat gh repo view --json owner -q '.owner.login')
-# 获取 Project 信息
-GH_PAGER=cat gh project field-list <PROJECT_NUM> --owner "$OWNER" --format json
-# 找到 Sprint 字段 ID 和 "Sprint N" 选项 ID
+# 获取 Item ID
+GH_PAGER=cat gh project item-list <PROJECT_NUM> --owner "@me" --format json
 
-# 如果 "Sprint N" 选项不存在，先添加：
-GH_PAGER=cat gh project field-delete <SPRINT_FIELD_ID> ... # 需要通过 GraphQL 添加选项
-
-# 设置每个 Issue 的 Sprint 字段
-GH_PAGER=cat gh project item-edit --project-id "<PROJECT_ID>" \
-  --id "<ITEM_ID>" --field-id "<SPRINT_FIELD_ID>" \
-  --single-select-option-id "<SPRINT_OPTION_ID>"
+# 设置 Iteration 字段（需要通过 GraphQL）
+GH_PAGER=cat gh api graphql -f query='
+  mutation {
+    updateProjectV2ItemFieldValue(input: {
+      projectId: "<PROJECT_ID>"
+      itemId: "<ITEM_ID>"
+      fieldId: "<SPRINT_FIELD_ID>"
+      value: { iterationId: "<ITERATION_ID>" }
+    }) {
+      projectV2Item { id }
+    }
+  }'
 ```
 
-> **注意**：如果 Sprint N 选项不在预创建的选项中，需要通过 GraphQL API 动态添加，或者提前在 `project-init` 中创建足够多的选项。
+> **注意**：Iteration 字段的值需要通过 GraphQL 查询获取当前可用的 iteration ID，CLI 的 `item-edit` 不直接支持 Iteration 类型。
 
-### 7. 输出确认
+### 5. 输出确认
 
 ```
-Sprint ${SPRINT_NUM} 已创建
+Sprint 已创建
 Goal: <goal>
 周期: YYYY-MM-DD ~ YYYY-MM-DD
 GitHub Project: <Project URL>（按 Sprint 字段筛选查看）
@@ -92,4 +83,5 @@ GitHub Project: <Project URL>（按 Sprint 字段筛选查看）
 提示：
 - 查看进度：`/project-sprint-status`
 - 关闭 Sprint：`/project-sprint-close`
+- Roadmap 视图可按时间轴查看 Sprint 排期
 ```
