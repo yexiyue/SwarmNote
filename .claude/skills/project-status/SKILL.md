@@ -3,7 +3,7 @@ name: project-status
 description: Show overall project status with all milestone progress, backlog count, and blocked issues. Use when the user wants a high-level view of the project.
 ---
 
-输出整体项目状态概览。
+输出整体项目状态概览，含 GitHub Project 链接和 Roadmap 视图提示。
 
 前置条件：`gh` CLI 已认证。所有 `gh` 命令前加 `GH_PAGER=cat`。
 
@@ -30,7 +30,14 @@ GH_PAGER=cat gh issue list --label "status:blocked" --state open \
   -q '.[] | "#\(.number) \(.title) [\(.milestone.title // "no milestone")]"'
 ```
 
-### 4. 输出概览
+### 4. 获取 GitHub Project 链接
+
+```bash
+OWNER=$(GH_PAGER=cat gh repo view --json owner -q '.owner.login')
+GH_PAGER=cat gh project list --owner "$OWNER" --format json
+```
+
+### 5. 输出概览
 
 格式：
 ```
@@ -45,4 +52,15 @@ Backlog: 15 个未分配 Issue
 阻塞:   2 个 Issue
   ✖ #23 P2P 集成 [v0.1.0]
   ✖ #31 性能测试 [Sprint 3]
+
+GitHub Project: <Project URL>
+
+推荐视图：
+- Board 视图：按 Status 分列（Todo / In Progress / Done）
+- Table 视图：按 Layer 分组，快速看依赖层级
+- Roadmap 视图：按 Sprint 时间线展示进度
+
+提示：
+- 查看当前 Sprint：`/project-sprint-status`
+- 创建新 Sprint：`/project-sprint-new`
 ```

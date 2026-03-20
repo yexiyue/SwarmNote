@@ -3,9 +3,9 @@ name: project-sprint-new
 description: Create a new Sprint by selecting Issues from backlog and setting a Sprint Goal. Use when starting a new development iteration.
 ---
 
-创建新的 Sprint Milestone，从 backlog 选择 Issue 纳入。
+创建新的 Sprint，从 backlog 选择 Issue 纳入，同步更新 GitHub Project 的 Sprint 字段。
 
-前置条件：`gh` CLI 已认证。所有 `gh` 命令前加 `GH_PAGER=cat`。
+前置条件：`gh` CLI 已认证（含 `project` scope）。所有 `gh` 命令前加 `GH_PAGER=cat`。
 
 ## 步骤
 
@@ -17,11 +17,17 @@ SPRINT_NUM=$(GH_PAGER=cat gh api repos/{owner}/{repo}/milestones --jq '[.[] | se
 
 ### 2. 列出 Backlog
 
-列出有 `status:ready` 标签的 open Issue：
+列出版本 Milestone 中尚未分配 Sprint 的 open Issue：
 ```bash
-GH_PAGER=cat gh issue list --label "status:ready" --json number,title,labels \
+GH_PAGER=cat gh issue list --milestone "<version>" --state open \
+  --json number,title,labels \
   --jq '.[] | "#\(.number) \(.title) [\(.labels | map(.name) | join(", "))]"'
 ```
+
+按 Layer 分组展示，方便用户选择：
+- L0（无依赖）优先推荐
+- L1 需确认 L0 依赖是否已完成
+- L2 需确认 L0+L1 依赖是否已完成
 
 ### 3. 用户选择
 
@@ -41,13 +47,49 @@ GH_PAGER=cat gh api repos/{owner}/{repo}/milestones --method POST \
   --field due_on="$DUE_DATE"
 ```
 
-### 5. 分配 Issue
+### 5. 分配 Issue 到 Sprint Milestone
 
-将选中的 Issue 加入 Sprint Milestone：
+将选中的 Issue 加入 Sprint Milestone，并更新状态标签：
 ```bash
 GH_PAGER=cat gh issue edit <number> --milestone "Sprint ${SPRINT_NUM}"
+GH_PAGER=cat gh issue edit <number> --remove-label "status:ready" --add-label "status:in-progress"
 ```
 
-### 6. 输出确认
+### 6. 更新 GitHub Project Sprint 字段
 
-展示 Sprint 概要：编号、Goal、截止日期、包含的 Issue 列表。
+如果有 GitHub Project，更新每个 Issue 的 Sprint 字段：
+
+```bash
+OWNER=$(GH_PAGER=cat gh repo view --json owner -q '.owner.login')
+# 获取 Project 信息
+GH_PAGER=cat gh project field-list <PROJECT_NUM> --owner "$OWNER" --format json
+# 找到 Sprint 字段 ID 和 "Sprint N" 选项 ID
+
+# 如果 "Sprint N" 选项不存在，先添加：
+GH_PAGER=cat gh project field-delete <SPRINT_FIELD_ID> ... # 需要通过 GraphQL 添加选项
+
+# 设置每个 Issue 的 Sprint 字段
+GH_PAGER=cat gh project item-edit --project-id "<PROJECT_ID>" \
+  --id "<ITEM_ID>" --field-id "<SPRINT_FIELD_ID>" \
+  --single-select-option-id "<SPRINT_OPTION_ID>"
+```
+
+> **注意**：如果 Sprint N 选项不在预创建的选项中，需要通过 GraphQL API 动态添加，或者提前在 `project-init` 中创建足够多的选项。
+
+### 7. 输出确认
+
+```
+Sprint ${SPRINT_NUM} 已创建
+Goal: <goal>
+周期: YYYY-MM-DD ~ YYYY-MM-DD
+GitHub Project: <Project URL>（按 Sprint 字段筛选查看）
+
+包含 Issue:
+  L0: #1 设计稿, #2 UI 框架, #3 状态管理
+  L1: #6 Markdown 存储
+  共 4 个 Issue
+
+提示：
+- 查看进度：`/project-sprint-status`
+- 关闭 Sprint：`/project-sprint-close`
+```

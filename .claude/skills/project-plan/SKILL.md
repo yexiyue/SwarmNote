@@ -3,9 +3,9 @@ name: project-plan
 description: Parse milestone documents and create GitHub Milestone with Issues. Use when the user has finished writing version docs and wants to break them down into actionable GitHub Issues.
 ---
 
-读取版本文档，创建 GitHub Milestone 和 Issues。
+读取版本文档，创建 GitHub Milestone、Parent/Sub Issues，并关联到 GitHub Project。
 
-前置条件：`gh` CLI 已认证。`milestones/<version>/` 下有 README.md 和 features/*.md。所有 `gh` 命令前加 `GH_PAGER=cat`。
+前置条件：`gh` CLI 已认证（含 `project` scope）。`milestones/<version>/` 下有 README.md 和 features/*.md。所有 `gh` 命令前加 `GH_PAGER=cat`。
 
 ## 输入
 
@@ -30,68 +30,115 @@ GH_PAGER=cat gh api repos/{owner}/{repo}/milestones --method POST \
   --field due_on="<截止日期，如有>"
 ```
 
-### 3. 拆分并创建 Issues
+### 3. 检测 GitHub Project
 
-对每个 feature 文档：
-- 将功能拆分为可独立开发的任务（每个 2-8 小时）
-- 确定 labels（type + priority + size + layer），参考 `project/references/labels.md`
-- **Layer 标签**：根据 README.md 中的依赖关系分层，给每个 Issue 打 `layer:L0`、`layer:L1` 或 `layer:L2` 标签
-- 查重避免重复：
-  ```bash
-  GH_PAGER=cat gh issue list --search "in:title <标题关键词>" --json number -q '.[].number'
-  ```
-- 创建 Issue：
-  ```bash
-  GH_PAGER=cat gh issue create \
-    --title "<功能简称>: <任务描述>" \
-    --label "<labels>" \
-    --milestone "<version>" \
-    --body "$(cat <<'EOF'
-  ## 描述
-  <描述>
+```bash
+OWNER=$(GH_PAGER=cat gh repo view --json owner -q '.owner.login')
+GH_PAGER=cat gh project list --owner "$OWNER" --format json
+```
 
-  ## 依赖
-  Depends on #<blocker-number>（如有）
+如果存在 Project，记录 Project number 和 ID，获取字段信息：
+```bash
+GH_PAGER=cat gh project field-list <PROJECT_NUM> --owner "$OWNER" --format json
+```
 
-  ## 验收标准
-  - [ ] 条件 1
-  - [ ] 条件 2
+记录 Layer 字段 ID 和各选项 ID（L0/L1/L2）。
 
-  ## 技术备注
-  <技术要点>
+### 4. 创建 Parent Issues（Feature 级别）
 
-  ## 原始文档
-  [查看 Feature 文档](<相对路径>)
-  EOF
-  )"
-  ```
+每个 feature 文档创建一个 Parent Issue。查重避免重复：
+```bash
+GH_PAGER=cat gh issue list --search "in:title <标题关键词>" --json number -q '.[].number'
+```
+
+创建 Issue：
+```bash
+GH_PAGER=cat gh issue create \
+  --title "<功能简称>: <功能总述>" \
+  --label "type:feature,priority:<P>,size:<S>,layer:<L>" \
+  --milestone "<version>" \
+  --body "$(cat <<'EOF'
+## 描述
+<功能总体描述>
+
+## 依赖
+Depends on #<blocker-number>（如有）
+
+## 验收标准
+- [ ] 条件 1
+- [ ] 条件 2
+
+## 技术备注
+<技术要点>
+
+## 原始文档
+[查看 Feature 文档](<相对路径>)
+EOF
+)"
+```
 
 Issue 标题格式：`<功能简称>: <任务描述>`，如 `editor: 集成 BlockNote 编辑器`。
 
-**创建顺序**：先创建 L0 层的 Issues，再创建 L1，最后 L2。这样后续层的 Issue 可以在正文中直接引用前置 Issue 的编号。
+**创建顺序**：先 L0，再 L1，最后 L2。这样后续层的 Issue 可引用前置 Issue 编号。
 
-### 4. 设置 GitHub Projects 字段（如有 Project）
+### 5. 创建 Sub-issues（任务级别）
 
-如果仓库有 GitHub Projects，为每个 Issue 设置 `Layer` 字段：
+如果一个 feature 可拆分为多个独立任务（每个 2-8 小时），为 Parent Issue 创建 Sub-issues：
+
+1. 创建子 Issue（同样的 `gh issue create` 命令）
+2. 获取 Parent 和 Child 的 node ID：
 ```bash
-# 查询 Project 信息
-GH_PAGER=cat gh project list --owner {owner} --format json
-
-# 如果存在 Project，用 gh project item-edit 设置 Layer 字段
+PARENT_ID=$(GH_PAGER=cat gh issue view <parent_number> --json id -q '.id')
+CHILD_ID=$(GH_PAGER=cat gh issue view <child_number> --json id -q '.id')
+```
+3. 通过 GraphQL API 关联为 Sub-issue：
+```bash
+GH_PAGER=cat gh api graphql -f query='
+  mutation {
+    addSubIssue(input: {issueId: "'"$PARENT_ID"'", subIssueId: "'"$CHILD_ID"'"}) {
+      issue { id }
+    }
+  }'
 ```
 
-如果没有 Project 或用户未要求，跳过此步骤。
+> 如果一个 feature 本身就是不可再拆分的任务，不需要创建 Sub-issues。
 
-### 5. 更新文档
+### 6. 关联到 GitHub Project
+
+如果检测到 Project，将所有 Issue（Parent + Sub）加入并设置 Layer 字段：
+
+```bash
+# 加入 Project
+GH_PAGER=cat gh project item-add <PROJECT_NUM> --owner "$OWNER" \
+  --url "https://github.com/{owner}/{repo}/issues/<number>"
+
+# 获取 item ID
+GH_PAGER=cat gh project item-list <PROJECT_NUM> --owner "$OWNER" --format json
+
+# 设置 Layer 字段
+GH_PAGER=cat gh project item-edit --project-id "<PROJECT_ID>" \
+  --id "<ITEM_ID>" --field-id "<LAYER_FIELD_ID>" \
+  --single-select-option-id "<OPTION_ID>"
+```
+
+### 7. 更新文档
 
 将创建的 Issue 编号回填到 `milestones/<version>/README.md` 的功能清单表格中。
 
-### 6. 输出汇总
+### 8. 输出汇总
 
 ```
-| 功能 | 任务 | Issue | Labels | Layer |
-|------|------|-------|--------|-------|
-| 编辑器 | 集成 BlockNote | #12 | type:feature, priority:high, size:m | L1 |
+GitHub Project: <Project URL>
+
+| 功能 | Parent Issue | Sub-issues | Labels | Layer |
+|------|-------------|------------|--------|-------|
+| 编辑器 | #12 | #13, #14, #15 | type:feature, priority:high, size:l | L1 |
+| SQLite | #5 | （无拆分） | type:feature, priority:high, size:l | L0 |
+
+提示：
+- 可用 `/project-sprint-new` 从 backlog 选择 Issue 创建 Sprint
+- Project Board 视图：<Project URL>
+- 建议按 Layer 分组查看，先完成 L0 再推进 L1
 ```
 
 ## 共享资源
