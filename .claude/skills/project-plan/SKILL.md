@@ -61,8 +61,9 @@ GH_PAGER=cat gh issue create \
 ## 描述
 <功能总体描述>
 
-## 依赖
-Depends on #<blocker-number>（如有）
+## 前置依赖
+- [ ] #<blocker-number>
+（如有多个依赖，每行一个 `- [ ] #N`，GitHub 会显示完成进度条）
 
 ## 验收标准
 - [ ] 条件 1

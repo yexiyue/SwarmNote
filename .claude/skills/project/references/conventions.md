@@ -89,8 +89,10 @@ Parent: editor: 集成 BlockNote 编辑器 (#7)
 ## 描述
 做什么，为什么做。
 
-## 依赖
-Depends on #N（如有前置依赖）
+## 前置依赖
+- [ ] #N
+- [ ] #M
+（每行一个前置 Issue，GitHub 会显示 Tasklist 进度条）
 
 ## 验收标准
 - [ ] 条件 1
@@ -120,7 +122,8 @@ GH_PAGER=cat gh api graphql -f query='
 
 ### Issue 级别
 
-- Issue 正文中用 `Depends on #N` 标注前置依赖
+- Issue 正文中用 Tasklist 格式标注前置依赖：`- [ ] #N`（每行一个，GitHub 会显示进度条）
+- 前置 Issue 关闭后，手动勾选对应 checkbox 更新进度
 - PR 关联 Issue 用 `Closes #N`
 
 ### Labels 分层
