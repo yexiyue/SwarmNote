@@ -22,4 +22,11 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+swarm-p2p-core = { path = "../libs/core" }
+log = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+hostname = "0.4"
+thiserror = "2"
+directories = "6"
 
