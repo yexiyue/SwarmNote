@@ -1,11 +1,16 @@
+[workspace]
+members = [".", "entity", "migration"]
+resolver = "2"
+
+[workspace.dependencies]
+sea-orm = { version = "~2.0.0-rc", features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
+
 [package]
 name = "swarmnote"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
@@ -22,4 +27,16 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+swarm-p2p-core = { path = "../libs/core" }
+log = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+hostname = "0.4"
+thiserror = "2"
+directories = "6"
+sea-orm = { workspace = true }
+entity = { path = "entity" }
+migration = { path = "migration" }
+uuid = { version = "1", features = ["v7"] }
+tokio = { version = "1", features = ["sync"] }
 

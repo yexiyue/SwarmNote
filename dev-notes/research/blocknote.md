@@ -81,8 +81,8 @@ BlockNote 支持标准 yjs provider 接口，已有的 provider：
 ### 需要关注的点
 
 - BlockNote 存储格式是 ProseMirror XML（非纯 Markdown），导出 Markdown 需要转换
-- Rust 端 yrs 需要处理 XmlFragment 格式而非纯文本
-- `@blocknote/server-util` 依赖 jsdom，仅用于 Node.js 环境，Tauri 后端用 yrs 直接操作
+- Rust 端透传 yjs 二进制 blob，不解析 XmlFragment 格式
+- `@blocknote/server-util` 依赖 jsdom，仅用于 Node.js 环境，Tauri 后端不需要
 
 ## 参考链接
 

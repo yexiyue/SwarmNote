@@ -1,4 +1,7 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod db;
+pub mod error;
+mod identity;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -8,7 +11,23 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            identity::commands::get_device_info,
+            identity::commands::set_device_name,
+            db::commands::db_init_workspace,
+            db::commands::db_get_documents,
+            db::commands::db_upsert_document,
+            db::commands::db_delete_document,
+            db::commands::db_get_folders,
+            db::commands::db_create_folder,
+            db::commands::db_delete_folder,
+        ])
+        .setup(|app| {
+            identity::init(app.handle()).map_err(|e| error::AppError::Identity(e.to_string()))?;
+            db::init(app.handle())?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
