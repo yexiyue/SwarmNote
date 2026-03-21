@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Monitor, Moon, Sun } from "lucide-react";
 import { useState } from "react";
@@ -5,24 +6,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { isMac } from "@/lib/utils";
+import { type Locale, locales } from "@/i18n";
+import { cn, isMac } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
+
+// Language labels are intentionally not translated — they always display in their own language
+const localeOptions = (Object.entries(locales) as [Locale, string][]).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+function optionBtnClass(active: boolean) {
+  return cn(
+    "flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+    active
+      ? "border-primary bg-primary/10 text-primary"
+      : "border-border text-muted-foreground hover:bg-muted",
+  );
+}
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
-const themeOptions = [
-  { value: "light" as const, label: "浅色", icon: Sun },
-  { value: "dark" as const, label: "深色", icon: Moon },
-  { value: "system" as const, label: "跟随系统", icon: Monitor },
-];
-
 function SettingsPage() {
+  const { t } = useLingui();
   const navigate = useNavigate();
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
+  const locale = useUIStore((s) => s.locale);
+  const setLocale = useUIStore((s) => s.setLocale);
   const [deviceName, setDeviceName] = useState("My-Desktop");
+
+  const themeOptions = [
+    { value: "light" as const, label: t`浅色`, icon: Sun },
+    { value: "dark" as const, label: t`深色`, icon: Moon },
+    { value: "system" as const, label: t`跟随系统`, icon: Monitor },
+  ];
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -33,44 +53,70 @@ function SettingsPage() {
         <Button variant="ghost" size="icon-sm" onClick={() => navigate({ to: "/" })}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-sm font-semibold text-foreground">设置</h1>
+        <h1 className="text-sm font-semibold text-foreground">
+          <Trans>设置</Trans>
+        </h1>
       </header>
 
       {/* Content */}
       <div className="mx-auto w-full max-w-xl space-y-6 overflow-y-auto px-6 py-8">
         {/* Appearance */}
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-medium text-foreground">外观</h2>
+          <h2 className="text-sm font-medium text-foreground">
+            <Trans>外观</Trans>
+          </h2>
           <Separator className="my-3" />
-          <div className="space-y-2">
-            <Label>主题</Label>
-            <div className="flex gap-2">
-              {themeOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setTheme(opt.value)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    theme === opt.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  <opt.icon className="h-4 w-4" />
-                  {opt.label}
-                </button>
-              ))}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>
+                <Trans>主题</Trans>
+              </Label>
+              <div className="flex gap-2">
+                {themeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setTheme(opt.value)}
+                    className={optionBtnClass(theme === opt.value)}
+                  >
+                    <opt.icon className="h-4 w-4" />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                <Trans>语言</Trans>
+              </Label>
+              <div className="flex gap-2">
+                {localeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLocale(opt.value)}
+                    className={optionBtnClass(locale === opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
         {/* Device */}
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-medium text-foreground">设备</h2>
+          <h2 className="text-sm font-medium text-foreground">
+            <Trans>设备</Trans>
+          </h2>
           <Separator className="my-3" />
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="device-name">设备名称</Label>
+              <Label htmlFor="device-name">
+                <Trans>设备名称</Trans>
+              </Label>
               <Input
                 id="device-name"
                 value={deviceName}

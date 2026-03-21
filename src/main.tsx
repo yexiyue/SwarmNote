@@ -2,7 +2,11 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "@/app.css";
+import { initI18n } from "@/i18n";
 import { routeTree } from "./routeTree.gen";
+
+// Initialize source locale synchronously before first render
+initI18n();
 
 const router = createRouter({ routeTree });
 
