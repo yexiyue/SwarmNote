@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, PenLine, Search, Settings, Square, X } from "lucide-react";
@@ -7,6 +8,7 @@ import { isMac, modKey } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 
 export function TitleBar() {
+  const { t } = useLingui();
   const navigate = useNavigate();
   const appWindow = getCurrentWindow();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
@@ -31,7 +33,9 @@ export function TitleBar() {
           <span className="text-sm font-semibold text-foreground">SwarmNote</span>
         </div>
         <div className="h-4 w-px bg-border" />
-        <span className="text-[13px] font-medium text-foreground">笔记</span>
+        <span className="text-[13px] font-medium text-foreground">
+          <Trans>笔记</Trans>
+        </span>
       </div>
 
       {/* Right: Search + Settings + Window Controls */}
@@ -42,7 +46,7 @@ export function TitleBar() {
           className="flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-[5px] text-muted-foreground hover:bg-secondary/80"
         >
           <Search className="h-3.5 w-3.5" />
-          <span className="text-xs">搜索...</span>
+          <span className="text-xs">{t`搜索...`}</span>
           <span className="text-[10px] font-medium">{modKey}P</span>
         </button>
 
@@ -52,7 +56,9 @@ export function TitleBar() {
               <Settings className="h-4 w-4 text-muted-foreground" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>设置</TooltipContent>
+          <TooltipContent>
+            <Trans>设置</Trans>
+          </TooltipContent>
         </Tooltip>
 
         {!isMac && (

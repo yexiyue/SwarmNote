@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { FileText, Plus, Settings, ToggleLeft } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import { modKey } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 
 export function CommandPalette() {
+  const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
@@ -35,27 +37,29 @@ export function CommandPalette() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <Command>
-        <CommandInput placeholder="输入命令..." />
+        <CommandInput placeholder={t`输入命令...`} />
         <CommandList>
-          <CommandEmpty>没有找到匹配的命令</CommandEmpty>
-          <CommandGroup heading="操作">
+          <CommandEmpty>
+            <Trans>没有找到匹配的命令</Trans>
+          </CommandEmpty>
+          <CommandGroup heading={t`操作`}>
             <CommandItem onSelect={() => runCommand(() => {})}>
               <Plus className="h-4 w-4" />
-              新建笔记
+              <Trans>新建笔记</Trans>
               <CommandShortcut>{modKey}N</CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(toggleSidebar)}>
               <ToggleLeft className="h-4 w-4" />
-              切换侧边栏
+              <Trans>切换侧边栏</Trans>
               <CommandShortcut>{modKey}B</CommandShortcut>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => navigate({ to: "/settings" }))}>
               <Settings className="h-4 w-4" />
-              打开设置
+              <Trans>打开设置</Trans>
               <CommandShortcut>{modKey},</CommandShortcut>
             </CommandItem>
           </CommandGroup>
-          <CommandGroup heading="最近文件">
+          <CommandGroup heading={t`最近文件`}>
             <CommandItem onSelect={() => runCommand(() => {})}>
               <FileText className="h-4 w-4" />
               2026-03-21

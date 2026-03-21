@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { activateLocale, detectLocale, type Locale } from "@/i18n";
 
 type Theme = "light" | "dark" | "system";
 
@@ -7,9 +8,11 @@ interface UIState {
   sidebarOpen: boolean;
   theme: Theme;
   resolvedTheme: "light" | "dark";
+  locale: Locale;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setTheme: (theme: Theme) => void;
+  setLocale: (locale: Locale) => void;
 }
 
 function getSystemTheme(): "light" | "dark" {
@@ -26,6 +29,7 @@ export const useUIStore = create<UIState>()(
       sidebarOpen: true,
       theme: "light",
       resolvedTheme: "light",
+      locale: detectLocale(),
 
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
@@ -36,18 +40,25 @@ export const useUIStore = create<UIState>()(
         applyTheme(resolved);
         set({ theme, resolvedTheme: resolved });
       },
+
+      setLocale: (locale) => {
+        activateLocale(locale).catch(console.error);
+        set({ locale });
+      },
     }),
     {
       name: "swarmnote-ui",
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         theme: state.theme,
+        locale: state.locale,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           const resolved = state.theme === "system" ? getSystemTheme() : state.theme;
           applyTheme(resolved);
           state.resolvedTheme = resolved;
+          activateLocale(state.locale).catch(console.error);
         }
       },
     },
