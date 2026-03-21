@@ -28,6 +28,8 @@ impl From<IdentityError> for String {
 
 /// Runtime identity state, stored in Tauri State.
 pub struct IdentityState {
+    /// Used by the P2P network layer (Phase 1).
+    #[allow(dead_code)]
     pub keypair: Keypair,
     pub device_info: RwLock<DeviceInfo>,
 }
