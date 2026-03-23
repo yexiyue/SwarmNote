@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Minus, PenLine, Search, Settings, Square, X } from "lucide-react";
+import { Minus, PanelLeft, PenLine, Search, Settings, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isMac, modKey } from "@/lib/utils";
@@ -12,6 +12,7 @@ export function TitleBar() {
   const navigate = useNavigate();
   const appWindow = getCurrentWindow();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
   // When sidebar is collapsed on macOS, add left padding to avoid traffic light overlap
   const needsTrafficLightPadding = isMac && !sidebarOpen;
@@ -26,6 +27,18 @@ export function TitleBar() {
         className={`flex items-center gap-3 ${needsTrafficLightPadding ? "pl-[70px]" : ""}`}
         data-tauri-drag-region
       >
+        {!sidebarOpen && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" onClick={toggleSidebar}>
+                <PanelLeft className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t`展开侧边栏`} ({modKey}B)
+            </TooltipContent>
+          </Tooltip>
+        )}
         <div className="flex items-center gap-1.5">
           <div className="flex h-[22px] w-[22px] items-center justify-center rounded bg-primary">
             <PenLine className="h-3.5 w-3.5 text-white" />

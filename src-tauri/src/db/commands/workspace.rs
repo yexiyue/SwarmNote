@@ -56,6 +56,8 @@ pub async fn open_workspace(
     identity: State<'_, IdentityState>,
     config_state: State<'_, GlobalConfigState>,
     ws_state: State<'_, WorkspaceState>,
+    watcher_state: State<'_, crate::fs::watcher::FsWatcherState>,
+    app_handle: tauri::AppHandle,
 ) -> AppResult<WorkspaceInfo> {
     let ws_path = PathBuf::from(&path);
 
@@ -109,6 +111,11 @@ pub async fn open_workspace(
         {
             log::warn!("Failed to update global config: {e}");
         }
+    }
+
+    // Start file system watcher for the new workspace
+    if let Err(e) = crate::fs::watcher::start_watching(&app_handle, &ws_path, &watcher_state) {
+        log::warn!("Failed to start fs watcher: {e}");
     }
 
     Ok(info)
