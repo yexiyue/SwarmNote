@@ -7,6 +7,7 @@ type Theme = "light" | "dark" | "system";
 
 interface UIState {
   sidebarOpen: boolean;
+  settingsOpen: boolean;
   theme: Theme;
   resolvedTheme: "light" | "dark";
   locale: Locale;
@@ -15,6 +16,8 @@ interface UIState {
 interface UIActions {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  toggleSettings: () => void;
+  setSettingsOpen: (open: boolean) => void;
   setTheme: (theme: Theme) => void;
   setLocale: (locale: Locale) => void;
 }
@@ -31,6 +34,7 @@ export const useUIStore = create<UIState & UIActions>()(
   persist(
     (set) => ({
       sidebarOpen: true,
+      settingsOpen: false,
       theme: "light",
       resolvedTheme: "light",
       locale: detectLocale(),
@@ -38,6 +42,10 @@ export const useUIStore = create<UIState & UIActions>()(
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+      toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
+
+      setSettingsOpen: (open) => set({ settingsOpen: open }),
 
       setTheme: (theme) => {
         const resolved = theme === "system" ? getSystemTheme() : theme;

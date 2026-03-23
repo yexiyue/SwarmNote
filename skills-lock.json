@@ -15,6 +15,11 @@
       "source": "vercel-labs/skills",
       "sourceType": "github",
       "computedHash": "d31e234f0c90694a670222cdd1dafa853e051d7066beda389f1097c22dadd461"
+    },
+    "simplify": {
+      "source": "brianlovin/claude-config",
+      "sourceType": "github",
+      "computedHash": "322a20071306ede626dc73ac05182b08c97b60781e23ec3fbf23f85a4d27d111"
     }
   }
 }

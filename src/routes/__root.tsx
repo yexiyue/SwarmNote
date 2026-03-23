@@ -5,6 +5,7 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { useEffect } from "react";
 
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -27,6 +28,7 @@ function RootComponent() {
       <TooltipProvider>
         <Outlet />
         <CommandPalette />
+        <SettingsDialog />
         {import.meta.env.DEV && <TanStackRouterDevtools position="bottom-right" />}
       </TooltipProvider>
     </I18nProvider>

@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useNavigate } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, PenLine, Search, Settings, Square, X } from "lucide-react";
+import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isMac, modKey } from "@/lib/utils";
@@ -9,9 +9,9 @@ import { useUIStore } from "@/stores/uiStore";
 
 export function TitleBar() {
   const { t } = useLingui();
-  const navigate = useNavigate();
   const appWindow = getCurrentWindow();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const toggleSettings = useUIStore((s) => s.toggleSettings);
 
   // When sidebar is collapsed on macOS, add left padding to avoid traffic light overlap
   const needsTrafficLightPadding = isMac && !sidebarOpen;
@@ -42,7 +42,7 @@ export function TitleBar() {
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={() => document.dispatchEvent(new CustomEvent("open-command-palette"))}
+          onClick={() => document.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE))}
           className="flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-[5px] text-muted-foreground hover:bg-secondary/80"
         >
           <Search className="h-3.5 w-3.5" />
@@ -52,7 +52,7 @@ export function TitleBar() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" onClick={() => navigate({ to: "/settings" })}>
+            <Button variant="ghost" size="icon-sm" onClick={toggleSettings}>
               <Settings className="h-4 w-4 text-muted-foreground" />
             </Button>
           </TooltipTrigger>
