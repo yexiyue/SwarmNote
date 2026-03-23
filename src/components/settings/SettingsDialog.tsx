@@ -18,7 +18,7 @@ export function SettingsDialog() {
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
       <DialogContent
-        className="flex max-h-[85vh] w-180 max-w-[90vw] flex-col gap-0 p-0 sm:h-120"
+        className="flex max-h-[85vh] w-180 max-w-[90vw] flex-col gap-0 p-0 sm:max-w-[90vw] sm:h-120"
         showCloseButton
       >
         <DialogTitle className="shrink-0 border-b border-border/70 px-6 py-4 text-base font-semibold">
