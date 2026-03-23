@@ -26,6 +26,14 @@ pub fn run() {
         .setup(|app| {
             identity::init(app.handle()).map_err(|e| error::AppError::Identity(e.to_string()))?;
             db::init(app.handle())?;
+
+            #[cfg(not(target_os = "macos"))]
+            {
+                use tauri::Manager;
+                let window = app.get_webview_window("main").unwrap();
+                window.set_decorations(false)?;
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -30,3 +30,6 @@ dist-ssr
 !.claude/skills/project-*/
 **/openspec
 **/.obsidian
+
+# Lingui compiled catalogs (vite-plugin handles .po imports at build time)
+src/locales/**/*.js
