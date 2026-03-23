@@ -16,8 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Locale } from "@/i18n";
-import { locales } from "@/i18n";
+import { type Locale, locales } from "@/i18n";
 import { cn, isMac, modKey } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 

@@ -42,8 +42,10 @@ export const useUIStore = create<UIState>()(
       },
 
       setLocale: (locale) => {
-        activateLocale(locale).catch(console.error);
-        set({ locale });
+        activateLocale(locale).then(
+          () => set({ locale }),
+          (err) => console.error("Failed to activate locale:", err),
+        );
       },
     }),
     {
