@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { activateLocale, detectLocale, type Locale } from "@/i18n";
+import { createTauriStorage, waitForHydration } from "@/lib/tauriStore";
 
 type Theme = "light" | "dark" | "system";
 
@@ -9,6 +10,9 @@ interface UIState {
   theme: Theme;
   resolvedTheme: "light" | "dark";
   locale: Locale;
+}
+
+interface UIActions {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setTheme: (theme: Theme) => void;
@@ -23,7 +27,7 @@ function applyTheme(resolved: "light" | "dark") {
   document.documentElement.classList.toggle("dark", resolved === "dark");
 }
 
-export const useUIStore = create<UIState>()(
+export const useUIStore = create<UIState & UIActions>()(
   persist(
     (set) => ({
       sidebarOpen: true,
@@ -50,6 +54,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: "swarmnote-ui",
+      storage: createTauriStorage("settings.json"),
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         theme: state.theme,
@@ -67,12 +72,12 @@ export const useUIStore = create<UIState>()(
   ),
 );
 
+export const waitForUiHydration = () => waitForHydration(useUIStore);
+
 // Listen to system theme changes when in "system" mode
-if (typeof window !== "undefined") {
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    const { theme, setTheme } = useUIStore.getState();
-    if (theme === "system") {
-      setTheme("system");
-    }
-  });
-}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  const { theme, setTheme } = useUIStore.getState();
+  if (theme === "system") {
+    setTheme("system");
+  }
+});
