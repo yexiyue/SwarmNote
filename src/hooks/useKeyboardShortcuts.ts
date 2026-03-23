@@ -1,15 +1,15 @@
-import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
+import { isMac } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 
 export function useKeyboardShortcuts() {
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const navigate = useNavigate();
-
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const mod = navigator.platform.includes("Mac") ? e.metaKey : e.ctrlKey;
+      const mod = isMac ? e.metaKey : e.ctrlKey;
       if (!mod) return;
+
+      const { toggleSidebar, toggleSettings } = useUIStore.getState();
 
       switch (e.key.toLowerCase()) {
         case "b":
@@ -26,16 +26,16 @@ export function useKeyboardShortcuts() {
           break;
         case "p":
           e.preventDefault();
-          document.dispatchEvent(new CustomEvent("open-command-palette"));
+          document.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE));
           break;
         case ",":
           e.preventDefault();
-          navigate({ to: "/settings" });
+          toggleSettings();
           break;
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar, navigate]);
+  }, []);
 }
