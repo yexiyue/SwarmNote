@@ -45,7 +45,7 @@ pub async fn db_create_folder(
         parent_folder_id: Set(input.parent_folder_id),
         name: Set(input.name),
         rel_path: Set(input.rel_path),
-        created_by: Set(peer_id(&identity)),
+        created_by: Set(peer_id(&identity)?),
         created_at: Set(now),
         updated_at: Set(now),
         ..Default::default()

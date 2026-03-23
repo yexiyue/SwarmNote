@@ -61,7 +61,7 @@ pub async fn db_upsert_document(
         file_hash: Set(None),
         yjs_state: Set(None),
         state_vector: Set(None),
-        created_by: Set(peer_id(&identity)),
+        created_by: Set(peer_id(&identity)?),
         created_at: Set(now),
         updated_at: Set(now),
         ..Default::default()

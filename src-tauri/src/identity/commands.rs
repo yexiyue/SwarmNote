@@ -1,6 +1,6 @@
 use tauri::State;
 
-use super::{DeviceInfo, IdentityState};
+use super::{DeviceInfo, GlobalConfigState, IdentityState};
 use crate::error::{AppError, AppResult};
 
 #[tauri::command]
@@ -13,19 +13,27 @@ pub fn get_device_info(state: State<'_, IdentityState>) -> AppResult<DeviceInfo>
 }
 
 #[tauri::command]
-pub fn set_device_name(name: String, state: State<'_, IdentityState>) -> AppResult<()> {
-    let mut info = state
+pub async fn set_device_name(
+    name: String,
+    state: State<'_, IdentityState>,
+    config_state: State<'_, GlobalConfigState>,
+) -> AppResult<()> {
+    {
+        let mut info = state
+            .device_info
+            .write()
+            .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
+        info.device_name = name;
+    }
+
+    // Update in-memory config and persist to disk
+    let mut config = config_state.0.write().await;
+    let info = state
         .device_info
-        .write()
+        .read()
         .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
-
-    info.device_name = name;
-
-    let config = super::config::DeviceConfig {
-        device_name: info.device_name.clone(),
-        created_at: info.created_at.clone(),
-    };
-    super::config::save_config(&config).map_err(|e| AppError::Identity(e.to_string()))?;
+    config.device_name = info.device_name.clone();
+    super::config::save_config(&config)?;
 
     Ok(())
 }
