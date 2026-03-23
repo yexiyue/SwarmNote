@@ -26,8 +26,15 @@ dist-ssr
 .claude/*
 !.claude/skills/
 .claude/skills/*
+.claude/skills/code-reviewer
+.claude/skills/code-simplifier
+.claude/skills/find-skills
+
 !.claude/skills/project/
 !.claude/skills/project-*/
+.agent
+.agent/skills/*
+.agents/
 **/openspec
 **/.obsidian
 

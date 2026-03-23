@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "code-reviewer": {
+      "source": "google-gemini/gemini-cli",
+      "sourceType": "github",
+      "computedHash": "270f0dd1d4c15a798bad5253a309cdc2056fe5322f99ba06ca22ce50581adc02"
+    },
+    "code-simplifier": {
+      "source": "getsentry/skills",
+      "sourceType": "github",
+      "computedHash": "ff9cb10181e31daf1f1644754c491601a7849dff4b4536a1d0ec4f97f680348e"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "d31e234f0c90694a670222cdd1dafa853e051d7066beda389f1097c22dadd461"
+    }
+  }
+}
