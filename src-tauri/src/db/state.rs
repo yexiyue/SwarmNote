@@ -1,6 +1,7 @@
 use sea_orm::DatabaseConnection;
 use tokio::sync::RwLock;
 
+use crate::db::commands::WorkspaceInfo;
 use crate::error::AppError;
 
 pub struct DbState {
@@ -8,6 +9,9 @@ pub struct DbState {
     pub devices_db: DatabaseConnection,
     pub workspace_db: RwLock<Option<DatabaseConnection>>,
 }
+
+/// Current workspace info, set during auto-restore or `open_workspace`.
+pub struct WorkspaceState(pub RwLock<Option<WorkspaceInfo>>);
 
 impl DbState {
     pub async fn workspace_db(&self) -> Result<WorkspaceDbGuard<'_>, AppError> {

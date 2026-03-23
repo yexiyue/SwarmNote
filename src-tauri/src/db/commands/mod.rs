@@ -6,8 +6,13 @@ pub use document::*;
 pub use folder::*;
 pub use workspace::*;
 
+use crate::error::{AppError, AppResult};
 use crate::identity::IdentityState;
 
-fn peer_id(identity: &IdentityState) -> String {
-    identity.device_info.read().unwrap().peer_id.clone()
+fn peer_id(identity: &IdentityState) -> AppResult<String> {
+    let info = identity
+        .device_info
+        .read()
+        .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
+    Ok(info.peer_id.clone())
 }

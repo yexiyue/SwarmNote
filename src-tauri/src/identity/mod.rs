@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::RwLock;
 use swarm_p2p_core::libp2p::identity::Keypair;
 use tauri::Manager;
+use tokio::sync::RwLock as TokioRwLock;
 
 /// Errors from identity operations.
 #[derive(Debug, thiserror::Error)]
@@ -20,12 +21,6 @@ pub enum IdentityError {
     Config(String),
 }
 
-impl From<IdentityError> for String {
-    fn from(e: IdentityError) -> Self {
-        e.to_string()
-    }
-}
-
 /// Runtime identity state, stored in Tauri State.
 pub struct IdentityState {
     /// Used by the P2P network layer (Phase 1).
@@ -33,6 +28,9 @@ pub struct IdentityState {
     pub keypair: Keypair,
     pub device_info: RwLock<DeviceInfo>,
 }
+
+/// Global config state, stored in Tauri State for runtime read/write.
+pub struct GlobalConfigState(pub TokioRwLock<config::GlobalConfig>);
 
 /// Device info returned to the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,11 +56,11 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), IdentityError> {
 
     let device_info = DeviceInfo {
         peer_id,
-        device_name: config.device_name,
+        device_name: config.device_name.clone(),
         os: std::env::consts::OS.to_string(),
         platform: std::env::consts::FAMILY.to_string(),
         arch: std::env::consts::ARCH.to_string(),
-        created_at: config.created_at,
+        created_at: config.created_at.clone(),
     };
 
     log::info!(
@@ -74,6 +72,8 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), IdentityError> {
         keypair,
         device_info: RwLock::new(device_info),
     });
+
+    app.manage(GlobalConfigState(TokioRwLock::new(config)));
 
     Ok(())
 }

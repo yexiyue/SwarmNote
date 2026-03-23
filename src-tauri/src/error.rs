@@ -16,6 +16,8 @@ pub enum AppError {
     NoAppDataDir,
     #[error("Folder is not empty: {0}")]
     FolderNotEmpty(String),
+    #[error("Invalid path: {0}")]
+    InvalidPath(String),
 }
 
 /// Structured serialization: `{ kind: "...", message: "..." }` for frontend.
@@ -33,11 +35,18 @@ impl Serialize for AppError {
             AppError::NoWorkspaceDb => ("NoWorkspaceDb", self.to_string()),
             AppError::NoAppDataDir => ("NoAppDataDir", self.to_string()),
             AppError::FolderNotEmpty(msg) => ("FolderNotEmpty", msg.clone()),
+            AppError::InvalidPath(msg) => ("InvalidPath", msg.clone()),
         };
 
         state.serialize_field("kind", kind)?;
         state.serialize_field("message", &message)?;
         state.end()
+    }
+}
+
+impl From<crate::identity::IdentityError> for AppError {
+    fn from(e: crate::identity::IdentityError) -> Self {
+        AppError::Identity(e.to_string())
     }
 }
 
