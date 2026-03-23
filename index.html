@@ -1,10 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + React + Typescript</title>
+    <title>SwarmNote</title>
+    <script>
+      // Apply theme before render to prevent FOUC
+      try {
+        const stored = JSON.parse(localStorage.getItem("swarmnote-ui") || "{}");
+        const theme = stored?.state?.theme || "light";
+        const dark =
+          theme === "dark" ||
+          (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+      } catch {}
+    </script>
   </head>
 
   <body>

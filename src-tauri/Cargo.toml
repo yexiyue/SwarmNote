@@ -39,4 +39,5 @@ entity = { path = "entity" }
 migration = { path = "migration" }
 uuid = { version = "1", features = ["v7"] }
 tokio = { version = "1", features = ["sync"] }
+tauri-plugin-store = "2.4.2"
 
