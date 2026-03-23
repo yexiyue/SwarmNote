@@ -18,6 +18,12 @@ pub enum AppError {
     FolderNotEmpty(String),
     #[error("Invalid path: {0}")]
     InvalidPath(String),
+    #[error("Path traversal detected: {0}")]
+    PathTraversal(String),
+    #[error("Name conflict: {0}")]
+    NameConflict(String),
+    #[error("No workspace open")]
+    NoWorkspaceOpen,
 }
 
 /// Structured serialization: `{ kind: "...", message: "..." }` for frontend.
@@ -36,6 +42,9 @@ impl Serialize for AppError {
             AppError::NoAppDataDir => ("NoAppDataDir", self.to_string()),
             AppError::FolderNotEmpty(msg) => ("FolderNotEmpty", msg.clone()),
             AppError::InvalidPath(msg) => ("InvalidPath", msg.clone()),
+            AppError::PathTraversal(msg) => ("PathTraversal", msg.clone()),
+            AppError::NameConflict(msg) => ("NameConflict", msg.clone()),
+            AppError::NoWorkspaceOpen => ("NoWorkspaceOpen", self.to_string()),
         };
 
         state.serialize_field("kind", kind)?;
