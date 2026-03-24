@@ -14,8 +14,9 @@ export function TitleBar() {
   const toggleSettings = useUIStore((s) => s.toggleSettings);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
-  // When sidebar is collapsed on macOS, add left padding to avoid traffic light overlap
   const needsTrafficLightPadding = isMac && !sidebarOpen;
+
+  const logoBase = "flex h-5.5 w-5.5 items-center justify-center rounded bg-primary";
 
   return (
     <header
@@ -27,22 +28,28 @@ export function TitleBar() {
         className={`flex items-center gap-3 ${needsTrafficLightPadding ? "pl-[70px]" : ""}`}
         data-tauri-drag-region
       >
-        {!sidebarOpen && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" onClick={toggleSidebar}>
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {t`展开侧边栏`} ({modKey}B)
-            </TooltipContent>
-          </Tooltip>
-        )}
         <div className="flex items-center gap-1.5">
-          <div className="flex h-[22px] w-[22px] items-center justify-center rounded bg-primary">
-            <PenLine className="h-3.5 w-3.5 text-white" />
-          </div>
+          {sidebarOpen ? (
+            <div className={logoBase}>
+              <PenLine className="h-3.5 w-3.5 text-white" />
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className={`group/logo relative ${logoBase} transition-colors duration-150 hover:bg-transparent`}
+                  onClick={toggleSidebar}
+                >
+                  <PenLine className="h-3.5 w-3.5 text-white transition-opacity duration-150 group-hover/logo:opacity-0" />
+                  <PanelLeft className="absolute h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/logo:opacity-100" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t`展开侧边栏`} ({modKey}B)
+              </TooltipContent>
+            </Tooltip>
+          )}
           <span className="text-sm font-semibold text-foreground">SwarmNote</span>
         </div>
         <div className="h-4 w-px bg-border" />
