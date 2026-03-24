@@ -108,6 +108,7 @@ The Rust lib is named `swarmnote_lib` (not `swarmnote`) to avoid a Windows namin
 - **Rust**: standard rustfmt, `#[tauri::command]` pattern, snake_case
 - **Package manager**: pnpm (not npm/yarn)
 - **Git flow**: `main` → `develop` → `feature/*` branches, PRs required
+- **Git commits**: 不要添加 `Co-authored-by` trailer
 
 ## Key Config Files
 
