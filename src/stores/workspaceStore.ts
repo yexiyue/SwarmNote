@@ -35,7 +35,7 @@ function clearDependentStores() {
   useEditorStore.getState().clear();
 }
 
-export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((set) => ({
+export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((set, get) => ({
   workspace: null,
   recentWorkspaces: [],
   isLoading: false,
@@ -79,9 +79,8 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((se
     const selected = await open({ directory: true, title: "选择工作区目录" });
     if (!selected) return null;
 
-    const { openWorkspace } = useWorkspaceStore.getState();
-    await openWorkspace(selected);
-    return useWorkspaceStore.getState().workspace;
+    await get().openWorkspace(selected);
+    return get().workspace;
   },
 
   clearWorkspace: () => {

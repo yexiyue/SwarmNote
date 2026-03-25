@@ -1,3 +1,4 @@
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import {
   getAllWebviewWindows,
   getCurrentWebviewWindow,
@@ -38,7 +39,7 @@ export async function openPickerWindow() {
     ...(isMac && {
       titleBarStyle: "overlay" as const,
       hiddenTitle: true,
-      trafficLightPosition: { x: 15, y: 16 },
+      trafficLightPosition: new LogicalPosition(15, 16),
     }),
   });
 }
@@ -59,7 +60,7 @@ export async function transitionPickerToApp(workspaceName: string) {
   const win = getCurrentWebviewWindow();
   await win.setTitle(`${workspaceName} - SwarmNote`);
   await win.setResizable(true);
-  await win.setMinSize({ width: 800, height: 600 });
-  await win.setSize({ width: APP_WINDOW_WIDTH, height: APP_WINDOW_HEIGHT });
+  await win.setMinSize(new LogicalSize(800, 600));
+  await win.setSize(new LogicalSize(APP_WINDOW_WIDTH, APP_WINDOW_HEIGHT));
   await win.center();
 }
