@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter};
 
 type FsNotifyWatcher = notify::RecommendedWatcher;
 
-/// Managed Tauri state holding the active file-system watcher.
+/// Tauri 托管状态，持有活跃的文件系统监听器。
 pub struct FsWatcherState(pub Mutex<Option<Debouncer<FsNotifyWatcher>>>);
 
 impl FsWatcherState {
@@ -16,7 +16,7 @@ impl FsWatcherState {
     }
 }
 
-/// Returns `true` if the path should trigger a tree-changed event.
+/// 判断该路径是否应触发文件树变更事件，返回 `true` 表示需要触发。
 fn is_relevant_change(path: &Path, workspace: &Path) -> bool {
     let rel = match path.strip_prefix(workspace) {
         Ok(r) => r,
@@ -30,27 +30,26 @@ fn is_relevant_change(path: &Path, workspace: &Path) -> bool {
         }
     }
 
-    // Directory changes are always relevant (create/delete folder)
+    // 目录变更始终相关（创建/删除文件夹）
     if path.is_dir() || !path.exists() {
-        // If the path no longer exists, we can't check is_dir — assume relevant
-        // unless the extension tells us otherwise.
+        // 路径已不存在时无法判断 is_dir —— 除非扩展名另有说明，否则视为相关
         let ext = path.extension().and_then(|e| e.to_str());
         return ext.is_none() || ext == Some("md");
     }
 
-    // Only .md file changes
+    // 仅关注 .md 文件变更
     path.extension().and_then(|e| e.to_str()) == Some("md")
 }
 
-/// Start watching a workspace directory for file changes.
+/// 开始监听工作区目录的文件变更。
 ///
-/// Debounces events by 100ms and emits `fs:tree-changed` to the frontend.
+/// 以 100ms 防抖后向前端发送 `fs:tree-changed` 事件。
 pub fn start_watching(
     app_handle: &AppHandle,
     workspace_path: &Path,
     state: &FsWatcherState,
 ) -> Result<(), crate::error::AppError> {
-    // Stop any existing watcher first
+    // 先停止已有的监听器
     stop_watching(state);
 
     let app = app_handle.clone();
@@ -81,7 +80,7 @@ pub fn start_watching(
     )
     .map_err(|e| crate::error::AppError::Io(std::io::Error::other(e.to_string())))?;
 
-    // Watch the workspace directory recursively
+    // 递归监听工作区目录
     let watcher_path = PathBuf::from(workspace_path);
     {
         let mut guard = state.0.lock().unwrap();
@@ -98,7 +97,7 @@ pub fn start_watching(
     Ok(())
 }
 
-/// Stop the active file-system watcher (if any).
+/// 停止活跃的文件系统监听器（如果存在）。
 pub fn stop_watching(state: &FsWatcherState) {
     let mut guard = state.0.lock().unwrap();
     if guard.take().is_some() {
@@ -137,9 +136,9 @@ mod tests {
 
     #[test]
     fn md_files_relevant() {
-        // This test checks the extension logic (file may not exist on disk)
+        // 此测试检查扩展名逻辑（文件可能不存在于磁盘上）
         let path = Path::new("/workspace/note.md");
-        // When path doesn't exist, is_relevant_change checks extension
+        // 路径不存在时，is_relevant_change 通过扩展名判断
         assert!(is_relevant_change(path, &ws()));
     }
 }

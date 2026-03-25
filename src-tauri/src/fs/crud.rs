@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 
-/// Validate that `rel_path` does not escape the workspace root.
+/// 校验 `rel_path` 未逃逸出工作区根目录。
 ///
-/// Rejects paths containing `..` components or absolute paths.
+/// 拒绝包含 `..` 组件或绝对路径的路径。
 pub fn validate_rel_path(workspace: &Path, rel_path: &str) -> Result<PathBuf, AppError> {
     if rel_path.contains("..") {
         return Err(AppError::PathTraversal(rel_path.to_owned()));
@@ -15,7 +15,7 @@ pub fn validate_rel_path(workspace: &Path, rel_path: &str) -> Result<PathBuf, Ap
         .canonicalize()
         .map_err(|e| AppError::InvalidPath(format!("{}: {e}", workspace.display())))?;
 
-    // For new paths that don't exist yet, canonicalize the parent
+    // 对尚不存在的新路径，规范化其父目录
     let check_path = if full.exists() {
         full.canonicalize()
             .map_err(|e| AppError::InvalidPath(e.to_string()))?
@@ -35,7 +35,7 @@ pub fn validate_rel_path(workspace: &Path, rel_path: &str) -> Result<PathBuf, Ap
     Ok(full)
 }
 
-/// Find a non-conflicting name by appending ` 1`, ` 2`, etc.
+/// 通过追加 ` 1`、` 2` 等后缀来寻找不冲突的名称。
 fn resolve_conflict(dir: &Path, base_name: &str, extension: &str) -> String {
     let mut counter = 1u32;
     loop {
@@ -51,9 +51,9 @@ fn resolve_conflict(dir: &Path, base_name: &str, extension: &str) -> String {
     }
 }
 
-/// Create a new `.md` file. Returns the rel_path of the created file.
+/// 创建新的 `.md` 文件。返回所创建文件的相对路径。
 ///
-/// If a file with the same name exists, auto-numbers (e.g. `name 1.md`).
+/// 如果同名文件已存在，自动编号（如 `name 1.md`）。
 pub fn create_file(workspace: &Path, parent_rel: &str, name: &str) -> Result<String, AppError> {
     let parent = if parent_rel.is_empty() {
         workspace.to_path_buf()
@@ -82,7 +82,7 @@ pub fn create_file(workspace: &Path, parent_rel: &str, name: &str) -> Result<Str
     Ok(rel)
 }
 
-/// Create a new directory. Returns the rel_path of the created directory.
+/// 创建新目录。返回所创建目录的相对路径。
 pub fn create_dir(workspace: &Path, parent_rel: &str, name: &str) -> Result<String, AppError> {
     let parent = if parent_rel.is_empty() {
         workspace.to_path_buf()
@@ -110,7 +110,7 @@ pub fn create_dir(workspace: &Path, parent_rel: &str, name: &str) -> Result<Stri
     Ok(rel)
 }
 
-/// Delete a file. Idempotent — succeeds if the file doesn't exist.
+/// 删除文件。幂等操作 —— 文件不存在时也视为成功。
 pub fn delete_file(workspace: &Path, rel_path: &str) -> Result<(), AppError> {
     let full = validate_rel_path(workspace, rel_path)?;
     match std::fs::remove_file(full) {
@@ -120,7 +120,7 @@ pub fn delete_file(workspace: &Path, rel_path: &str) -> Result<(), AppError> {
     }
 }
 
-/// Recursively delete a directory and all its contents.
+/// 递归删除目录及其所有内容。
 pub fn delete_dir(workspace: &Path, rel_path: &str) -> Result<(), AppError> {
     let full = validate_rel_path(workspace, rel_path)?;
     match std::fs::remove_dir_all(full) {
@@ -130,14 +130,14 @@ pub fn delete_dir(workspace: &Path, rel_path: &str) -> Result<(), AppError> {
     }
 }
 
-/// Rename a file or directory. Returns the new rel_path.
+/// 重命名文件或目录。返回新的相对路径。
 pub fn rename(workspace: &Path, rel_path: &str, new_name: &str) -> Result<String, AppError> {
     let full = validate_rel_path(workspace, rel_path)?;
     let parent = full
         .parent()
         .ok_or_else(|| AppError::InvalidPath("no parent directory".into()))?;
 
-    // For files, preserve extension if new_name doesn't have one
+    // 对文件，如果新名称不含扩展名则保留原扩展名
     let target_name = if full.is_file() && !new_name.contains('.') {
         let ext = full.extension().and_then(|e| e.to_str()).unwrap_or("");
         if ext.is_empty() {
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn delete_file_idempotent() {
         let dir = tmp();
-        // Should not error on non-existent file
+        // 对不存在的文件不应报错
         delete_file(dir.path(), "nonexistent.md").unwrap();
     }
 

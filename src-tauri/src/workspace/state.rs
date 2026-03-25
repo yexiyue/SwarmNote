@@ -1,7 +1,7 @@
 use sea_orm::DatabaseConnection;
 use tokio::sync::RwLock;
 
-use crate::db::commands::WorkspaceInfo;
+use super::commands::WorkspaceInfo;
 use crate::error::AppError;
 
 pub struct DbState {
@@ -10,7 +10,7 @@ pub struct DbState {
     pub workspace_db: RwLock<Option<DatabaseConnection>>,
 }
 
-/// Current workspace info, set during auto-restore or `open_workspace`.
+/// 当前工作区信息，在自动恢复或 `open_workspace` 时设置。
 pub struct WorkspaceState(pub RwLock<Option<WorkspaceInfo>>);
 
 impl DbState {
@@ -23,12 +23,12 @@ impl DbState {
     }
 }
 
-/// Wrapper that guarantees the inner `Option<DatabaseConnection>` is `Some`.
+/// 包装器，保证内部 `Option<DatabaseConnection>` 为 `Some`。
 pub struct WorkspaceDbGuard<'a>(tokio::sync::RwLockReadGuard<'a, Option<DatabaseConnection>>);
 
 impl WorkspaceDbGuard<'_> {
     pub fn conn(&self) -> &DatabaseConnection {
-        // SAFETY: DbState::workspace_db checks is_none before constructing this guard
+        // SAFETY: DbState::workspace_db 在构造此 guard 前已检查 is_none
         self.0.as_ref().unwrap()
     }
 }

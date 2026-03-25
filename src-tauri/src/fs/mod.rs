@@ -5,14 +5,14 @@ pub mod watcher;
 
 use serde::Serialize;
 
-/// A node in the workspace file tree.
+/// 工作区文件树中的节点。
 #[derive(Debug, Clone, Serialize)]
 pub struct FileTreeNode {
-    /// Relative path from workspace root (used as unique ID).
+    /// 相对于工作区根目录的路径（用作唯一 ID）。
     pub id: String,
-    /// Display name (filename without `.md` extension for files).
+    /// 显示名称（文件不含 `.md` 扩展名）。
     pub name: String,
-    /// Present only for directories.
+    /// 仅目录节点存在。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<FileTreeNode>>,
 }

@@ -7,13 +7,21 @@ use serde::Serialize;
 use tauri::State;
 use uuid::Uuid;
 
-use super::peer_id;
-use crate::db::init_workspace_db;
-use crate::db::state::{DbState, WorkspaceState};
+use super::db::init_workspace_db;
+use super::state::{DbState, WorkspaceState};
+use crate::config::GlobalConfigState;
 use crate::error::{AppError, AppResult};
-use crate::identity::{GlobalConfigState, IdentityState};
+use crate::identity::IdentityState;
 
-/// Workspace info returned to the frontend, combining db record + runtime path.
+fn peer_id(identity: &IdentityState) -> AppResult<String> {
+    let info = identity
+        .device_info
+        .read()
+        .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
+    Ok(info.peer_id.clone())
+}
+
+/// 返回给前端的工作区信息，组合数据库记录 + 运行时路径。
 #[derive(Debug, Clone, Serialize)]
 pub struct WorkspaceInfo {
     pub id: String,
@@ -37,18 +45,18 @@ impl WorkspaceInfo {
     }
 }
 
-/// Extract workspace name from the last path component.
+/// 从路径的最后一个组件提取工作区名称。
 pub(crate) fn workspace_name_from_path(path: &Path) -> String {
     path.file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "Workspace".to_owned())
 }
 
-/// Idempotent workspace open/create command.
+/// 幂等的工作区打开/创建命令。
 ///
-/// - If `.swarmnote/workspace.db` exists: open and return existing info.
-/// - Otherwise: create `.swarmnote/`, init db, insert workspace record.
-/// - Updates global config with `last_workspace_path` on success.
+/// - 若 `.swarmnote/workspace.db` 已存在：打开并返回现有信息。
+/// - 否则：创建 `.swarmnote/`，初始化数据库，插入工作区记录。
+/// - 成功后更新全局配置的 `last_workspace_path`。
 #[tauri::command]
 pub async fn open_workspace(
     path: String,
@@ -72,7 +80,7 @@ pub async fn open_workspace(
 
     let workspace = match workspaces::Entity::find().one(&conn).await? {
         Some(mut ws) => {
-            // Update name if directory was renamed
+            // 如果目录被重命名则更新名称
             if ws.name != dir_name {
                 let mut active: workspaces::ActiveModel = ws.clone().into();
                 active.name = Set(dir_name.clone());
@@ -100,20 +108,18 @@ pub async fn open_workspace(
 
     let info = WorkspaceInfo::from_model(&workspace, &path);
 
-    // Store in workspace state
+    // 存储到工作区状态
     *ws_state.0.write().await = Some(info.clone());
 
-    // Persist to global config
+    // 持久化到全局配置
     {
         let mut config = config_state.0.write().await;
-        if let Err(e) =
-            crate::identity::config::update_last_workspace(&mut config, &path, &dir_name)
-        {
+        if let Err(e) = crate::config::update_last_workspace(&mut config, &path, &dir_name) {
             log::warn!("Failed to update global config: {e}");
         }
     }
 
-    // Start file system watcher for the new workspace
+    // 为新工作区启动文件系统监听器
     if let Err(e) = crate::fs::watcher::start_watching(&app_handle, &ws_path, &watcher_state) {
         log::warn!("Failed to start fs watcher: {e}");
     }
@@ -131,7 +137,7 @@ pub async fn get_workspace_info(
 #[tauri::command]
 pub async fn get_recent_workspaces(
     config_state: State<'_, GlobalConfigState>,
-) -> AppResult<Vec<crate::identity::config::RecentWorkspace>> {
+) -> AppResult<Vec<crate::config::RecentWorkspace>> {
     let config = config_state.0.read().await;
     Ok(config.recent_workspaces.clone())
 }

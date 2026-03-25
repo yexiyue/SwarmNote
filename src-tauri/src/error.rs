@@ -1,7 +1,7 @@
 use serde::ser::SerializeStruct;
 use serde::Serialize;
 
-/// Unified application error type for all Tauri commands.
+/// 所有 Tauri 命令的统一应用错误类型。
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Database error: {0}")]
@@ -26,7 +26,7 @@ pub enum AppError {
     NoWorkspaceOpen,
 }
 
-/// Structured serialization: `{ kind: "...", message: "..." }` for frontend.
+/// 结构化序列化：为前端提供 `{ kind: "...", message: "..." }` 格式。
 impl Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

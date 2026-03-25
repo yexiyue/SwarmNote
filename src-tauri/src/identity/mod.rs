@@ -1,5 +1,4 @@
 pub mod commands;
-pub mod config;
 pub mod keychain;
 
 use serde::{Deserialize, Serialize};
@@ -8,7 +7,7 @@ use swarm_p2p_core::libp2p::identity::Keypair;
 use tauri::Manager;
 use tokio::sync::RwLock as TokioRwLock;
 
-/// Errors from identity operations.
+/// 身份操作相关的错误类型。
 #[derive(Debug, thiserror::Error)]
 pub enum IdentityError {
     #[error("keychain error: {0}")]
@@ -21,18 +20,15 @@ pub enum IdentityError {
     Config(String),
 }
 
-/// Runtime identity state, stored in Tauri State.
+/// 运行时身份状态，存储在 Tauri State 中。
 pub struct IdentityState {
-    /// Used by the P2P network layer (Phase 1).
+    /// 供 P2P 网络层使用（Phase 1）。
     #[allow(dead_code)]
     pub keypair: Keypair,
     pub device_info: RwLock<DeviceInfo>,
 }
 
-/// Global config state, stored in Tauri State for runtime read/write.
-pub struct GlobalConfigState(pub TokioRwLock<config::GlobalConfig>);
-
-/// Device info returned to the frontend.
+/// 返回给前端的设备信息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceInfo {
     pub peer_id: String,
@@ -43,16 +39,16 @@ pub struct DeviceInfo {
     pub created_at: String,
 }
 
-/// Initialize device identity during Tauri setup.
+/// 在 Tauri 启动阶段初始化设备身份。
 ///
-/// 1. Load or generate Ed25519 keypair from system keychain
-/// 2. Derive PeerId from public key
-/// 3. Load or create device config (device_name, created_at)
-/// 4. Register IdentityState in Tauri State
+/// 1. 从系统钥匙串加载或生成 Ed25519 密钥对
+/// 2. 从公钥派生 PeerId
+/// 3. 加载或创建设备配置（device_name、created_at）
+/// 4. 将 IdentityState 和 GlobalConfigState 注册到 Tauri State
 pub fn init(app: &tauri::AppHandle) -> Result<(), IdentityError> {
     let keypair = keychain::load_or_generate_keypair()?;
     let peer_id = keypair.public().to_peer_id().to_string();
-    let config = config::load_or_create_config()?;
+    let config = crate::config::load_or_create_config()?;
 
     let device_info = DeviceInfo {
         peer_id,
@@ -73,7 +69,7 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), IdentityError> {
         device_info: RwLock::new(device_info),
     });
 
-    app.manage(GlobalConfigState(TokioRwLock::new(config)));
+    app.manage(crate::config::GlobalConfigState(TokioRwLock::new(config)));
 
     Ok(())
 }
@@ -87,7 +83,7 @@ mod tests {
         let keypair = Keypair::generate_ed25519();
         let peer_id = keypair.public().to_peer_id().to_string();
 
-        // libp2p PeerId starts with "12D3KooW"
+        // libp2p PeerId 以 "12D3KooW" 开头
         assert!(
             peer_id.starts_with("12D3KooW"),
             "PeerId should start with 12D3KooW, got: {peer_id}"

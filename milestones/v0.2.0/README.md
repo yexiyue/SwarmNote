@@ -18,6 +18,8 @@
 - **设备状态 UI** — 已连接设备数、同步状态指示（已同步/同步中/离线待同步）
 - **多工作区 per-window**（#22）— 后端状态管理从全局单例改为 per-window HashMap
 
+- **工作区自定义忽略规则** — 引入 `ignore` crate gitignore 模块，支持 `.swarmnote-ignore` 自定义过滤，集中 scan/watcher 重复过滤逻辑
+
 ### 不包含（推迟到后续版本）
 
 - 跨网络同步（DHT、NAT 穿透、Relay 中继）— v0.3.0+
@@ -33,14 +35,17 @@
 
 ```mermaid
 graph TD
-    Core[swarm-p2p-core 集成]
     MultiWS[多工作区 per-window]
+    Core[swarm-p2p-core 集成]
+    IgnoreFilter[工作区自定义忽略规则]
     mDNS[mDNS 局域网发现]
     YjsEditor[编辑器 yjs 集成]
     CRDT[yjs CRDT 同步]
     Offline[离线合并]
     DeviceUI[设备状态 UI]
 
+    MultiWS --> mDNS
+    MultiWS --> YjsEditor
     Core --> mDNS
     mDNS --> CRDT
     YjsEditor --> CRDT
@@ -51,22 +56,23 @@ graph TD
 
 | 层级 | 功能 | 可并行 |
 |------|------|--------|
-| L0（无依赖） | swarm-p2p-core 集成、多工作区 per-window、编辑器 yjs 集成 | 全部可并行 |
-| L1（依赖 L0） | mDNS 局域网发现 | - |
-| L2（依赖 L0+L1） | yjs CRDT 同步、离线合并 | 离线合并依赖 CRDT |
-| L3（依赖 L2） | 设备状态 UI | - |
+| L0（无依赖） | **多工作区 per-window**、swarm-p2p-core 集成、工作区自定义忽略规则 | 全部可并行 |
+| L1（依赖 L0） | mDNS 局域网发现（依赖 p2p-core + 多工作区）、编辑器 yjs 集成（依赖多工作区） | 可并行 |
+| L2（依赖 L1） | yjs CRDT 同步（依赖 mDNS + 编辑器 yjs） | - |
+| L3（依赖 L2） | 离线合并、设备状态 UI | 离线合并依赖 CRDT |
 
 ### 功能清单
 
 | 功能 | 优先级 | 依赖 | Feature 文档 | Issue |
 |------|--------|------|-------------|-------|
+| **多工作区 per-window** | **P0** | **-** | [multi-workspace-window.md](features/multi-workspace-window.md) | [#22](https://github.com/yexiyue/SwarmNote/issues/22) |
 | swarm-p2p-core 集成 | P0 | - | [p2p-core-integration.md](features/p2p-core-integration.md) | #TODO |
-| mDNS 局域网发现 | P0 | swarm-p2p-core 集成 | [mdns-discovery.md](features/mdns-discovery.md) | #TODO |
-| 编辑器 yjs 集成 | P0 | - | [yjs-editor.md](features/yjs-editor.md) | #TODO |
+| mDNS 局域网发现 | P0 | p2p-core, 多工作区 | [mdns-discovery.md](features/mdns-discovery.md) | #TODO |
+| 编辑器 yjs 集成 | P0 | 多工作区 | [yjs-editor.md](features/yjs-editor.md) | #TODO |
 | yjs CRDT 同步 | P0 | mDNS, 编辑器 yjs | [crdt-sync.md](features/crdt-sync.md) | #TODO |
 | 离线合并 | P0 | yjs CRDT 同步 | [offline-merge.md](features/offline-merge.md) | #TODO |
 | 设备状态 UI | P1 | yjs CRDT 同步, 离线合并 | [device-status-ui.md](features/device-status-ui.md) | #TODO |
-| 多工作区 per-window | P1 | - | [multi-workspace-window.md](features/multi-workspace-window.md) | [#22](https://github.com/yexiyue/SwarmNote/issues/22) |
+| 工作区自定义忽略规则 | P2 | - | [workspace-ignore-filter.md](features/workspace-ignore-filter.md) | #TODO |
 
 ## 验收标准
 
@@ -83,14 +89,14 @@ graph TD
 
 ## 技术选型
 
-| 领域 | 选择 | 备注 |
-|------|------|------|
-| P2P 网络 | **swarm-p2p-core** | 自有库，已集成 GossipSub、mDNS、Request-Response |
-| CRDT | **yjs** | 前端 Y.Doc，Rust 端透传二进制 blob |
-| 编辑器协作 | **BlockNote + yjs** | BlockNote 内置 yjs 一等支持 |
-| 增量同步 | **GossipSub pub/sub** | swarm-p2p-core 已有支持 |
-| 全量同步 | **Request-Response** | state_vector 交换 + missing updates |
-| 存储模型 | **MD 主 + yjs 同步层** | .md 文件为真实数据源，yjs 仅在同步时使用 |
+| 领域     | 选择                    | 备注                                      |
+| ------ | --------------------- | --------------------------------------- |
+| P2P 网络 | **swarm-p2p-core**    | 自有库，已集成 GossipSub、mDNS、Request-Response |
+| CRDT   | **yjs**               | 前端 Y.Doc，Rust 端透传二进制 blob               |
+| 编辑器协作  | **BlockNote + yjs**   | BlockNote 内置 yjs 一等支持                   |
+| 增量同步   | **GossipSub pub/sub** | swarm-p2p-core 已有支持                     |
+| 全量同步   | **Request-Response**  | state_vector 交换 + missing updates       |
+| 存储模型   | **MD 主 + yjs 同步层**    | .md 文件为真实数据源，yjs 仅在同步时使用                |
 
 ## 依赖与风险
 

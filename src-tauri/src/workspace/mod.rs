@@ -1,53 +1,25 @@
 pub mod commands;
+pub mod db;
 pub mod state;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use entity::workspace::workspaces;
-use migration::MigratorTrait;
-use sea_orm::{ActiveModelTrait, Database, DatabaseConnection, EntityTrait, Set};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use tauri::Manager;
 use tokio::sync::RwLock;
 
+use crate::config::GlobalConfigState;
 use crate::error::AppError;
-use crate::identity::GlobalConfigState;
 use commands::WorkspaceInfo;
-use migration::{DevicesMigrator, WorkspaceMigrator};
 use state::{DbState, WorkspaceState};
 
-fn swarmnote_global_dir() -> Result<PathBuf, AppError> {
-    let home = directories::BaseDirs::new().ok_or(AppError::NoAppDataDir)?;
-    Ok(home.home_dir().join(".swarmnote"))
-}
-
-async fn connect_sqlite(path: &Path) -> Result<DatabaseConnection, AppError> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let url = format!("sqlite:{}?mode=rwc", path.display());
-    Ok(Database::connect(&url).await?)
-}
-
-pub async fn init_devices_db() -> Result<DatabaseConnection, AppError> {
-    let db_path = swarmnote_global_dir()?.join("devices.db");
-    let db = connect_sqlite(&db_path).await?;
-    DevicesMigrator::up(&db, None).await?;
-    Ok(db)
-}
-
-pub async fn init_workspace_db(workspace_path: &Path) -> Result<DatabaseConnection, AppError> {
-    let db_path = workspace_path.join(".swarmnote").join("workspace.db");
-    let db = connect_sqlite(&db_path).await?;
-    WorkspaceMigrator::up(&db, None).await?;
-    Ok(db)
-}
-
-/// Initialize database layer: devices.db + optional workspace auto-restore.
+/// 初始化数据库层：devices.db + 可选的工作区自动恢复。
 ///
-/// Runs both init operations concurrently via `tokio::join!` to reduce startup latency.
+/// 通过 `tokio::join!` 并发执行两个初始化操作以减少启动延迟。
 pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
     let (devices_result, (workspace_db, workspace_info)) = tauri::async_runtime::block_on(async {
-        tokio::join!(init_devices_db(), try_auto_restore_workspace(app))
+        tokio::join!(db::init_devices_db(), try_auto_restore_workspace(app))
     });
     let devices_db = devices_result?;
 
@@ -60,9 +32,9 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Attempt to auto-restore the last workspace from global config.
+/// 尝试从全局配置自动恢复上次打开的工作区。
 ///
-/// Returns `(None, None)` on any failure — never panics.
+/// 任何失败均返回 `(None, None)` —— 不会 panic。
 async fn try_auto_restore_workspace(
     app: &tauri::AppHandle,
 ) -> (Option<DatabaseConnection>, Option<WorkspaceInfo>) {
@@ -83,8 +55,8 @@ async fn try_auto_restore_workspace(
 
     let ws_path = PathBuf::from(&path);
 
-    // Skip TOCTOU check — let init_workspace_db handle missing files directly
-    let conn = match init_workspace_db(&ws_path).await {
+    // 跳过 TOCTOU 检查 —— 让 init_workspace_db 直接处理缺失文件
+    let conn = match db::init_workspace_db(&ws_path).await {
         Ok(c) => c,
         Err(e) => {
             log::warn!("Failed to open workspace db at {path}: {e}");
@@ -106,7 +78,7 @@ async fn try_auto_restore_workspace(
 
     let dir_name = commands::workspace_name_from_path(&ws_path);
 
-    // Update name in db if directory was renamed (same logic as open_workspace)
+    // 如果目录被重命名则更新数据库中的名称（与 open_workspace 逻辑相同）
     let ws = if ws.name != dir_name {
         let mut active: workspaces::ActiveModel = ws.into();
         active.name = Set(dir_name.clone());

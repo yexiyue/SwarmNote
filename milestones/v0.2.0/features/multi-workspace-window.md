@@ -7,6 +7,7 @@
 ## 依赖
 
 - 无依赖（L0，纯后端重构）
+- **被依赖**：mDNS 局域网发现、编辑器 yjs 集成等后续功能均建立在 per-window 状态管理之上，应最先完成
 - 详见 [GitHub Issue #22](https://github.com/yexiyue/SwarmNote/issues/22)
 
 ## 需求描述

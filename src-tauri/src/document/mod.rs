@@ -1,15 +1,9 @@
-mod document;
-mod folder;
-mod workspace;
-
-pub use document::*;
-pub use folder::*;
-pub use workspace::*;
+pub mod commands;
 
 use crate::error::{AppError, AppResult};
 use crate::identity::IdentityState;
 
-fn peer_id(identity: &IdentityState) -> AppResult<String> {
+pub(crate) fn peer_id(identity: &IdentityState) -> AppResult<String> {
     let info = identity
         .device_info
         .read()

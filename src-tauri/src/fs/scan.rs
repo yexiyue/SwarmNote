@@ -4,13 +4,13 @@ use crate::error::AppError;
 
 use super::FileTreeNode;
 
-/// Recursively scan a workspace directory and build a `FileTreeNode` tree.
+/// 递归扫描工作区目录并构建 `FileTreeNode` 树。
 ///
-/// Rules:
-/// - Only `.md` files and directories are included.
-/// - Hidden entries (starting with `.`) are excluded.
-/// - Symlinks are skipped (uses `fs::metadata`, not `symlink_metadata`).
-/// - Sorted: directories first, then files, case-insensitive alphabetical.
+/// 规则：
+/// - 仅包含 `.md` 文件和目录。
+/// - 排除隐藏条目（以 `.` 开头的）。
+/// - 跳过符号链接（使用 `fs::metadata` 而非 `symlink_metadata`）。
+/// - 排序：目录在前、文件在后，不区分大小写的字母序。
 pub fn scan_workspace_tree(workspace_path: &Path) -> Result<Vec<FileTreeNode>, AppError> {
     scan_dir(workspace_path, workspace_path)
 }
@@ -30,20 +30,19 @@ fn scan_dir(root: &Path, dir: &Path) -> Result<Vec<FileTreeNode>, AppError> {
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
 
-        // Skip hidden entries
+        // 跳过隐藏条目
         if name_str.starts_with('.') {
             continue;
         }
 
-        // Use metadata (follows symlinks) — if it fails, the entry is a broken
-        // symlink or inaccessible; skip it.
+        // 使用 metadata（会跟踪符号链接）—— 若失败则表示是损坏的
+        // 符号链接或无法访问，跳过。
         let meta = match std::fs::metadata(entry.path()) {
             Ok(m) => m,
             Err(_) => continue,
         };
 
-        // Skip symlinks: if symlink_metadata differs from metadata in file_type,
-        // the entry is a symlink. But simpler: just check symlink_metadata directly.
+        // 跳过符号链接：直接通过 read_link 检查是否为符号链接。
         if entry.path().read_link().is_ok() {
             continue;
         }
@@ -72,11 +71,11 @@ fn scan_dir(root: &Path, dir: &Path) -> Result<Vec<FileTreeNode>, AppError> {
         }
     }
 
-    // Sort: case-insensitive alphabetical
+    // 排序：不区分大小写的字母序
     dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
-    // Directories first, then files
+    // 目录在前，文件在后
     dirs.extend(files);
     Ok(dirs)
 }
@@ -107,7 +106,7 @@ mod tests {
 
         let result = scan_workspace_tree(dir.path()).unwrap();
 
-        // Should have: notes/ folder, hello.md file (no image.png)
+        // 应包含：notes/ 文件夹、hello.md 文件（不含 image.png）
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].name, "notes"); // folder first
         assert!(result[0].children.is_some());
@@ -139,7 +138,7 @@ mod tests {
 
         let result = scan_workspace_tree(dir.path()).unwrap();
 
-        // Folders first: archive, Notes; then files: Alice, zebra
+        // 文件夹在前：archive、Notes；然后文件：Alice、zebra
         assert_eq!(result.len(), 4);
         assert_eq!(result[0].name, "archive");
         assert_eq!(result[1].name, "Notes");

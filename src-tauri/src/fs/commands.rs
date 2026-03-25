@@ -1,11 +1,11 @@
 use tauri::State;
 
-use crate::db::state::WorkspaceState;
 use crate::error::{AppError, AppResult};
+use crate::workspace::state::WorkspaceState;
 
 use super::FileTreeNode;
 
-/// Get the workspace path from state, or error.
+/// 从状态中获取工作区路径，不存在则返回错误。
 async fn workspace_path(ws_state: &WorkspaceState) -> Result<String, AppError> {
     ws_state
         .0
@@ -23,7 +23,7 @@ pub async fn scan_workspace_tree(
     let path = workspace_path(&ws_state).await?;
     let ws_path = std::path::PathBuf::from(&path);
 
-    // Run blocking FS scan on a background thread
+    // 在后台线程执行阻塞式文件系统扫描
     tokio::task::spawn_blocking(move || super::scan::scan_workspace_tree(&ws_path))
         .await
         .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?

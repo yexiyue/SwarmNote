@@ -1,6 +1,7 @@
 use tauri::State;
 
-use super::{DeviceInfo, GlobalConfigState, IdentityState};
+use super::{DeviceInfo, IdentityState};
+use crate::config::GlobalConfigState;
 use crate::error::{AppError, AppResult};
 
 #[tauri::command]
@@ -26,14 +27,14 @@ pub async fn set_device_name(
         info.device_name = name;
     }
 
-    // Update in-memory config and persist to disk
+    // 更新内存中的配置并持久化到磁盘
     let mut config = config_state.0.write().await;
     let info = state
         .device_info
         .read()
         .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
     config.device_name = info.device_name.clone();
-    super::config::save_config(&config)?;
+    crate::config::save_config(&config)?;
 
     Ok(())
 }
