@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/layout/CommandPalette";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { isPickerMode } from "@/lib/windowUtils";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export const Route = createRootRoute({
@@ -20,7 +21,10 @@ function RootComponent() {
   const initFromBackend = useWorkspaceStore((s) => s.initFromBackend);
 
   useEffect(() => {
-    initFromBackend();
+    // Picker windows start fresh — don't auto-restore the last workspace
+    if (!isPickerMode()) {
+      initFromBackend();
+    }
   }, [initFromBackend]);
 
   return (

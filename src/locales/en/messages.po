@@ -6,36 +6,76 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
 
 #: src/routes/settings.tsx:62
-msgid "主题"
-msgstr "Theme"
+#~ msgid "主题"
+#~ msgstr "Theme"
 
-#: src/components/layout/CommandPalette.tsx:62
+#: src/components/workspace/WorkspacePicker.tsx:84
+#~ msgid "最近工作区"
+#~ msgstr "Recent Workspaces"
+
+#: src/components/layout/CommandPalette.tsx:63
 msgid "最近文件"
 msgstr "Recent Files"
 
-#: src/components/layout/Sidebar.tsx:161
+#: src/components/layout/Sidebar.tsx:187
+#: src/components/layout/Sidebar.tsx:193
 msgid "切换主题"
 msgstr "Switch Theme"
 
-#: src/components/layout/CommandPalette.tsx:53
+#: src/components/layout/CommandPalette.tsx:54
 msgid "切换侧边栏"
 msgstr "Toggle Sidebar"
+
+#: src/components/layout/Sidebar.tsx:203
+msgid "切换语言"
+msgstr "Switch Language"
+
+#: src/components/workspace/WorkspacePicker.tsx:128
+msgid "创建"
+msgstr "Create"
 
 #: src/components/layout/EmptyState.tsx:16
 msgid "创建你的第一篇笔记，开始记录想法"
 msgstr "Create your first note and start capturing ideas"
 
-#: src/routes/settings.tsx:56
+#: src/components/filetree/FileTree.tsx:71
+#: src/components/filetree/FileTreeContextMenu.tsx:57
+msgid "删除"
+msgstr "Delete"
+
+#: src/components/filetree/FileTree.tsx:72
+msgid "取消"
+msgstr "Cancel"
+
+#: src/components/workspace/WorkspacePicker.tsx:127
+msgid "在指定文件夹下创建一个新的工作区。"
+msgstr "Create a new workspace in a designated folder."
+
+#: src/components/settings/GeneralSettings.tsx:57
 msgid "外观"
 msgstr "Appearance"
 
-#: src/components/layout/Sidebar.tsx:135
-msgid "快速笔记"
-msgstr "Quick Notes"
+#: src/components/workspace/WorkspacePicker.tsx:135
+msgid "将一个本地文件夹作为工作区打开。"
+msgstr "Open a local folder as a workspace."
 
-#: src/components/layout/Sidebar.tsx:63
+#: src/components/layout/TitleBar.tsx:49
+msgid "展开侧边栏"
+msgstr "Expand Sidebar"
+
+#: src/components/layout/Sidebar.tsx:135
+#~ msgid "快速笔记"
+#~ msgstr "Quick Notes"
+
+#: src/components/layout/Sidebar.tsx:99
 msgid "我的笔记"
 msgstr "My Notes"
 
@@ -43,84 +83,154 @@ msgstr "My Notes"
 msgid "或按 {modKey}N 快速创建"
 msgstr "or press {modKey}N to quick create"
 
-#: src/components/layout/CommandPalette.tsx:58
+#: src/components/workspace/WorkspacePicker.tsx:136
+msgid "打开"
+msgstr "Open"
+
+#: src/components/layout/SelectWorkspace.tsx:23
+msgid "打开工作区失败，请重试或选择其他目录。"
+msgstr "Failed to open workspace. Please try again or select a different folder."
+
+#: src/components/workspace/WorkspacePicker.tsx:134
+msgid "打开已有文件夹"
+msgstr "Open Folder"
+
+#: src/components/layout/CommandPalette.tsx:59
 msgid "打开设置"
 msgstr "Open Settings"
 
-#: src/components/layout/TitleBar.tsx:49
+#: src/components/layout/TitleBar.tsx:69
 msgid "搜索..."
 msgstr "Search..."
 
-#: src/components/layout/CommandPalette.tsx:45
+#: src/components/layout/CommandPalette.tsx:46
 msgid "操作"
 msgstr "Actions"
 
-#: src/components/layout/Sidebar.tsx:99
+#: src/components/layout/Sidebar.tsx:145
 msgid "收起侧边栏"
 msgstr "Collapse Sidebar"
 
-#: src/components/layout/Sidebar.tsx:74
+#: src/components/workspace/WorkspacePicker.tsx:126
+msgid "新建工作区"
+msgstr "New Workspace"
+
+#: src/components/layout/Sidebar.tsx:115
 msgid "新建文件"
 msgstr "New File"
 
-#: src/components/layout/Sidebar.tsx:84
+#: src/components/filetree/FileTree.tsx:49
+#: src/components/filetree/FileTreeContextMenu.tsx:43
+#: src/components/layout/Sidebar.tsx:65
+#: src/components/layout/Sidebar.tsx:130
 msgid "新建文件夹"
 msgstr "New Folder"
 
-#: src/components/layout/CommandPalette.tsx:48
+#: src/components/filetree/FileTree.tsx:34
+#: src/components/filetree/FileTreeContextMenu.tsx:39
+#: src/components/layout/CommandPalette.tsx:49
 #: src/components/layout/EmptyState.tsx:20
+#: src/components/layout/Sidebar.tsx:61
 msgid "新建笔记"
 msgstr "New Note"
 
 #: src/components/layout/Sidebar.tsx:113
-msgid "日记"
-msgstr "Journal"
+#~ msgid "日记"
+#~ msgstr "Journal"
 
-#: src/components/layout/CommandPalette.tsx:43
+#: src/components/workspace/WorkspacePicker.tsx:63
+msgid "暂无最近工作区"
+msgstr "No recent workspaces"
+
+#: src/components/layout/CommandPalette.tsx:44
 msgid "没有找到匹配的命令"
 msgstr "No matching commands found"
 
-#: src/routes/settings.tsx:27
+#: src/components/settings/GeneralSettings.tsx:30
 msgid "浅色"
 msgstr "Light"
 
-#: src/routes/settings.tsx:28
+#: src/components/settings/GeneralSettings.tsx:31
 msgid "深色"
 msgstr "Dark"
 
-#: src/components/layout/TitleBar.tsx:37
+#: src/components/filetree/EmptyTreeState.tsx:12
+msgid "点击上方 + 创建第一篇"
+msgstr "Click + above to create your first note"
+
+#. placeholder {0}: node.data.name
+#: src/components/filetree/FileTree.tsx:66
+msgid "确定要删除 \"{0}\" 吗？"
+msgstr "Are you sure you want to delete \"{0}\"?"
+
+#. placeholder {0}: node.data.name
+#: src/components/filetree/FileTree.tsx:65
+msgid "确定要删除文件夹 \"{0}\" 及其所有内容吗？"
+msgstr "Are you sure you want to delete folder \"{0}\" and all its contents?"
+
+#: src/components/filetree/FileTree.tsx:69
+msgid "确认删除"
+msgstr "Confirm Delete"
+
+#: src/components/layout/TitleBar.tsx:57
 msgid "笔记"
 msgstr "Notes"
 
-#: src/routes/settings.tsx:110
+#: src/components/layout/Sidebar.tsx:171
+#: src/components/layout/Sidebar.tsx:177
+msgid "管理工作区"
+msgstr "Manage Workspaces"
+
+#: src/components/settings/SettingsDialog.tsx:42
 msgid "设备"
 msgstr "Device"
 
-#: src/routes/settings.tsx:116
+#: src/components/settings/DeviceSettings.tsx:11
 msgid "设备名称"
 msgstr "Device Name"
 
-#: src/components/layout/TitleBar.tsx:60
-#: src/routes/settings.tsx:47
+#: src/components/layout/TitleBar.tsx:80
+#: src/components/settings/SettingsDialog.tsx:25
 msgid "设置"
 msgstr "Settings"
 
-#: src/routes/settings.tsx:85
+#: src/components/settings/GeneralSettings.tsx:39
 msgid "语言"
 msgstr "Language"
 
-#: src/routes/settings.tsx:29
+#: src/components/settings/GeneralSettings.tsx:32
 msgid "跟随系统"
 msgstr "System"
 
-#: src/components/layout/CommandPalette.tsx:40
+#: src/components/layout/CommandPalette.tsx:41
 msgid "输入命令..."
 msgstr "Type a command..."
 
+#: src/components/filetree/EmptyTreeState.tsx:9
 #: src/components/layout/EmptyState.tsx:13
 msgid "还没有笔记"
 msgstr "No Notes Yet"
 
+#: src/components/layout/SelectWorkspace.tsx:19
+msgid "选择一个文件夹作为你的工作区，所有笔记将保存在该目录中。"
+msgstr "Select a folder as your workspace. All notes will be saved in that directory."
+
+#: src/components/layout/SelectWorkspace.tsx:16
+msgid "选择工作区"
+msgstr "Select Workspace"
+
+#: src/components/layout/SelectWorkspace.tsx:36
+msgid "选择文件夹"
+msgstr "Select Folder"
+
+#: src/components/settings/SettingsDialog.tsx:35
+msgid "通用"
+msgstr "General"
+
+#: src/components/filetree/FileTreeContextMenu.tsx:50
+msgid "重命名"
+msgstr "Rename"
+
 #: src/components/layout/Sidebar.tsx:129
-msgid "项目笔记"
-msgstr "Project Notes"
+#~ msgid "项目笔记"
+#~ msgstr "Project Notes"

@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SwarmNote is a decentralized, local-first, peer-to-peer note-taking app built with Tauri v2 + React 19 + Rust. Notes sync between devices via P2P networking (libp2p) without a central server. Targets desktop (Windows/macOS/Linux) and Android.
 
+## Git Conventions
+
+- When making git commits, NEVER include Co-Authored-By metadata in commit messages unless explicitly asked.
+- Before creating a GitHub PR, first check if `gh` CLI is installed and authenticated. If not, provide the manual browser URL immediately instead of attempting and failing.
+
+## Working Style
+
+- When asked to explore or plan, ask clarifying questions upfront before doing extensive autonomous exploration. Present a brief plan and wait for confirmation before proceeding.
+- When asked to optimize or review code, scope the task to the specific files or area mentioned. Ask for clarification if the scope is ambiguous (single file vs whole project).
+
 ## Development Commands
 
 ```bash

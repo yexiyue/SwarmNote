@@ -25,8 +25,8 @@ interface WorkspaceActions {
   fetchRecentWorkspaces: () => Promise<void>;
   /** Open a workspace by path (called after dialog or programmatically). */
   openWorkspace: (path: string) => Promise<void>;
-  /** Show folder picker dialog then open the selected workspace. */
-  selectAndOpenWorkspace: () => Promise<void>;
+  /** Show folder picker dialog then open the selected workspace. Returns workspace info on success. */
+  selectAndOpenWorkspace: () => Promise<WorkspaceInfo | null>;
   clearWorkspace: () => void;
 }
 
@@ -77,10 +77,11 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((se
 
   selectAndOpenWorkspace: async () => {
     const selected = await open({ directory: true, title: "选择工作区目录" });
-    if (!selected) return; // user cancelled
+    if (!selected) return null;
 
     const { openWorkspace } = useWorkspaceStore.getState();
     await openWorkspace(selected);
+    return useWorkspaceStore.getState().workspace;
   },
 
   clearWorkspace: () => {

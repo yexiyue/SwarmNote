@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  AppWindow,
   FilePlus,
   FolderOpen,
   FolderPlus,
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type Locale, locales } from "@/i18n";
 import { isMac, modKey } from "@/lib/utils";
+import { openPickerWindow } from "@/lib/windowUtils";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -159,6 +161,22 @@ export function Sidebar() {
             <span className="truncate text-[10px] text-muted-foreground">12D3KooW...a8f2</span>
           </div>
           <div className="flex shrink-0 gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground"
+                  onClick={openPickerWindow}
+                  aria-label={t`管理工作区`}
+                >
+                  <AppWindow className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <Trans>管理工作区</Trans>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
