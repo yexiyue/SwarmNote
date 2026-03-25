@@ -2,8 +2,10 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 
 import {
+  getRecentWorkspaces,
   getWorkspaceInfo,
   openWorkspace as openWorkspaceCmd,
+  type RecentWorkspace,
   type WorkspaceInfo,
 } from "@/commands/workspace";
 import { useEditorStore } from "@/stores/editorStore";
@@ -11,6 +13,7 @@ import { useFileTreeStore } from "@/stores/fileTreeStore";
 
 interface WorkspaceState {
   workspace: WorkspaceInfo | null;
+  recentWorkspaces: RecentWorkspace[];
   isLoading: boolean;
   error: string | null;
 }
@@ -18,6 +21,8 @@ interface WorkspaceState {
 interface WorkspaceActions {
   /** Check if backend already has a workspace loaded (auto-restore). */
   initFromBackend: () => Promise<void>;
+  /** Fetch the list of recently opened workspaces. */
+  fetchRecentWorkspaces: () => Promise<void>;
   /** Open a workspace by path (called after dialog or programmatically). */
   openWorkspace: (path: string) => Promise<void>;
   /** Show folder picker dialog then open the selected workspace. */
@@ -32,6 +37,7 @@ function clearDependentStores() {
 
 export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((set) => ({
   workspace: null,
+  recentWorkspaces: [],
   isLoading: false,
   error: null,
 
@@ -44,6 +50,15 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((se
       set({ error: String(e) });
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  fetchRecentWorkspaces: async () => {
+    try {
+      const list = await getRecentWorkspaces();
+      set({ recentWorkspaces: list });
+    } catch (e) {
+      console.error("Failed to fetch recent workspaces:", e);
     }
   },
 
