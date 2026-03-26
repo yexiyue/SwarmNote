@@ -1,16 +1,33 @@
 mod config;
+mod device;
 mod document;
 pub mod error;
 mod fs;
 mod identity;
+mod network;
+mod protocol;
 mod workspace;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "swarmnote_lib=info,swarm_p2p_core=info".into()),
+        )
+        .init();
+
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(tauri_plugin_mcp_bridge::init());
+    }
+
+    builder
         .invoke_handler(tauri::generate_handler![
             // 设备身份
             identity::commands::get_device_info,
@@ -33,6 +50,10 @@ pub fn run() {
             fs::commands::fs_delete_file,
             fs::commands::fs_delete_dir,
             fs::commands::fs_rename,
+            // P2P 网络
+            network::commands::start_p2p_node,
+            network::commands::stop_p2p_node,
+            network::commands::get_connected_peers,
         ])
         .setup(|app| {
             use tauri::Manager;
@@ -40,6 +61,10 @@ pub fn run() {
             identity::init(app.handle())?;
             workspace::init(app.handle())?;
             app.manage(fs::watcher::FsWatcherState::new());
+
+            // P2P 网络状态（初始为 None，通过 start_p2p_node 启动）
+            let net_state: network::NetManagerState = tokio::sync::Mutex::new(None);
+            app.manage(net_state);
 
             #[cfg(not(target_os = "macos"))]
             {
