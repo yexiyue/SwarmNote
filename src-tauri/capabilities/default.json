@@ -18,6 +18,7 @@
     "dialog:default",
     "core:event:default",
     "core:event:allow-listen",
-    "core:event:allow-emit"
+    "core:event:allow-emit",
+    "mcp-bridge:default"
   ]
 }

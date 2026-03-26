@@ -24,6 +24,8 @@ pub enum AppError {
     NameConflict(String),
     #[error("No workspace open")]
     NoWorkspaceOpen,
+    #[error("Network error: {0}")]
+    Network(String),
 }
 
 /// 结构化序列化：为前端提供 `{ kind: "...", message: "..." }` 格式。
@@ -45,6 +47,7 @@ impl Serialize for AppError {
             AppError::PathTraversal(msg) => ("PathTraversal", msg.clone()),
             AppError::NameConflict(msg) => ("NameConflict", msg.clone()),
             AppError::NoWorkspaceOpen => ("NoWorkspaceOpen", self.to_string()),
+            AppError::Network(msg) => ("Network", msg.clone()),
         };
 
         state.serialize_field("kind", kind)?;
