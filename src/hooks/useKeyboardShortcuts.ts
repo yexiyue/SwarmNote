@@ -11,6 +11,14 @@ export function useKeyboardShortcuts() {
 
       const { toggleSidebar, toggleSettings } = useUIStore.getState();
 
+      // Ctrl+Shift+O: open workspace picker
+      if (e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        const { setWorkspacePickerOpen, workspacePickerOpen } = useUIStore.getState();
+        setWorkspacePickerOpen(!workspacePickerOpen);
+        return;
+      }
+
       switch (e.key.toLowerCase()) {
         case "b":
           e.preventDefault();

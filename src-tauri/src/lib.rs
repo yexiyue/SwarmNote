@@ -36,6 +36,7 @@ pub fn run() {
             workspace::commands::open_workspace,
             workspace::commands::get_workspace_info,
             workspace::commands::get_recent_workspaces,
+            workspace::commands::open_workspace_window,
             // 文档 & 文件夹
             document::commands::db_get_documents,
             document::commands::db_upsert_document,
@@ -57,10 +58,25 @@ pub fn run() {
         ])
         .setup(|app| {
             use tauri::Manager;
-            // From<IdentityError> for AppError 允许直接使用 ?
+
             identity::init(app.handle())?;
-            workspace::init(app.handle())?;
             app.manage(fs::watcher::FsWatcherState::new());
+            workspace::init(app.handle())?;
+
+            // 如果主窗口自动恢复了工作区，启动对应的 fs watcher
+            {
+                let ws_state = app.state::<workspace::state::WorkspaceState>();
+                let watcher_state = app.state::<fs::watcher::FsWatcherState>();
+                let infos = tauri::async_runtime::block_on(ws_state.0.read());
+                if let Some(info) = infos.get("main") {
+                    let ws_path = std::path::PathBuf::from(&info.path);
+                    if let Err(e) =
+                        fs::watcher::start_watching(app.handle(), "main", &ws_path, &watcher_state)
+                    {
+                        log::warn!("Failed to start fs watcher for auto-restored workspace: {e}");
+                    }
+                }
+            }
 
             // P2P 网络状态（初始为 None，通过 start_p2p_node 启动）
             let net_state: network::NetManagerState = tokio::sync::Mutex::new(None);
@@ -68,8 +84,9 @@ pub fn run() {
 
             #[cfg(not(target_os = "macos"))]
             {
-                let window = app.get_webview_window("main").unwrap();
-                window.set_decorations(false)?;
+                if let Some(window) = app.get_webview_window("main") {
+                    window.set_decorations(false)?;
+                }
             }
 
             Ok(())

@@ -2,71 +2,77 @@
 
 ## 用户故事
 
-作为首次使用 SwarmNote 的用户，我希望通过简单的引导流程完成初始设置，以便快速开始使用。
+作为首次使用 SwarmNote 的用户，我希望通过简单的引导流程完成设备初始化，以便快速开始使用。
 
 ## 需求描述
 
-首次启动应用时，展示多步骤引导流程，帮助用户完成工作区创建、设备命名和身份生成。后续启动直接进入主界面。
+首次启动应用时（无 `~/.swarmnote/config.json`），展示多步骤引导流程，帮助用户完成设备命名和身份确认。工作区选择由独立的 Workspace Picker 负责（v0.2.0 #22），Onboarding 只关注设备级初始化。
+
+后续启动检测到已有配置时跳过 Onboarding，直接进入 Workspace Picker 或恢复上次工作区。
 
 ## 交互设计
 
-### 用户操作流程
+### 简化后的 3 步流程
 
-1. **Step 1 - 欢迎页**：展示 SwarmNote Logo 和简短介绍，"开始使用" 按钮
-2. **Step 2 - 选择工作区目录**：调用系统文件夹选择对话框，用户选择或新建一个目录作为工作区根目录
-3. **Step 3 - 设备名称**：输入设备名称（默认取系统主机名），用于后续 P2P 设备识别
-4. **Step 4 - 完成**：展示配置摘要（工作区路径、设备名、PeerId 前 8 位），"进入 SwarmNote" 按钮
+1. **Step 1 - 欢迎页**：展示 SwarmNote Logo 和核心卖点（多端协作、安全加密、P2P 同步），"开始使用" 按钮
+2. **Step 2 - 设备名称**：输入设备名称（默认取系统主机名），用于 P2P 设备识别。说明文案："为你的设备取个名字，方便识别"
+3. **Step 3 - 完成**：展示设备身份摘要（设备名、PeerId 前 8 位），"进入 SwarmNote" 按钮 → 跳转到 Workspace Picker
+
+> **与 v0.1.0 原始设计的差异**：原设计有 4 步（含选择工作区），现简化为 3 步。工作区选择从 Onboarding 中移出，由 Workspace Picker 统一处理，支持多工作区场景。
 
 ### 关键页面 / 组件
 
 - `OnboardingWelcome` — 欢迎页
-- `OnboardingWorkspace` — 工作区选择页（集成 Tauri 文件夹对话框）
 - `OnboardingDeviceName` — 设备名输入页
-- `OnboardingComplete` — 完成页（展示摘要）
-- `OnboardingStepper` — 步骤指示器组件
+- `OnboardingComplete` — 完成页（设备摘要）
+- `OnboardingStepper` — 步骤指示器组件（3 步）
 
-### 设计参考
+### 设计稿
 
-参考 `dev-notes/design/10-ui-requirements.md` 中 Onboarding 部分。
+参考 `milestones/v0.1.0/design/layout-design.pen` 中 Onboarding 1/3/4 页面（Onboarding 2 Workspace 已删除）。
 
 ## 技术方案
 
 ### 前端
 
-- 使用 Zustand 管理 onboarding 状态（当前步骤、用户输入）
+- 使用已有的 `onboardingStore`（Zustand）管理步骤状态
 - 步骤间滑动/淡入动画过渡
-- 完成后将 onboarding 状态持久化（标记已完成）
+- 完成后将 `isCompleted` 持久化到 tauri-plugin-store
+- 完成后跳转到 Workspace Picker
 
 ### 后端
 
-- `#[tauri::command] fn select_workspace_dir()` — 弹出文件夹选择对话框，返回路径
-- `#[tauri::command] fn init_workspace(path, device_name)` — 初始化 `.swarmnote/` 目录，创建 workspace.db，生成 Stronghold 密钥，返回 PeerId
-- `#[tauri::command] fn get_onboarding_status()` — 检查是否已完成 onboarding
+- 复用已有的 `identity::init()`（setup 阶段自动完成密钥生成）
+- 复用已有的 `set_device_name` command
+- 复用已有的 `get_device_info` command（获取 PeerId）
+- 无需新增 Rust command
 
-### 数据结构
+### 启动流程
 
-```rust
-struct OnboardingResult {
-    workspace_path: String,
-    device_name: String,
-    peer_id: String,
-}
+```mermaid
+flowchart TD
+    A[App 启动] --> B{config.json 存在?}
+    B -- 否 --> C[Onboarding 流程]
+    C --> D[Welcome]
+    D --> E[设备命名]
+    E --> F[完成]
+    F --> G[Workspace Picker]
+    B -- 是 --> H{有上次工作区?}
+    H -- 是 --> I[恢复上次工作区]
+    H -- 否 --> G
+    G --> J[选择/创建工作区]
+    J --> K[进入编辑器]
 ```
 
 ## 验收标准
 
-- [ ] 首次启动显示引导流程，非首次启动直接进入主界面
-- [ ] 可通过系统对话框选择工作区目录
-- [ ] 选择的目录下自动创建 `.swarmnote/` 子目录和 `workspace.db`
+- [ ] 首次启动显示 3 步引导流程
+- [ ] 非首次启动跳过 Onboarding
 - [ ] 设备名称默认填充系统主机名，用户可修改
-- [ ] 完成页展示工作区路径、设备名、PeerId 摘要
+- [ ] 完成页展示设备名、PeerId 摘要
+- [ ] 完成后跳转到 Workspace Picker
 - [ ] 步骤间有流畅的过渡动画
-
-## 任务拆分建议
-
-> 此部分可留空，由 /project plan 自动拆分为 GitHub Issues。
 
 ## 开放问题
 
-- Onboarding 完成状态存储在哪里？全局配置 `~/.swarmnote/config.toml` 还是 workspace 内？
-  - 建议：存在全局配置，因为 onboarding 是设备级别的，不是工作区级别的
+- Onboarding 完成状态存储在 tauri-plugin-store（`settings.json` 的 `isCompleted` 字段），已由 `onboardingStore` 实现

@@ -22,10 +22,11 @@ pub struct UpsertDocumentInput {
 
 #[tauri::command]
 pub async fn db_get_documents(
+    window: tauri::Window,
     workspace_id: String,
     db_state: State<'_, DbState>,
 ) -> AppResult<Vec<documents::Model>> {
-    let guard = db_state.workspace_db().await?;
+    let guard = db_state.workspace_db_for(window.label()).await?;
     Ok(documents::Entity::find()
         .filter(documents::Column::WorkspaceId.eq(&workspace_id))
         .all(guard.conn())
@@ -34,11 +35,12 @@ pub async fn db_get_documents(
 
 #[tauri::command]
 pub async fn db_upsert_document(
+    window: tauri::Window,
     input: UpsertDocumentInput,
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
 ) -> AppResult<documents::Model> {
-    let guard = db_state.workspace_db().await?;
+    let guard = db_state.workspace_db_for(window.label()).await?;
     let db = guard.conn();
     let now = Utc::now().timestamp();
 
@@ -72,8 +74,12 @@ pub async fn db_upsert_document(
 }
 
 #[tauri::command]
-pub async fn db_delete_document(id: String, db_state: State<'_, DbState>) -> AppResult<()> {
-    let guard = db_state.workspace_db().await?;
+pub async fn db_delete_document(
+    window: tauri::Window,
+    id: String,
+    db_state: State<'_, DbState>,
+) -> AppResult<()> {
+    let guard = db_state.workspace_db_for(window.label()).await?;
     documents::Entity::delete_by_id(&id)
         .exec(guard.conn())
         .await?;
@@ -92,10 +98,11 @@ pub struct CreateFolderInput {
 
 #[tauri::command]
 pub async fn db_get_folders(
+    window: tauri::Window,
     workspace_id: String,
     db_state: State<'_, DbState>,
 ) -> AppResult<Vec<folders::Model>> {
-    let guard = db_state.workspace_db().await?;
+    let guard = db_state.workspace_db_for(window.label()).await?;
     Ok(folders::Entity::find()
         .filter(folders::Column::WorkspaceId.eq(&workspace_id))
         .all(guard.conn())
@@ -104,11 +111,12 @@ pub async fn db_get_folders(
 
 #[tauri::command]
 pub async fn db_create_folder(
+    window: tauri::Window,
     input: CreateFolderInput,
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
 ) -> AppResult<folders::Model> {
-    let guard = db_state.workspace_db().await?;
+    let guard = db_state.workspace_db_for(window.label()).await?;
     let now = Utc::now().timestamp();
 
     #[allow(clippy::needless_update)]
@@ -127,8 +135,12 @@ pub async fn db_create_folder(
 }
 
 #[tauri::command]
-pub async fn db_delete_folder(id: String, db_state: State<'_, DbState>) -> AppResult<()> {
-    let guard = db_state.workspace_db().await?;
+pub async fn db_delete_folder(
+    window: tauri::Window,
+    id: String,
+    db_state: State<'_, DbState>,
+) -> AppResult<()> {
+    let guard = db_state.workspace_db_for(window.label()).await?;
     let db = guard.conn();
 
     let child_folders = folders::Entity::find()
