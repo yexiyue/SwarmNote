@@ -2,6 +2,7 @@ pub mod commands;
 pub mod db;
 pub mod state;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use entity::workspace::workspaces;
@@ -14,27 +15,60 @@ use crate::error::AppError;
 use commands::WorkspaceInfo;
 use state::{DbState, WorkspaceState};
 
-/// 初始化数据库层：devices.db + 可选的工作区自动恢复。
-///
-/// 通过 `tokio::join!` 并发执行两个初始化操作以减少启动延迟。
+/// 初始化数据库层：devices.db + 可选的工作区自动恢复（以 "main" 为 key）。
 pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
     let (devices_result, (workspace_db, workspace_info)) = tauri::async_runtime::block_on(async {
         tokio::join!(db::init_devices_db(), try_auto_restore_workspace(app))
     });
     let devices_db = devices_result?;
 
+    let mut workspace_dbs = HashMap::new();
+    let mut workspace_infos = HashMap::new();
+
+    if let Some(conn) = workspace_db {
+        workspace_dbs.insert("main".to_owned(), conn);
+    }
+    if let Some(info) = workspace_info {
+        workspace_infos.insert("main".to_owned(), info);
+    }
+
     app.manage(DbState {
         devices_db,
-        workspace_db: RwLock::new(workspace_db),
+        workspace_dbs: RwLock::new(workspace_dbs),
     });
-    app.manage(WorkspaceState(RwLock::new(workspace_info)));
+    app.manage(WorkspaceState(RwLock::new(workspace_infos)));
 
     Ok(())
 }
 
+/// 清理指定窗口的所有 per-window 资源。
+pub async fn cleanup_window(
+    label: &str,
+    db_state: &DbState,
+    ws_state: &WorkspaceState,
+    watcher_state: &crate::fs::watcher::FsWatcherState,
+) {
+    // 1. 停止 watcher
+    crate::fs::watcher::stop_watching(label, watcher_state);
+
+    // 2. 移除 WorkspaceInfo
+    {
+        let mut infos = ws_state.0.write().await;
+        if infos.remove(label).is_some() {
+            log::info!("Cleaned up WorkspaceInfo for window '{label}'");
+        }
+    }
+
+    // 3. 移除 DB 连接（drop 即关闭）
+    {
+        let mut dbs = db_state.workspace_dbs.write().await;
+        if dbs.remove(label).is_some() {
+            log::info!("Cleaned up workspace DB for window '{label}'");
+        }
+    }
+}
+
 /// 尝试从全局配置自动恢复上次打开的工作区。
-///
-/// 任何失败均返回 `(None, None)` —— 不会 panic。
 async fn try_auto_restore_workspace(
     app: &tauri::AppHandle,
 ) -> (Option<DatabaseConnection>, Option<WorkspaceInfo>) {
@@ -55,7 +89,6 @@ async fn try_auto_restore_workspace(
 
     let ws_path = PathBuf::from(&path);
 
-    // 跳过 TOCTOU 检查 —— 让 init_workspace_db 直接处理缺失文件
     let conn = match db::init_workspace_db(&ws_path).await {
         Ok(c) => c,
         Err(e) => {
@@ -78,7 +111,6 @@ async fn try_auto_restore_workspace(
 
     let dir_name = commands::workspace_name_from_path(&ws_path);
 
-    // 如果目录被重命名则更新数据库中的名称（与 open_workspace 逻辑相同）
     let ws = if ws.name != dir_name {
         let mut active: workspaces::ActiveModel = ws.into();
         active.name = Set(dir_name.clone());

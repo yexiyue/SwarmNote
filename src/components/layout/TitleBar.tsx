@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isMac, modKey } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export function TitleBar() {
   const { t } = useLingui();
@@ -13,6 +14,7 @@ export function TitleBar() {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const toggleSettings = useUIStore((s) => s.toggleSettings);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const workspace = useWorkspaceStore((s) => s.workspace);
 
   // When sidebar is collapsed on macOS, add left padding to avoid traffic light overlap
   const needsTrafficLightPadding = isMac && !sidebarOpen;
@@ -47,7 +49,7 @@ export function TitleBar() {
         </div>
         <div className="h-4 w-px bg-border" />
         <span className="text-[13px] font-medium text-foreground">
-          <Trans>笔记</Trans>
+          {workspace?.name ?? "SwarmNote"}
         </span>
       </div>
 

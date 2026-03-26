@@ -4,7 +4,10 @@ import { Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { EditorPane } from "@/components/layout/EditorPane";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { SelectWorkspace } from "@/components/layout/SelectWorkspace";
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { WorkspacePicker } from "@/components/workspace/WorkspacePicker";
+import { useOnboardingStore } from "@/stores/onboardingStore";
+import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export const Route = createFileRoute("/")({
@@ -13,9 +16,9 @@ export const Route = createFileRoute("/")({
 
 function IndexPage() {
   const { workspace, isLoading } = useWorkspaceStore();
-
-  // TODO(#10): onboarding 实现后，在此添加 onboarding 路由守卫
-  // if (!isOnboarded) navigate({ to: "/onboarding" });
+  const isCompleted = useOnboardingStore((s) => s.isCompleted);
+  const workspacePickerOpen = useUIStore((s) => s.workspacePickerOpen);
+  const setWorkspacePickerOpen = useUIStore((s) => s.setWorkspacePickerOpen);
 
   if (isLoading) {
     return (
@@ -25,15 +28,26 @@ function IndexPage() {
     );
   }
 
+  if (!isCompleted) {
+    return <OnboardingFlow />;
+  }
+
   if (!workspace) {
-    return <SelectWorkspace />;
+    return <WorkspacePicker mode="fullscreen" />;
   }
 
   return (
-    <AppLayout>
-      <EditorPane>
-        <EmptyState />
-      </EditorPane>
-    </AppLayout>
+    <>
+      <AppLayout>
+        <EditorPane>
+          <EmptyState />
+        </EditorPane>
+      </AppLayout>
+      <WorkspacePicker
+        mode="dialog"
+        open={workspacePickerOpen}
+        onOpenChange={setWorkspacePickerOpen}
+      />
+    </>
   );
 }

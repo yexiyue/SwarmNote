@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -7,12 +8,12 @@ use tauri::{AppHandle, Emitter};
 
 type FsNotifyWatcher = notify::RecommendedWatcher;
 
-/// Tauri 托管状态，持有活跃的文件系统监听器。
-pub struct FsWatcherState(pub Mutex<Option<Debouncer<FsNotifyWatcher>>>);
+/// Tauri 托管状态，持有 per-window 的文件系统监听器。
+pub struct FsWatcherState(pub Mutex<HashMap<String, Debouncer<FsNotifyWatcher>>>);
 
 impl FsWatcherState {
     pub fn new() -> Self {
-        Self(Mutex::new(None))
+        Self(Mutex::new(HashMap::new()))
     }
 }
 
@@ -41,19 +42,21 @@ fn is_relevant_change(path: &Path, workspace: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()) == Some("md")
 }
 
-/// 开始监听工作区目录的文件变更。
+/// 开始监听工作区目录的文件变更，事件定向发送给指定窗口。
 ///
-/// 以 100ms 防抖后向前端发送 `fs:tree-changed` 事件。
+/// 以 100ms 防抖后向目标窗口发送 `fs:tree-changed` 事件。
 pub fn start_watching(
     app_handle: &AppHandle,
+    label: &str,
     workspace_path: &Path,
     state: &FsWatcherState,
 ) -> Result<(), crate::error::AppError> {
-    // 先停止已有的监听器
-    stop_watching(state);
+    // 先停止该窗口已有的监听器
+    stop_watching(label, state);
 
     let app = app_handle.clone();
     let ws_path = workspace_path.to_path_buf();
+    let target_label = label.to_owned();
 
     let debouncer = new_debouncer(
         Duration::from_millis(100),
@@ -72,8 +75,8 @@ pub fn start_watching(
                 .any(|e| is_relevant_change(&e.path, &ws_path));
 
             if any_relevant {
-                if let Err(e) = app.emit("fs:tree-changed", ()) {
-                    log::warn!("Failed to emit fs:tree-changed: {e}");
+                if let Err(e) = app.emit_to(&target_label, "fs:tree-changed", ()) {
+                    log::warn!("Failed to emit fs:tree-changed to {target_label}: {e}");
                 }
             }
         },
@@ -83,25 +86,29 @@ pub fn start_watching(
     // 递归监听工作区目录
     let watcher_path = PathBuf::from(workspace_path);
     {
-        let mut guard = state.0.lock().unwrap();
-        *guard = Some(debouncer);
-        if let Some(ref mut d) = *guard {
+        let mut guard = state.0.lock().expect("FsWatcherState mutex poisoned");
+        guard.insert(label.to_owned(), debouncer);
+        if let Some(d) = guard.get_mut(label) {
             d.watcher()
                 .watch(&watcher_path, notify::RecursiveMode::Recursive)
                 .map_err(|e| crate::error::AppError::Io(std::io::Error::other(e.to_string())))?;
         }
     }
 
-    log::info!("Started fs watcher for: {}", workspace_path.display());
+    log::info!(
+        "Started fs watcher for window '{}': {}",
+        label,
+        workspace_path.display()
+    );
 
     Ok(())
 }
 
-/// 停止活跃的文件系统监听器（如果存在）。
-pub fn stop_watching(state: &FsWatcherState) {
-    let mut guard = state.0.lock().unwrap();
-    if guard.take().is_some() {
-        log::info!("Stopped fs watcher");
+/// 停止指定窗口的文件系统监听器（如果存在）。
+pub fn stop_watching(label: &str, state: &FsWatcherState) {
+    let mut guard = state.0.lock().expect("FsWatcherState mutex poisoned");
+    if guard.remove(label).is_some() {
+        log::info!("Stopped fs watcher for window '{label}'");
     }
 }
 
@@ -136,9 +143,7 @@ mod tests {
 
     #[test]
     fn md_files_relevant() {
-        // 此测试检查扩展名逻辑（文件可能不存在于磁盘上）
         let path = Path::new("/workspace/note.md");
-        // 路径不存在时，is_relevant_change 通过扩展名判断
         assert!(is_relevant_change(path, &ws()));
     }
 }

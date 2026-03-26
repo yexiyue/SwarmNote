@@ -26,3 +26,7 @@ export async function getWorkspaceInfo(): Promise<WorkspaceInfo | null> {
 export async function getRecentWorkspaces(): Promise<RecentWorkspace[]> {
   return invoke<RecentWorkspace[]>("get_recent_workspaces");
 }
+
+export async function openWorkspaceWindow(path: string): Promise<void> {
+  return invoke("open_workspace_window", { path });
+}
