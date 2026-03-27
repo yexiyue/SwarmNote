@@ -88,8 +88,7 @@ impl OnlineAnnouncer {
         Ok(())
     }
 
-    /// 查询已配对设备的在线状态并主动拨号重连（供 #26 调用）
-    #[allow(dead_code)]
+    /// 查询已配对设备的在线状态并主动拨号重连
     pub async fn check_paired_online(&self, paired_peer_ids: Vec<PeerId>) {
         if paired_peer_ids.is_empty() {
             return;

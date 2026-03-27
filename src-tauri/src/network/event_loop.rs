@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::device::DeviceManager;
+use crate::pairing::PairingManager;
 use crate::protocol::AppRequest;
 
 /// Tauri 事件名常量
@@ -14,6 +15,11 @@ pub mod events {
     pub const PEER_CONNECTED: &str = "peer-connected";
     pub const PEER_DISCONNECTED: &str = "peer-disconnected";
     pub const NETWORK_STATUS_CHANGED: &str = "network-status-changed";
+    pub const PAIRING_REQUEST_RECEIVED: &str = "pairing-request-received";
+    pub const PAIRED_DEVICE_ADDED: &str = "paired-device-added";
+    pub const PAIRED_DEVICE_REMOVED: &str = "paired-device-removed";
+    #[allow(dead_code)]
+    pub const NEARBY_DEVICES_CHANGED: &str = "nearby-devices-changed";
 }
 
 /// 启动事件循环，持续读取 NodeEvent 并分发到 DeviceManager + Tauri 事件
@@ -21,6 +27,7 @@ pub fn spawn_event_loop(
     mut receiver: EventReceiver<AppRequest>,
     app: AppHandle,
     device_manager: Arc<DeviceManager>,
+    pairing_manager: Arc<PairingManager>,
     cancel_token: CancellationToken,
 ) {
     tokio::spawn(async move {
@@ -32,7 +39,7 @@ pub fn spawn_event_loop(
                 }
                 event = receiver.recv() => {
                     match event {
-                        Some(event) => handle_event(event, &app, &device_manager),
+                        Some(event) => handle_event(event, &app, &device_manager, &pairing_manager),
                         None => {
                             info!("Event receiver closed, exiting event loop");
                             break;
@@ -44,7 +51,12 @@ pub fn spawn_event_loop(
     });
 }
 
-fn handle_event(event: NodeEvent<AppRequest>, app: &AppHandle, device_manager: &DeviceManager) {
+fn handle_event(
+    event: NodeEvent<AppRequest>,
+    app: &AppHandle,
+    device_manager: &DeviceManager,
+    pairing_manager: &PairingManager,
+) {
     match event {
         NodeEvent::Listening { addr } => {
             info!("Listening on {addr}");
@@ -122,10 +134,28 @@ fn handle_event(event: NodeEvent<AppRequest>, app: &AppHandle, device_manager: &
             pending_id,
             request,
         } => {
-            // 暂不处理请求，留给 #26 (pairing) 和 #28 (sync)
             match &request {
-                AppRequest::Pairing(_) => {
-                    warn!("Received pairing request from {peer_id} (pending_id={pending_id}), but pairing handler not yet implemented");
+                AppRequest::Pairing(ref pairing_req) => {
+                    info!("Received pairing request from {peer_id} (pending_id={pending_id})");
+                    pairing_manager.cache_inbound_request(peer_id, pending_id, pairing_req);
+
+                    // 构建 payload
+                    let expires_at = chrono::Utc::now().timestamp_millis() + 90_000; // 90s deadline
+                    let payload = serde_json::json!({
+                        "pendingId": pending_id,
+                        "peerId": peer_id.to_string(),
+                        "osInfo": pairing_req.os_info,
+                        "method": pairing_req.method,
+                        "expiresAt": expires_at,
+                    });
+
+                    // 定向 emit 或广播 + 通知
+                    emit_to_focused_or_all(app, events::PAIRING_REQUEST_RECEIVED, &payload);
+                    notify_if_unfocused(
+                        app,
+                        "配对请求",
+                        &format!("{} 请求与您配对", pairing_req.os_info.hostname),
+                    );
                 }
                 AppRequest::Sync(_) => {
                     warn!("Received sync request from {peer_id} (pending_id={pending_id}), but sync handler not yet implemented");
@@ -146,5 +176,38 @@ fn handle_event(event: NodeEvent<AppRequest>, app: &AppHandle, device_manager: &
         NodeEvent::GossipUnsubscribed { peer_id, topic } => {
             info!("Peer {peer_id} unsubscribed from topic {topic}");
         }
+    }
+}
+
+/// 向聚焦窗口定向 emit，无聚焦窗口时广播给所有窗口
+fn emit_to_focused_or_all<S: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload: &S) {
+    use tauri::Manager;
+    let focused = app
+        .webview_windows()
+        .values()
+        .find(|w| w.is_focused().unwrap_or(false))
+        .map(|w| w.label().to_string());
+
+    if let Some(label) = focused {
+        if let Some(win) = app.get_webview_window(&label) {
+            let _ = win.emit(event, payload.clone());
+            return;
+        }
+    }
+    // 无聚焦窗口，广播
+    let _ = app.emit(event, payload.clone());
+}
+
+/// 当所有窗口都不在前台时发送系统通知
+fn notify_if_unfocused(app: &AppHandle, title: &str, body: &str) {
+    use tauri::Manager;
+    let any_focused = app
+        .webview_windows()
+        .values()
+        .any(|w| w.is_focused().unwrap_or(false));
+
+    if !any_focused {
+        use tauri_plugin_notification::NotificationExt;
+        let _ = app.notification().builder().title(title).body(body).show();
     }
 }

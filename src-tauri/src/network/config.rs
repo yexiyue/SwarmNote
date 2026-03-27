@@ -21,7 +21,7 @@ pub fn create_node_config(agent_version: String) -> NodeConfig {
         .with_autonat(true)
         .with_gossipsub(true)
         .with_req_resp_protocol("/swarmnote/req/1.0.0")
-        .with_req_resp_timeout(Duration::from_secs(180))
+        .with_req_resp_timeout(Duration::from_secs(120))
         .with_bootstrap_peers(bootstrap_peers)
 }
 

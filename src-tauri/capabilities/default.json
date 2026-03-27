@@ -4,7 +4,8 @@
   "description": "Capability for the main window and workspace windows",
   "windows": [
     "main",
-    "ws-*"
+    "ws-*",
+    "settings"
   ],
   "permissions": [
     "core:default",
@@ -22,6 +23,7 @@
     "core:event:default",
     "core:event:allow-listen",
     "core:event:allow-emit",
-    "mcp-bridge:default"
+    "mcp-bridge:default",
+    "notification:default"
   ]
 }

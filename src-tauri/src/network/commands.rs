@@ -5,6 +5,7 @@ use crate::device::PeerInfo;
 use crate::error::AppResult;
 use crate::identity::IdentityState;
 use crate::protocol::{AppRequest, AppResponse, OsInfo};
+use crate::workspace::state::DbState;
 
 use super::config::create_node_config;
 use super::event_loop::spawn_event_loop;
@@ -17,6 +18,7 @@ pub async fn start_p2p_node(
     app: AppHandle,
     identity: State<'_, IdentityState>,
     net_state: State<'_, NetManagerState>,
+    db_state: State<'_, DbState>,
 ) -> AppResult<()> {
     let mut guard = net_state.lock().await;
     if guard.is_some() {
@@ -41,8 +43,8 @@ pub async fn start_p2p_node(
         swarm_p2p_core::start::<AppRequest, AppResponse>(keypair, config)
             .map_err(|e| crate::error::AppError::Network(format!("Failed to start P2P: {e}")))?;
 
-    // 创建 NetManager
-    let net_manager = NetManager::new(client.clone(), peer_id);
+    // 创建 NetManager（传入 devices_db 供 PairingManager 使用）
+    let net_manager = NetManager::new(client.clone(), peer_id, db_state.devices_db.clone());
     let cancel_token = net_manager.cancel_token();
 
     // 启动事件循环
@@ -50,12 +52,14 @@ pub async fn start_p2p_node(
         receiver,
         app.clone(),
         net_manager.device_manager.clone(),
+        net_manager.pairing_manager.clone(),
         cancel_token.clone(),
     );
 
     // 在线宣告 + DHT bootstrap + 已配对设备重连（后台任务）
     let announcer = net_manager.online_announcer.clone();
     let bootstrap_client = client.clone();
+    let pairing_for_bootstrap = net_manager.pairing_manager.clone();
 
     tokio::spawn(async move {
         // 先 announce online
@@ -69,9 +73,12 @@ pub async fn start_p2p_node(
             Err(e) => tracing::warn!("DHT bootstrap failed: {e}"),
         }
 
-        // TODO(#26): 从 SQLite 读取已配对设备并 check_paired_online
-        // let paired_peer_ids = read_paired_devices_from_db().await;
-        // announcer.check_paired_online(paired_peer_ids).await;
+        // 从 SQLite 读取已配对设备并 check_paired_online
+        if let Err(e) = pairing_for_bootstrap.load_paired_devices().await {
+            tracing::warn!("Failed to load paired devices: {e}");
+        }
+        let paired_peer_ids = pairing_for_bootstrap.get_paired_peer_ids();
+        announcer.check_paired_online(paired_peer_ids).await;
     });
 
     // 启动周期续期
