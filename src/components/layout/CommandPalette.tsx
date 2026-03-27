@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { FileText, Plus, Settings, ToggleLeft } from "lucide-react";
 import { useEffect, useState } from "react";
+import { openSettingsWindow } from "@/commands/pairing";
 import {
   Command,
   CommandDialog,
@@ -20,7 +21,6 @@ export function CommandPalette() {
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const toggleSettings = useUIStore((s) => s.toggleSettings);
 
   useEffect(() => {
     function handleOpen() {
@@ -54,7 +54,7 @@ export function CommandPalette() {
               <Trans>切换侧边栏</Trans>
               <CommandShortcut>{modKey}B</CommandShortcut>
             </CommandItem>
-            <CommandItem onSelect={() => runCommand(toggleSettings)}>
+            <CommandItem onSelect={() => runCommand(() => openSettingsWindow("general"))}>
               <Settings className="h-4 w-4" />
               <Trans>打开设置</Trans>
               <CommandShortcut>{modKey},</CommandShortcut>
