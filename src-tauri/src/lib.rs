@@ -89,9 +89,28 @@ pub fn run() {
                 }
             }
 
-            // P2P 网络状态（初始为 None，通过 start_p2p_node 启动）
+            // P2P 网络状态（初始为 None）
             let net_state: network::NetManagerState = tokio::sync::Mutex::new(None);
             app.manage(net_state);
+
+            // 后台自动启动 P2P 节点
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri::Manager;
+                    let keypair = handle.state::<identity::IdentityState>().keypair.clone();
+                    let db = handle
+                        .state::<workspace::state::DbState>()
+                        .devices_db
+                        .clone();
+                    let net_state = handle.state::<network::NetManagerState>();
+                    if let Err(e) =
+                        network::commands::do_start_p2p_node(&handle, &net_state, keypair, db).await
+                    {
+                        log::warn!("Failed to auto-start P2P node: {e}");
+                    }
+                });
+            }
 
             #[cfg(not(target_os = "macos"))]
             {
