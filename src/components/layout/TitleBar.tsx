@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, PanelLeft, PenLine, Search, Settings, Square, X } from "lucide-react";
+import { openSettingsWindow } from "@/commands/pairing";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,7 +13,6 @@ export function TitleBar() {
   const { t } = useLingui();
   const appWindow = getCurrentWindow();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
-  const toggleSettings = useUIStore((s) => s.toggleSettings);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const workspace = useWorkspaceStore((s) => s.workspace);
 
@@ -67,7 +67,7 @@ export function TitleBar() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" onClick={toggleSettings}>
+            <Button variant="ghost" size="icon-sm" onClick={() => openSettingsWindow("general")}>
               <Settings className="h-4 w-4 text-muted-foreground" />
             </Button>
           </TooltipTrigger>

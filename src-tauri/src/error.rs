@@ -26,6 +26,10 @@ pub enum AppError {
     NoWorkspaceOpen,
     #[error("Network error: {0}")]
     Network(String),
+    #[error("Pairing error: {0}")]
+    Pairing(String),
+    #[error("Window error: {0}")]
+    Window(String),
 }
 
 /// 结构化序列化：为前端提供 `{ kind: "...", message: "..." }` 格式。
@@ -48,6 +52,8 @@ impl Serialize for AppError {
             AppError::NameConflict(msg) => ("NameConflict", msg.clone()),
             AppError::NoWorkspaceOpen => ("NoWorkspaceOpen", self.to_string()),
             AppError::Network(msg) => ("Network", msg.clone()),
+            AppError::Pairing(msg) => ("Pairing", msg.clone()),
+            AppError::Window(msg) => ("Window", msg.clone()),
         };
 
         state.serialize_field("kind", kind)?;

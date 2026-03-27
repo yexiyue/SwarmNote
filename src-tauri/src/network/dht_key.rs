@@ -14,8 +14,7 @@ pub fn online_key(peer_id_bytes: &[u8]) -> RecordKey {
     dht_key(NS_ONLINE, peer_id_bytes)
 }
 
-/// 配对码的 DHT key（供 #26 使用）
-#[allow(dead_code)]
+/// 配对码的 DHT key
 pub fn share_code_key(code: &str) -> RecordKey {
     dht_key(NS_SHARE_CODE, code.as_bytes())
 }

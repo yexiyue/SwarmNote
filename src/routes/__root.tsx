@@ -2,13 +2,15 @@ import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+import { listen } from "@tauri-apps/api/event";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CommandPalette } from "@/components/layout/CommandPalette";
-import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { GlobalActionDialogs } from "@/components/pairing/GlobalActionDialogs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useNotificationStore } from "@/stores/notificationStore";
 import { waitForOnboardingHydration } from "@/stores/onboardingStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
@@ -26,6 +28,21 @@ function RootComponent() {
     Promise.all([waitForOnboardingHydration(), initFromBackend()]).then(() => setHydrated(true));
   }, [initFromBackend]);
 
+  // Listen for pairing request events from the Tauri backend
+  useEffect(() => {
+    const unlisten = listen("pairing-request-received", (event) => {
+      useNotificationStore.getState().push({
+        id: `pairing-${Date.now()}`,
+        type: "pairing-request",
+        payload: event.payload,
+        timestamp: Date.now(),
+      });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
   if (!hydrated) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -39,7 +56,7 @@ function RootComponent() {
       <TooltipProvider>
         <Outlet />
         <CommandPalette />
-        <SettingsDialog />
+        <GlobalActionDialogs />
         {import.meta.env.DEV && <TanStackRouterDevtools position="bottom-right" />}
       </TooltipProvider>
     </I18nProvider>

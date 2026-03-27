@@ -7,7 +7,6 @@ type Theme = "light" | "dark" | "system";
 
 interface UIState {
   sidebarOpen: boolean;
-  settingsOpen: boolean;
   workspacePickerOpen: boolean;
   theme: Theme;
   resolvedTheme: "light" | "dark";
@@ -17,8 +16,6 @@ interface UIState {
 interface UIActions {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
-  toggleSettings: () => void;
-  setSettingsOpen: (open: boolean) => void;
   setWorkspacePickerOpen: (open: boolean) => void;
   setTheme: (theme: Theme) => void;
   setLocale: (locale: Locale) => void;
@@ -36,7 +33,6 @@ export const useUIStore = create<UIState & UIActions>()(
   persist(
     (set) => ({
       sidebarOpen: true,
-      settingsOpen: false,
       workspacePickerOpen: false,
       theme: "light",
       resolvedTheme: "light",
@@ -45,10 +41,6 @@ export const useUIStore = create<UIState & UIActions>()(
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
-
-      toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
-
-      setSettingsOpen: (open) => set({ settingsOpen: open }),
 
       setWorkspacePickerOpen: (open) => set({ workspacePickerOpen: open }),
 

@@ -6,34 +6,39 @@ pub mod online;
 
 use std::sync::Arc;
 
+use sea_orm::DatabaseConnection;
 use swarm_p2p_core::libp2p::PeerId;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use crate::device::DeviceManager;
+use crate::pairing::PairingManager;
 
 use self::online::{AppNetClient, OnlineAnnouncer};
 
 /// 网络管理器：持有 P2P 节点所有运行时状态
 pub struct NetManager {
-    /// 供 #26 pairing / #28 sync 使用
+    /// 供 sync 协议使用
     #[allow(dead_code)]
     pub client: AppNetClient,
     pub device_manager: Arc<DeviceManager>,
     pub online_announcer: Arc<OnlineAnnouncer>,
+    pub pairing_manager: Arc<PairingManager>,
     cancel_token: CancellationToken,
 }
 
 impl NetManager {
-    pub fn new(client: AppNetClient, peer_id: PeerId) -> Self {
+    pub fn new(client: AppNetClient, peer_id: PeerId, db: DatabaseConnection) -> Self {
         let device_manager = Arc::new(DeviceManager::new());
         let online_announcer = Arc::new(OnlineAnnouncer::new(client.clone(), peer_id));
+        let pairing_manager = Arc::new(PairingManager::new(client.clone(), peer_id, db));
         let cancel_token = CancellationToken::new();
 
         Self {
             client,
             device_manager,
             online_announcer,
+            pairing_manager,
             cancel_token,
         }
     }

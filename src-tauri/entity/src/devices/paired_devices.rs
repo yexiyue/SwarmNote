@@ -7,10 +7,12 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub peer_id: String,
-    pub public_key: Vec<u8>,
-    pub device_name: String,
-    pub os_info: Option<String>,
+    pub hostname: String,
+    pub os: Option<String>,
+    pub platform: Option<String>,
+    pub arch: Option<String>,
     pub paired_at: i64,
+    pub last_seen: Option<i64>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

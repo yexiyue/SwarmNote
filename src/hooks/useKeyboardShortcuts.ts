@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { openSettingsWindow } from "@/commands/pairing";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
 import { isMac } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
@@ -9,7 +10,7 @@ export function useKeyboardShortcuts() {
       const mod = isMac ? e.metaKey : e.ctrlKey;
       if (!mod) return;
 
-      const { toggleSidebar, toggleSettings } = useUIStore.getState();
+      const { toggleSidebar } = useUIStore.getState();
 
       // Ctrl+Shift+O: open workspace picker
       if (e.shiftKey && e.key.toLowerCase() === "o") {
@@ -38,7 +39,7 @@ export function useKeyboardShortcuts() {
           break;
         case ",":
           e.preventDefault();
-          toggleSettings();
+          openSettingsWindow("general");
           break;
       }
     }

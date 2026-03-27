@@ -5,6 +5,7 @@ pub mod error;
 mod fs;
 mod identity;
 mod network;
+mod pairing;
 mod protocol;
 mod workspace;
 
@@ -20,7 +21,8 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init());
 
     #[cfg(debug_assertions)]
     {
@@ -55,6 +57,15 @@ pub fn run() {
             network::commands::start_p2p_node,
             network::commands::stop_p2p_node,
             network::commands::get_connected_peers,
+            // 配对管理
+            pairing::commands::generate_pairing_code,
+            pairing::commands::get_device_by_code,
+            pairing::commands::request_pairing,
+            pairing::commands::respond_pairing_request,
+            pairing::commands::get_paired_devices,
+            pairing::commands::unpair_device,
+            pairing::commands::get_nearby_devices,
+            pairing::commands::open_settings_window,
         ])
         .setup(|app| {
             use tauri::Manager;
