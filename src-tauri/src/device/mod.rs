@@ -127,4 +127,12 @@ impl DeviceManager {
     pub fn get_peer(&self, peer_id: &PeerId) -> Option<PeerInfo> {
         self.peers.get(peer_id).map(|entry| entry.value().clone())
     }
+
+    /// 获取已连接的 peer 数量
+    pub fn connected_count(&self) -> usize {
+        self.peers
+            .iter()
+            .filter(|entry| entry.value().is_connected)
+            .count()
+    }
 }

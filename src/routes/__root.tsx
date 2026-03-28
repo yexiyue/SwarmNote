@@ -25,7 +25,9 @@ function RootComponent() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    Promise.all([waitForOnboardingHydration(), initFromBackend()]).then(() => setHydrated(true));
+    Promise.all([waitForOnboardingHydration(), initFromBackend()])
+      .catch((err) => console.error("Hydration failed:", err))
+      .finally(() => setHydrated(true));
   }, [initFromBackend]);
 
   // Listen for pairing request events from the Tauri backend

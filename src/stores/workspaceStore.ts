@@ -8,6 +8,8 @@ import {
 } from "@/commands/workspace";
 import { useEditorStore } from "@/stores/editorStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
+import { useNetworkStore } from "@/stores/networkStore";
+import { usePreferencesStore } from "@/stores/preferencesStore";
 
 interface WorkspaceState {
   workspace: WorkspaceInfo | null;
@@ -30,6 +32,15 @@ function clearDependentStores() {
   useEditorStore.getState().clear();
 }
 
+/** 工作区打开后，根据偏好自动启动 P2P 节点 */
+function maybeAutoStartP2P() {
+  const { autoStartP2P } = usePreferencesStore.getState();
+  const { status, userManuallyStopped, startNode } = useNetworkStore.getState();
+  if (autoStartP2P && status === "stopped" && !userManuallyStopped) {
+    startNode();
+  }
+}
+
 export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((set) => ({
   workspace: null,
   isLoading: false,
@@ -40,6 +51,7 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((se
     try {
       const info = await getWorkspaceInfo();
       set({ workspace: info });
+      if (info) maybeAutoStartP2P();
     } catch (e) {
       set({ error: String(e) });
     } finally {
@@ -53,6 +65,7 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((se
     try {
       const workspace = await openWorkspaceCmd(path);
       set({ workspace });
+      if (workspace) maybeAutoStartP2P();
     } catch (e) {
       set({ error: String(e) });
     } finally {

@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { FileText, Plus, Settings, ToggleLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { openSettingsWindow } from "@/commands/pairing";
+import { openSettingsWindow } from "@/commands/workspace";
 import {
   Command,
   CommandDialog,

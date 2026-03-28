@@ -1,12 +1,13 @@
 import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
-import { Info, MonitorSmartphone, Settings } from "lucide-react";
+import { Info, MonitorSmartphone, Network, Settings } from "lucide-react";
 import { useEffect } from "react";
 
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/settings/general", icon: Settings, label: "通用" },
+  { to: "/settings/network", icon: Network, label: "网络" },
   { to: "/settings/devices", icon: MonitorSmartphone, label: "设备" },
   { to: "/settings/about", icon: Info, label: "关于" },
 ] as const;

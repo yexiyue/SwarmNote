@@ -1,6 +1,6 @@
 use sea_orm::DatabaseConnection;
 use swarm_p2p_core::libp2p::identity::Keypair;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tracing::info;
 
 use crate::device::PeerInfo;
@@ -83,6 +83,17 @@ pub async fn do_start_p2p_node(
 
     *guard = Some(net_manager);
 
+    // 通知前端节点已启动
+    let _ = app.emit("node-started", ());
+
+    // 更新托盘状态
+    #[cfg(desktop)]
+    if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
+        tray.lock()
+            .await
+            .set_status(crate::tray::NodeStatus::Running { peer_count: 0 });
+    }
+
     info!("P2P node started, PeerId: {peer_id}");
     Ok(())
 }
@@ -106,10 +117,22 @@ pub async fn start_p2p_node(
 
 /// 停止 P2P 节点
 #[tauri::command]
-pub async fn stop_p2p_node(net_state: State<'_, NetManagerState>) -> AppResult<()> {
+pub async fn stop_p2p_node(app: AppHandle, net_state: State<'_, NetManagerState>) -> AppResult<()> {
     let mut guard = net_state.lock().await;
     if let Some(manager) = guard.take() {
         manager.shutdown().await;
+
+        // 通知前端节点已停止
+        let _ = app.emit("node-stopped", ());
+
+        // 更新托盘状态
+        #[cfg(desktop)]
+        if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
+            tray.lock()
+                .await
+                .set_status(crate::tray::NodeStatus::Stopped);
+        }
+
         info!("P2P node stopped");
     }
     Ok(())

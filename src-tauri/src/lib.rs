@@ -7,6 +7,8 @@ mod identity;
 mod network;
 mod pairing;
 mod protocol;
+#[cfg(desktop)]
+pub mod tray;
 mod workspace;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -65,8 +67,46 @@ pub fn run() {
             pairing::commands::get_paired_devices,
             pairing::commands::unpair_device,
             pairing::commands::get_nearby_devices,
-            pairing::commands::open_settings_window,
+            workspace::commands::open_settings_window,
         ])
+        .on_window_event(|window, event| {
+            #[cfg(desktop)]
+            {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    let label = window.label();
+                    let is_workspace = label == "main" || label.starts_with("ws-");
+
+                    if is_workspace {
+                        // 统计当前可见的工作区窗口数量
+                        use tauri::Manager;
+                        let visible_ws_count = window
+                            .app_handle()
+                            .webview_windows()
+                            .iter()
+                            .filter(|(l, w)| {
+                                (*l == "main" || l.starts_with("ws-"))
+                                    && w.is_visible().unwrap_or(false)
+                            })
+                            .count();
+
+                        if visible_ws_count <= 1 {
+                            // 最后一个工作区窗口：隐藏到托盘，记录 label
+                            api.prevent_close();
+                            let _ = window.hide();
+                            if let Some(state) =
+                                window.app_handle().try_state::<tray::TrayManagerState>()
+                            {
+                                if let Ok(mut mgr) = state.try_lock() {
+                                    mgr.set_last_hidden(label);
+                                }
+                            }
+                        }
+                        // 否则：还有其他工作区窗口，正常关闭
+                    }
+                    // 非工作区窗口（settings 等）：正常关闭销毁
+                }
+            }
+        })
         .setup(|app| {
             use tauri::Manager;
 
@@ -78,8 +118,7 @@ pub fn run() {
             {
                 let ws_state = app.state::<workspace::state::WorkspaceState>();
                 let watcher_state = app.state::<fs::watcher::FsWatcherState>();
-                let infos = tauri::async_runtime::block_on(ws_state.0.read());
-                if let Some(info) = infos.get("main") {
+                if let Some(info) = tauri::async_runtime::block_on(ws_state.get("main")) {
                     let ws_path = std::path::PathBuf::from(&info.path);
                     if let Err(e) =
                         fs::watcher::start_watching(app.handle(), "main", &ws_path, &watcher_state)
@@ -89,27 +128,14 @@ pub fn run() {
                 }
             }
 
-            // P2P 网络状态（初始为 None）
+            // P2P 网络状态（初始为 None，由前端根据偏好触发启动）
             let net_state: network::NetManagerState = tokio::sync::Mutex::new(None);
             app.manage(net_state);
 
-            // 后台自动启动 P2P 节点
+            // 创建系统托盘（仅桌面端）
+            #[cfg(desktop)]
             {
-                let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    use tauri::Manager;
-                    let keypair = handle.state::<identity::IdentityState>().keypair.clone();
-                    let db = handle
-                        .state::<workspace::state::DbState>()
-                        .devices_db
-                        .clone();
-                    let net_state = handle.state::<network::NetManagerState>();
-                    if let Err(e) =
-                        network::commands::do_start_p2p_node(&handle, &net_state, keypair, db).await
-                    {
-                        log::warn!("Failed to auto-start P2P node: {e}");
-                    }
-                });
+                tray::TrayManager::init(app.handle())?;
             }
 
             #[cfg(not(target_os = "macos"))]

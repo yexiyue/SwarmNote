@@ -6,7 +6,7 @@ use chrono::Utc;
 use entity::workspace::workspaces;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use serde::Serialize;
-use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use uuid::Uuid;
 
 use super::db::init_workspace_db;
@@ -14,14 +14,6 @@ use super::state::{DbState, WorkspaceState};
 use crate::config::GlobalConfigState;
 use crate::error::{AppError, AppResult};
 use crate::identity::IdentityState;
-
-fn peer_id(identity: &IdentityState) -> AppResult<String> {
-    let info = identity
-        .device_info
-        .read()
-        .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
-    Ok(info.peer_id.clone())
-}
 
 /// 返回给前端的工作区信息，组合数据库记录 + 运行时路径。
 #[derive(Debug, Clone, Serialize)]
@@ -76,11 +68,11 @@ async fn ensure_workspace(
         }
         None => {
             let now = Utc::now().timestamp();
-            #[allow(clippy::needless_update)]
+            #[expect(clippy::needless_update)]
             let model = workspaces::ActiveModel {
                 id: Set(Uuid::now_v7().to_string()),
                 name: Set(dir_name),
-                created_by: Set(peer_id(identity)?),
+                created_by: Set(identity.peer_id()?),
                 created_at: Set(now),
                 updated_at: Set(now),
                 ..Default::default()
@@ -93,7 +85,7 @@ async fn ensure_workspace(
 }
 
 /// 将工作区绑定到指定窗口的 per-window 状态，并更新全局配置和 watcher。
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn bind_workspace_to_window(
     label: &str,
     path: &str,
@@ -105,22 +97,14 @@ async fn bind_workspace_to_window(
     watcher_state: &crate::fs::watcher::FsWatcherState,
     app_handle: &tauri::AppHandle,
 ) -> WorkspaceInfo {
-    db_state
-        .workspace_dbs
-        .write()
-        .await
-        .insert(label.to_owned(), conn);
+    db_state.insert_workspace_db(label, conn).await;
 
     let info = WorkspaceInfo::from_model(workspace, path);
-    ws_state
-        .0
-        .write()
-        .await
-        .insert(label.to_owned(), info.clone());
+    ws_state.insert(label, info.clone()).await;
 
     let dir_name = workspace_name_from_path(Path::new(path));
     {
-        let mut config = config_state.0.write().await;
+        let mut config = config_state.write().await;
         if let Err(e) = crate::config::update_last_workspace(&mut config, path, &dir_name) {
             log::warn!("Failed to update global config: {e}");
         }
@@ -156,7 +140,7 @@ fn bind_window_cleanup(window: &tauri::WebviewWindow, app: &tauri::AppHandle, la
 // ── Tauri commands ──
 
 /// 幂等的工作区打开/创建命令（per-window）。
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn open_workspace(
     window: tauri::Window,
@@ -201,15 +185,14 @@ pub async fn get_workspace_info(
     window: tauri::Window,
     ws_state: State<'_, WorkspaceState>,
 ) -> AppResult<Option<WorkspaceInfo>> {
-    let infos = ws_state.0.read().await;
-    Ok(infos.get(window.label()).cloned())
+    Ok(ws_state.get(window.label()).await)
 }
 
 #[tauri::command]
 pub async fn get_recent_workspaces(
     config_state: State<'_, GlobalConfigState>,
 ) -> AppResult<Vec<crate::config::RecentWorkspace>> {
-    let config = config_state.0.read().await;
+    let config = config_state.read().await;
     Ok(config.recent_workspaces.clone())
 }
 
@@ -236,16 +219,11 @@ pub async fn open_workspace_window(
     }
 
     // 检查 per-window 状态中是否已有该路径
-    {
-        let infos = ws_state.0.read().await;
-        for (existing_label, info) in infos.iter() {
-            if info.path == path {
-                if let Some(win) = app.get_webview_window(existing_label) {
-                    let _ = win.set_focus();
-                }
-                return Ok(());
-            }
+    if let Some(existing_label) = ws_state.find_label_by_path(&path).await {
+        if let Some(win) = app.get_webview_window(&existing_label) {
+            let _ = win.set_focus();
         }
+        return Ok(());
     }
 
     if !ws_path.is_dir() {
@@ -294,4 +272,28 @@ fn workspace_window_label(path: &str) -> String {
     let mut hasher = DefaultHasher::new();
     path.hash(&mut hasher);
     format!("ws-{:016x}", hasher.finish())
+}
+
+/// 打开或聚焦设置窗口，支持路由导航。
+#[tauri::command]
+pub async fn open_settings_window(app: tauri::AppHandle, route: Option<String>) -> AppResult<()> {
+    let target_route = format!(
+        "/settings/{}",
+        route.unwrap_or_else(|| "general".to_string())
+    );
+
+    if let Some(win) = app.get_webview_window("settings") {
+        let _ = win.set_focus();
+        let _ = win.emit("navigate", &target_route);
+        return Ok(());
+    }
+
+    WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(target_route.into()))
+        .title("SwarmNote 设置")
+        .inner_size(720.0, 520.0)
+        .resizable(false)
+        .build()
+        .map_err(|e| AppError::Window(format!("Failed to create settings window: {e}")))?;
+
+    Ok(())
 }

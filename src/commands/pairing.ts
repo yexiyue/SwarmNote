@@ -76,7 +76,3 @@ export async function unpairDevice(peerId: string): Promise<void> {
 export async function getNearbyDevices(): Promise<PeerInfo[]> {
   return invoke("get_nearby_devices");
 }
-
-export async function openSettingsWindow(route?: string): Promise<void> {
-  return invoke("open_settings_window", { route });
-}

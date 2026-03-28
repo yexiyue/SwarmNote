@@ -1,13 +1,31 @@
+//! 全局应用配置：设备身份、工作区历史等持久化设置。
+
 use log::info;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tokio::sync::RwLock as TokioRwLock;
 
+use crate::error::{AppError, AppResult};
+
 const MAX_RECENT_WORKSPACES: usize = 10;
 
 /// 全局配置状态，存储在 Tauri State 中用于运行时读写。
-pub struct GlobalConfigState(pub TokioRwLock<GlobalConfig>);
+pub struct GlobalConfigState(TokioRwLock<GlobalConfig>);
+
+impl GlobalConfigState {
+    pub fn new(config: GlobalConfig) -> Self {
+        Self(TokioRwLock::new(config))
+    }
+
+    pub async fn read(&self) -> tokio::sync::RwLockReadGuard<'_, GlobalConfig> {
+        self.0.read().await
+    }
+
+    pub async fn write(&self) -> tokio::sync::RwLockWriteGuard<'_, GlobalConfig> {
+        self.0.write().await
+    }
+}
 
 /// 持久化在 `~/.swarmnote/config.json` 的全局应用配置。
 ///
@@ -32,26 +50,23 @@ pub struct RecentWorkspace {
 }
 
 /// 返回配置目录路径（~/.swarmnote/）。
-fn config_dir() -> Result<PathBuf, crate::identity::IdentityError> {
-    let home = directories::BaseDirs::new().ok_or_else(|| {
-        crate::identity::IdentityError::Config("cannot determine home directory".into())
-    })?;
+fn config_dir() -> AppResult<PathBuf> {
+    let home = directories::BaseDirs::new().ok_or(AppError::NoAppDataDir)?;
     Ok(home.home_dir().join(".swarmnote"))
 }
 
-fn config_path() -> Result<PathBuf, crate::identity::IdentityError> {
+fn config_path() -> AppResult<PathBuf> {
     Ok(config_dir()?.join("config.json"))
 }
 
 /// 加载现有配置，若不存在则用默认值创建新配置。
-pub fn load_or_create_config() -> Result<GlobalConfig, crate::identity::IdentityError> {
+pub fn load_or_create_config() -> AppResult<GlobalConfig> {
     let path = config_path()?;
 
     if path.exists() {
-        let content = fs::read_to_string(&path)
-            .map_err(|e| crate::identity::IdentityError::Config(e.to_string()))?;
+        let content = fs::read_to_string(&path)?;
         let config: GlobalConfig = serde_json::from_str(&content)
-            .map_err(|e| crate::identity::IdentityError::Config(e.to_string()))?;
+            .map_err(|e| AppError::Config(format!("invalid config JSON: {e}")))?;
         info!("Loaded global config from {}", path.display());
         return Ok(config);
     }
@@ -73,30 +88,24 @@ pub fn load_or_create_config() -> Result<GlobalConfig, crate::identity::Identity
 }
 
 /// 将全局配置持久化到磁盘。
-pub fn save_config(config: &GlobalConfig) -> Result<(), crate::identity::IdentityError> {
+pub fn save_config(config: &GlobalConfig) -> AppResult<()> {
     let path = config_path()?;
 
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| crate::identity::IdentityError::Config(e.to_string()))?;
+        fs::create_dir_all(parent)?;
     }
 
     let json = serde_json::to_string_pretty(config)
-        .map_err(|e| crate::identity::IdentityError::Config(e.to_string()))?;
+        .map_err(|e| AppError::Config(format!("serialize config: {e}")))?;
 
-    fs::write(&path, json).map_err(|e| crate::identity::IdentityError::Config(e.to_string()))?;
-
+    fs::write(&path, json)?;
     Ok(())
 }
 
 /// 更新 `last_workspace_path` 并维护 `recent_workspaces` 列表。
 ///
 /// 按路径去重，按 `last_opened_at` 降序排列，最多保留 10 条。
-pub fn update_last_workspace(
-    config: &mut GlobalConfig,
-    path: &str,
-    name: &str,
-) -> Result<(), crate::identity::IdentityError> {
+pub fn update_last_workspace(config: &mut GlobalConfig, path: &str, name: &str) -> AppResult<()> {
     apply_workspace_update(config, path, name);
     save_config(config)
 }
@@ -196,7 +205,6 @@ mod tests {
         apply_workspace_update(&mut config, "/tmp/b", "b");
 
         assert_eq!(config.recent_workspaces.len(), 2);
-        // 最近的在前
         assert_eq!(config.recent_workspaces[0].path, "/tmp/b");
         assert_eq!(config.recent_workspaces[1].path, "/tmp/a");
     }
@@ -222,9 +230,7 @@ mod tests {
         }
 
         assert_eq!(config.recent_workspaces.len(), MAX_RECENT_WORKSPACES);
-        // 最近的（14）应在最前
         assert_eq!(config.recent_workspaces[0].path, "/tmp/14");
-        // 最早幸存的应是 5（0-4 已被截断）
         assert_eq!(config.recent_workspaces[9].path, "/tmp/5");
     }
 }

@@ -2,8 +2,11 @@ import { Trans } from "@lingui/react/macro";
 import { FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { modKey } from "@/lib/utils";
+import { useFileTreeStore } from "@/stores/fileTreeStore";
 
 export function EmptyState() {
+  const createFile = useFileTreeStore((s) => s.createFile);
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
@@ -15,7 +18,7 @@ export function EmptyState() {
       <p className="text-sm text-muted-foreground">
         <Trans>创建你的第一篇笔记，开始记录想法</Trans>
       </p>
-      <Button className="gap-1.5 rounded-lg px-5 py-2.5">
+      <Button className="gap-1.5 rounded-lg px-5 py-2.5" onClick={() => createFile("", "新建笔记")}>
         <Plus className="h-4 w-4" />
         <Trans>新建笔记</Trans>
       </Button>

@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, PanelLeft, PenLine, Search, Settings, Square, X } from "lucide-react";
-import { openSettingsWindow } from "@/commands/pairing";
+import { openSettingsWindow } from "@/commands/workspace";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";

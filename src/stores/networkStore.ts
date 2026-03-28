@@ -20,33 +20,50 @@ interface NetworkStatus {
   publicAddr: string | null;
 }
 
+export type NodeStatus = "stopped" | "starting" | "running" | "error";
+
 interface NetworkState {
-  isNodeRunning: boolean;
+  status: NodeStatus;
+  error: string | null;
   connectedPeers: PeerInfo[];
   natStatus: string | null;
+  userManuallyStopped: boolean;
 }
 
 interface NetworkActions {
   startNode: () => Promise<void>;
-  stopNode: () => Promise<void>;
+  stopNode: (manual?: boolean) => Promise<void>;
   refreshPeers: () => Promise<void>;
 }
 
 // ── Store ──
 
-export const useNetworkStore = create<NetworkState & NetworkActions>()((set) => ({
-  isNodeRunning: false,
+export const useNetworkStore = create<NetworkState & NetworkActions>()((set, get) => ({
+  status: "stopped",
+  error: null,
   connectedPeers: [],
   natStatus: null,
+  userManuallyStopped: false,
 
   startNode: async () => {
-    await invoke("start_p2p_node");
-    set({ isNodeRunning: true });
+    const { status } = get();
+    if (status === "running" || status === "starting") return;
+
+    set({ status: "starting", error: null, userManuallyStopped: false });
+    try {
+      await invoke("start_p2p_node");
+      // status will transition to "running" via node-started event
+    } catch (e) {
+      set({ status: "error", error: String(e) });
+    }
   },
 
-  stopNode: async () => {
+  stopNode: async (manual = false) => {
     await invoke("stop_p2p_node");
-    set({ isNodeRunning: false, connectedPeers: [], natStatus: null });
+    // status will transition to "stopped" via node-stopped event
+    if (manual) {
+      set({ userManuallyStopped: true });
+    }
   },
 
   refreshPeers: async () => {
@@ -86,7 +103,15 @@ export async function setupNetworkListeners() {
     useNetworkStore.setState({ natStatus: event.payload.natStatus });
   });
 
-  unlisteners = [u1, u2, u3];
+  const u4 = await listen("node-started", () => {
+    useNetworkStore.setState({ status: "running", error: null });
+  });
+
+  const u5 = await listen("node-stopped", () => {
+    useNetworkStore.setState({ status: "stopped", connectedPeers: [], natStatus: null });
+  });
+
+  unlisteners = [u1, u2, u3, u4, u5];
 }
 
 export async function cleanupNetworkListeners() {

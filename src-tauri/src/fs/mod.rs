@@ -1,3 +1,5 @@
+//! 文件系统操作：工作区树扫描、文件 CRUD、文件变更监听。
+
 pub mod commands;
 pub mod crud;
 pub mod scan;
