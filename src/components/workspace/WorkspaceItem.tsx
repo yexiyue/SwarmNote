@@ -1,6 +1,7 @@
 import { FolderOpen } from "lucide-react";
 
 import type { RecentWorkspace } from "@/commands/workspace";
+import { formatRelativeTime } from "@/lib/dateUtils";
 
 interface WorkspaceItemProps {
   workspace: RecentWorkspace;
@@ -26,18 +27,4 @@ export function WorkspaceItem({ workspace, onClick }: WorkspaceItemProps) {
       <span className="shrink-0 text-xs text-muted-foreground">{timeAgo}</span>
     </button>
   );
-}
-
-function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString);
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "刚刚";
-  if (diffMin < 60) return `${diffMin} 分钟前`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour} 小时前`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 30) return `${diffDay} 天前`;
-  return date.toLocaleDateString();
 }

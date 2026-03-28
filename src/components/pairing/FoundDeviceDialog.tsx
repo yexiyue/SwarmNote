@@ -1,5 +1,4 @@
-import { Link, Loader2, Monitor } from "lucide-react";
-import { useState } from "react";
+import { Link } from "lucide-react";
 import { requestPairing } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { DeviceInfoCard } from "./DeviceInfoCard";
 
 interface FoundDeviceDialogProps {
   open: boolean;
@@ -28,25 +30,17 @@ export function FoundDeviceDialog({
   code,
   onSuccess,
 }: FoundDeviceDialogProps) {
-  const [pairing, setPairing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loading, error, run, setError } = useAsyncAction();
 
   async function handleConfirm() {
-    setPairing(true);
-    setError(null);
-    try {
+    await run(async () => {
       const resp = await requestPairing(peerId, { type: "Code", code });
       if (resp.status === "Success") {
         onSuccess();
       } else {
         setError(resp.reason ?? "配对被拒绝");
       }
-    } catch (e) {
-      console.error("Failed to request pairing:", e);
-      setError("配对请求失败");
-    } finally {
-      setPairing(false);
-    }
+    });
   }
 
   return (
@@ -56,32 +50,19 @@ export function FoundDeviceDialog({
           <DialogTitle>找到设备</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 rounded-lg border p-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-            <Monitor className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div>
-            <div className="text-sm font-medium">{osInfo.hostname}</div>
-            <div className="text-xs text-muted-foreground">
-              {osInfo.os} · {osInfo.platform}
-            </div>
-          </div>
-        </div>
+        <DeviceInfoCard hostname={osInfo.hostname} os={osInfo.os} platform={osInfo.platform} />
 
         <DialogDescription>确认与此设备配对？</DialogDescription>
 
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        <ErrorMessage error={error} />
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pairing}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             取消
           </Button>
-          <Button onClick={handleConfirm} disabled={pairing}>
-            {pairing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                配对中...
-              </>
+          <Button onClick={handleConfirm} loading={loading}>
+            {loading ? (
+              "配对中..."
             ) : (
               <>
                 <Link className="h-4 w-4" />
