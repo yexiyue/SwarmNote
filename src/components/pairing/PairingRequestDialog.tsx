@@ -1,4 +1,3 @@
-import { Loader2, Monitor } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { respondPairingRequest } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useNotificationStore } from "@/stores/notificationStore";
+import { DeviceInfoCard } from "./DeviceInfoCard";
 
 interface PairingRequestPayload {
   pendingId: number;
@@ -88,17 +88,11 @@ export function PairingRequestDialog({ data }: PairingRequestDialogProps) {
           <DialogTitle>收到配对请求</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 rounded-lg border p-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-            <Monitor className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div>
-            <div className="text-sm font-medium">{data.osInfo.hostname}</div>
-            <div className="text-xs text-muted-foreground">
-              {data.osInfo.os} · {data.osInfo.platform}
-            </div>
-          </div>
-        </div>
+        <DeviceInfoCard
+          hostname={data.osInfo.hostname}
+          os={data.osInfo.os}
+          platform={data.osInfo.platform}
+        />
 
         <DialogDescription>
           该设备请求与您配对。
@@ -112,15 +106,8 @@ export function PairingRequestDialog({ data }: PairingRequestDialogProps) {
           <Button variant="outline" onClick={handleReject} disabled={responding}>
             拒绝
           </Button>
-          <Button onClick={handleAccept} disabled={responding}>
-            {responding ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                处理中...
-              </>
-            ) : (
-              "接受"
-            )}
+          <Button onClick={handleAccept} loading={responding}>
+            {responding ? "处理中..." : "接受"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,7 +3,6 @@ import { Loader2 } from "lucide-react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
 import { EditorPane } from "@/components/layout/EditorPane";
-import { EmptyState } from "@/components/layout/EmptyState";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { WorkspacePicker } from "@/components/workspace/WorkspacePicker";
 import { useOnboardingStore } from "@/stores/onboardingStore";
@@ -39,9 +38,7 @@ function IndexPage() {
   return (
     <>
       <AppLayout>
-        <EditorPane>
-          <EmptyState />
-        </EditorPane>
+        <EditorPane />
       </AppLayout>
       <WorkspacePicker
         mode="dialog"

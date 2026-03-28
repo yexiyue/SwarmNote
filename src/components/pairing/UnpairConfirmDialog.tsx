@@ -1,5 +1,4 @@
-import { Loader2, Unlink } from "lucide-react";
-import { useState } from "react";
+import { Unlink } from "lucide-react";
 import { unpairDevice } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
 
 interface UnpairConfirmDialogProps {
   open: boolean;
@@ -26,21 +27,13 @@ export function UnpairConfirmDialog({
   peerId,
   onConfirm,
 }: UnpairConfirmDialogProps) {
-  const [unpairing, setUnpairing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loading, error, run } = useAsyncAction();
 
   async function handleConfirm() {
-    setUnpairing(true);
-    setError(null);
-    try {
+    await run(async () => {
       await unpairDevice(peerId);
       onConfirm();
-    } catch (e) {
-      console.error("Failed to unpair device:", e);
-      setError("取消配对失败");
-    } finally {
-      setUnpairing(false);
-    }
+    });
   }
 
   return (
@@ -58,21 +51,14 @@ export function UnpairConfirmDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {error ? <p className="text-center text-xs text-destructive">{error}</p> : null}
+        <ErrorMessage error={error} className="text-center" />
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={unpairing}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             取消
           </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={unpairing}>
-            {unpairing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                取消配对中...
-              </>
-            ) : (
-              "确认取消"
-            )}
+          <Button variant="destructive" onClick={handleConfirm} loading={loading}>
+            {loading ? "取消配对中..." : "确认取消"}
           </Button>
         </DialogFooter>
       </DialogContent>

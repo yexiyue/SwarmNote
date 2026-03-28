@@ -1,20 +1,20 @@
 import { create } from "zustand";
-import { upsertDocument } from "@/commands/document";
+import { loadDocumentContent, saveDocumentContent } from "@/commands/document";
 
 interface EditorState {
   currentDocId: string | null;
   title: string;
   relPath: string;
-  content: string;
+  markdown: string;
   isDirty: boolean;
   lastSavedAt: Date | null;
   charCount: number;
 }
 
 interface EditorActions {
-  loadDocument: (id: string, title: string, relPath: string) => void;
-  saveDocument: (workspaceId: string) => Promise<void>;
-  updateContent: (content: string) => void;
+  loadDocument: (id: string, title: string, relPath: string) => Promise<void>;
+  saveContent: () => Promise<void>;
+  updateContent: (markdown: string) => void;
   updateTitle: (title: string) => void;
   clear: () => void;
 }
@@ -23,7 +23,7 @@ const initialState: EditorState = {
   currentDocId: null,
   title: "",
   relPath: "",
-  content: "",
+  markdown: "",
   isDirty: false,
   lastSavedAt: null,
   charCount: 0,
@@ -32,26 +32,29 @@ const initialState: EditorState = {
 export const useEditorStore = create<EditorState & EditorActions>()((set, get) => ({
   ...initialState,
 
-  loadDocument: (id, title, relPath) => {
-    set({ ...initialState, currentDocId: id, title, relPath });
+  loadDocument: async (id, title, relPath) => {
+    const markdown = await loadDocumentContent(relPath);
+    set({
+      ...initialState,
+      currentDocId: id,
+      title,
+      relPath,
+      markdown,
+      charCount: markdown.length,
+    });
   },
 
-  saveDocument: async (workspaceId) => {
-    const { currentDocId, title, relPath } = get();
+  saveContent: async () => {
+    const { currentDocId, relPath, markdown } = get();
     if (!currentDocId) return;
 
-    await upsertDocument({
-      id: currentDocId,
-      workspace_id: workspaceId,
-      title,
-      rel_path: relPath,
-    });
+    await saveDocumentContent(relPath, markdown);
     set({ isDirty: false, lastSavedAt: new Date() });
   },
 
-  updateContent: (content) => set({ content, isDirty: true, charCount: content.length }),
+  updateContent: (markdown) => set({ markdown, isDirty: true, charCount: markdown.length }),
 
-  updateTitle: (title) => set({ title, isDirty: true }),
+  updateTitle: (title) => set({ title }),
 
   clear: () => set(initialState),
 }));

@@ -33,3 +33,13 @@ export async function upsertDocument(input: UpsertDocumentInput): Promise<Docume
 export async function deleteDocument(id: string): Promise<void> {
   return invoke("db_delete_document", { id });
 }
+
+// TODO(#6): Replace with Tauri invoke: invoke("load_document", { relPath })
+export async function loadDocumentContent(relPath: string): Promise<string> {
+  return localStorage.getItem(`swarmnote:doc:${relPath}`) ?? "";
+}
+
+// TODO(#6): Replace with Tauri invoke: invoke("save_document", { relPath, markdown })
+export async function saveDocumentContent(relPath: string, markdown: string): Promise<void> {
+  localStorage.setItem(`swarmnote:doc:${relPath}`, markdown);
+}
