@@ -1,3 +1,5 @@
+//! P2P 网络层：节点启停、事件循环、DHT 在线宣告。
+
 pub mod commands;
 pub mod config;
 pub mod dht_key;
@@ -19,7 +21,7 @@ use self::online::{AppNetClient, OnlineAnnouncer};
 /// 网络管理器：持有 P2P 节点所有运行时状态
 pub struct NetManager {
     /// 供 sync 协议使用
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub client: AppNetClient,
     pub device_manager: Arc<DeviceManager>,
     pub online_announcer: Arc<OnlineAnnouncer>,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use swarm_p2p_core::event::NodeEvent;
 use swarm_p2p_core::EventReceiver;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
@@ -18,7 +18,7 @@ pub mod events {
     pub const PAIRING_REQUEST_RECEIVED: &str = "pairing-request-received";
     pub const PAIRED_DEVICE_ADDED: &str = "paired-device-added";
     pub const PAIRED_DEVICE_REMOVED: &str = "paired-device-removed";
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub const NEARBY_DEVICES_CHANGED: &str = "nearby-devices-changed";
 }
 
@@ -39,7 +39,7 @@ pub fn spawn_event_loop(
                 }
                 event = receiver.recv() => {
                     match event {
-                        Some(event) => handle_event(event, &app, &device_manager, &pairing_manager),
+                        Some(event) => handle_event(event, &app, &device_manager, &pairing_manager).await,
                         None => {
                             info!("Event receiver closed, exiting event loop");
                             break;
@@ -51,7 +51,7 @@ pub fn spawn_event_loop(
     });
 }
 
-fn handle_event(
+async fn handle_event(
     event: NodeEvent<AppRequest>,
     app: &AppHandle,
     device_manager: &DeviceManager,
@@ -73,12 +73,26 @@ fn handle_event(
             if let Some(peer_info) = device_manager.get_peer(&peer_id) {
                 let _ = app.emit(events::PEER_CONNECTED, &peer_info);
             }
+            #[cfg(desktop)]
+            if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
+                let count = device_manager.connected_count();
+                tray.lock()
+                    .await
+                    .set_status(crate::tray::NodeStatus::Running { peer_count: count });
+            }
         }
 
         NodeEvent::PeerDisconnected { peer_id } => {
             info!("Peer disconnected: {peer_id}");
             device_manager.set_disconnected(&peer_id);
             let _ = app.emit(events::PEER_DISCONNECTED, peer_id.to_string());
+            #[cfg(desktop)]
+            if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
+                let count = device_manager.connected_count();
+                tray.lock()
+                    .await
+                    .set_status(crate::tray::NodeStatus::Running { peer_count: count });
+            }
         }
 
         NodeEvent::IdentifyReceived {

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use serde::ser::SerializeStruct;
 use serde::Serialize;
 
@@ -9,7 +11,9 @@ pub enum AppError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Identity error: {0}")]
-    Identity(String),
+    Identity(#[from] crate::identity::IdentityError),
+    #[error("Config error: {0}")]
+    Config(String),
     #[error("No workspace database open")]
     NoWorkspaceDb,
     #[error("App data directory not found")]
@@ -33,6 +37,7 @@ pub enum AppError {
 }
 
 /// 结构化序列化：为前端提供 `{ kind: "...", message: "..." }` 格式。
+/// 使用 `Cow` 避免对 String 变体的冗余 clone。
 impl Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -40,31 +45,31 @@ impl Serialize for AppError {
     {
         let mut state = serializer.serialize_struct("AppError", 2)?;
 
-        let (kind, message) = match self {
-            AppError::Database(e) => ("Database", e.to_string()),
-            AppError::Io(e) => ("Io", e.to_string()),
-            AppError::Identity(msg) => ("Identity", msg.clone()),
-            AppError::NoWorkspaceDb => ("NoWorkspaceDb", self.to_string()),
-            AppError::NoAppDataDir => ("NoAppDataDir", self.to_string()),
-            AppError::FolderNotEmpty(msg) => ("FolderNotEmpty", msg.clone()),
-            AppError::InvalidPath(msg) => ("InvalidPath", msg.clone()),
-            AppError::PathTraversal(msg) => ("PathTraversal", msg.clone()),
-            AppError::NameConflict(msg) => ("NameConflict", msg.clone()),
-            AppError::NoWorkspaceOpen => ("NoWorkspaceOpen", self.to_string()),
-            AppError::Network(msg) => ("Network", msg.clone()),
-            AppError::Pairing(msg) => ("Pairing", msg.clone()),
-            AppError::Window(msg) => ("Window", msg.clone()),
+        let (kind, message): (&str, Cow<'_, str>) = match self {
+            AppError::Database(e) => ("Database", e.to_string().into()),
+            AppError::Io(e) => ("Io", e.to_string().into()),
+            AppError::Identity(e) => ("Identity", e.to_string().into()),
+            AppError::Config(msg) => ("Config", Cow::Borrowed(msg)),
+            AppError::NoWorkspaceDb => {
+                ("NoWorkspaceDb", Cow::Borrowed("No workspace database open"))
+            }
+            AppError::NoAppDataDir => (
+                "NoAppDataDir",
+                Cow::Borrowed("App data directory not found"),
+            ),
+            AppError::FolderNotEmpty(msg) => ("FolderNotEmpty", Cow::Borrowed(msg)),
+            AppError::InvalidPath(msg) => ("InvalidPath", Cow::Borrowed(msg)),
+            AppError::PathTraversal(msg) => ("PathTraversal", Cow::Borrowed(msg)),
+            AppError::NameConflict(msg) => ("NameConflict", Cow::Borrowed(msg)),
+            AppError::NoWorkspaceOpen => ("NoWorkspaceOpen", Cow::Borrowed("No workspace open")),
+            AppError::Network(msg) => ("Network", Cow::Borrowed(msg)),
+            AppError::Pairing(msg) => ("Pairing", Cow::Borrowed(msg)),
+            AppError::Window(msg) => ("Window", Cow::Borrowed(msg)),
         };
 
         state.serialize_field("kind", kind)?;
         state.serialize_field("message", &message)?;
         state.end()
-    }
-}
-
-impl From<crate::identity::IdentityError> for AppError {
-    fn from(e: crate::identity::IdentityError) -> Self {
-        AppError::Identity(e.to_string())
     }
 }
 

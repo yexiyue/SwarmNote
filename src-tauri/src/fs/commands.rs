@@ -7,13 +7,7 @@ use super::FileTreeNode;
 
 /// 从 per-window 状态中获取指定窗口的工作区路径。
 async fn workspace_path_for(ws_state: &WorkspaceState, label: &str) -> Result<String, AppError> {
-    ws_state
-        .0
-        .read()
-        .await
-        .get(label)
-        .map(|ws| ws.path.clone())
-        .ok_or(AppError::NoWorkspaceOpen)
+    ws_state.workspace_path_for(label).await
 }
 
 #[tauri::command]

@@ -4,7 +4,6 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryF
 use tauri::State;
 use uuid::Uuid;
 
-use super::peer_id;
 use crate::error::{AppError, AppResult};
 use crate::identity::IdentityState;
 use crate::workspace::state::DbState;
@@ -55,7 +54,7 @@ pub async fn db_upsert_document(
         }
     }
 
-    #[allow(clippy::needless_update)]
+    #[expect(clippy::needless_update)]
     let model = documents::ActiveModel {
         id: Set(input.id.unwrap_or_else(|| Uuid::now_v7().to_string())),
         workspace_id: Set(input.workspace_id),
@@ -65,7 +64,7 @@ pub async fn db_upsert_document(
         file_hash: Set(None),
         yjs_state: Set(None),
         state_vector: Set(None),
-        created_by: Set(peer_id(&identity)?),
+        created_by: Set(identity.peer_id()?),
         created_at: Set(now),
         updated_at: Set(now),
         ..Default::default()
@@ -119,14 +118,14 @@ pub async fn db_create_folder(
     let guard = db_state.workspace_db_for(window.label()).await?;
     let now = Utc::now().timestamp();
 
-    #[allow(clippy::needless_update)]
+    #[expect(clippy::needless_update)]
     let model = folders::ActiveModel {
         id: Set(Uuid::now_v7().to_string()),
         workspace_id: Set(input.workspace_id),
         parent_folder_id: Set(input.parent_folder_id),
         name: Set(input.name),
         rel_path: Set(input.rel_path),
-        created_by: Set(peer_id(&identity)?),
+        created_by: Set(identity.peer_id()?),
         created_at: Set(now),
         updated_at: Set(now),
         ..Default::default()

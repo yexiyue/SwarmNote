@@ -22,6 +22,7 @@ import { WorkspacePopover } from "@/components/workspace/WorkspacePopover";
 import { type Locale, locales } from "@/i18n";
 import { isMac, modKey } from "@/lib/utils";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
+import { useNetworkStore } from "@/stores/networkStore";
 import { usePairingStore } from "@/stores/pairingStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -46,6 +47,9 @@ export function Sidebar() {
   const pairedDevices = usePairingStore((s) => s.pairedDevices);
   const onlineCount = pairedDevices.filter((d) => d.isOnline).length;
   const [deviceName, setDeviceName] = useState("...");
+
+  const nodeStatus = useNetworkStore((s) => s.status);
+  const connectedPeers = useNetworkStore((s) => s.connectedPeers);
 
   const ThemeIcon = themeIcons[theme];
 
@@ -182,6 +186,36 @@ export function Sidebar() {
               <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />
             </button>
           </WorkspacePopover>
+
+          {/* Network status indicator */}
+          <button
+            type="button"
+            className="flex w-full items-center gap-1.5 rounded-sm px-1 py-1 text-left hover:bg-sidebar-accent"
+            onClick={() => openSettingsWindow("network")}
+          >
+            <span
+              className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                nodeStatus === "running"
+                  ? "bg-green-500"
+                  : nodeStatus === "starting"
+                    ? "bg-yellow-500 animate-pulse"
+                    : nodeStatus === "error"
+                      ? "bg-red-500"
+                      : "bg-gray-400"
+              }`}
+            />
+            <span className="truncate text-xs text-muted-foreground">
+              {nodeStatus === "running"
+                ? connectedPeers.length > 0
+                  ? `已连接 · ${connectedPeers.length} 台设备在线`
+                  : "已连接"
+                : nodeStatus === "starting"
+                  ? "连接中..."
+                  : nodeStatus === "error"
+                    ? "连接失败"
+                    : "未连接"}
+            </span>
+          </button>
 
           {/* Device info + quick settings */}
           <div className="flex items-center gap-2">

@@ -1,3 +1,5 @@
+//! 工作区管理：数据库初始化、自动恢复、per-window 资源生命周期。
+
 pub mod commands;
 pub mod db;
 pub mod state;
@@ -8,7 +10,6 @@ use std::path::PathBuf;
 use entity::workspace::workspaces;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use tauri::Manager;
-use tokio::sync::RwLock;
 
 use crate::config::GlobalConfigState;
 use crate::error::AppError;
@@ -32,11 +33,8 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
         workspace_infos.insert("main".to_owned(), info);
     }
 
-    app.manage(DbState {
-        devices_db,
-        workspace_dbs: RwLock::new(workspace_dbs),
-    });
-    app.manage(WorkspaceState(RwLock::new(workspace_infos)));
+    app.manage(DbState::new(devices_db, workspace_dbs));
+    app.manage(WorkspaceState::new(workspace_infos));
 
     Ok(())
 }
@@ -48,23 +46,13 @@ pub async fn cleanup_window(
     ws_state: &WorkspaceState,
     watcher_state: &crate::fs::watcher::FsWatcherState,
 ) {
-    // 1. 停止 watcher
     crate::fs::watcher::stop_watching(label, watcher_state);
 
-    // 2. 移除 WorkspaceInfo
-    {
-        let mut infos = ws_state.0.write().await;
-        if infos.remove(label).is_some() {
-            log::info!("Cleaned up WorkspaceInfo for window '{label}'");
-        }
+    if ws_state.remove(label).await {
+        log::info!("Cleaned up WorkspaceInfo for window '{label}'");
     }
-
-    // 3. 移除 DB 连接（drop 即关闭）
-    {
-        let mut dbs = db_state.workspace_dbs.write().await;
-        if dbs.remove(label).is_some() {
-            log::info!("Cleaned up workspace DB for window '{label}'");
-        }
+    if db_state.remove_workspace_db(label).await {
+        log::info!("Cleaned up workspace DB for window '{label}'");
     }
 }
 

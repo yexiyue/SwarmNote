@@ -43,12 +43,12 @@ impl OnlineAnnouncer {
     }
 
     /// 发布在线宣告到 DHT
-    pub async fn announce_online(&self) -> Result<(), String> {
+    pub async fn announce_online(&self) -> crate::error::AppResult<()> {
         let addrs = self
             .client
             .get_addrs()
             .await
-            .map_err(|e| format!("get_addrs: {e}"))?;
+            .map_err(|e| crate::error::AppError::Network(format!("get_addrs: {e}")))?;
 
         let record_data = OnlineRecord {
             os_info: OsInfo::default(),
@@ -57,7 +57,8 @@ impl OnlineAnnouncer {
         };
 
         let key = dht_key::online_key(&self.peer_id.to_bytes());
-        let value = serde_json::to_vec(&record_data).map_err(|e| format!("serialize: {e}"))?;
+        let value = serde_json::to_vec(&record_data)
+            .map_err(|e| crate::error::AppError::Network(format!("serialize: {e}")))?;
 
         let record = Record {
             key,
@@ -71,19 +72,19 @@ impl OnlineAnnouncer {
         self.client
             .put_record(record)
             .await
-            .map_err(|e| format!("put_record: {e}"))?;
+            .map_err(|e| crate::error::AppError::Network(format!("put_record: {e}")))?;
 
         info!("Published online announcement to DHT");
         Ok(())
     }
 
     /// 从 DHT 移除在线宣告
-    pub async fn announce_offline(&self) -> Result<(), String> {
+    pub async fn announce_offline(&self) -> crate::error::AppResult<()> {
         let key = dht_key::online_key(&self.peer_id.to_bytes());
         self.client
             .remove_record(key)
             .await
-            .map_err(|e| format!("remove_record: {e}"))?;
+            .map_err(|e| crate::error::AppError::Network(format!("remove_record: {e}")))?;
         info!("Removed online announcement from DHT");
         Ok(())
     }

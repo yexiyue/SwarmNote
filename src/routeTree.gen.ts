@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsNetworkRouteImport } from './routes/settings/network'
 import { Route as SettingsGeneralRouteImport } from './routes/settings/general'
 import { Route as SettingsDevicesRouteImport } from './routes/settings/devices'
 import { Route as SettingsAboutRouteImport } from './routes/settings/about'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsNetworkRoute = SettingsNetworkRouteImport.update({
+  id: '/network',
+  path: '/network',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsGeneralRoute = SettingsGeneralRouteImport.update({
   id: '/general',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/settings/about': typeof SettingsAboutRoute
   '/settings/devices': typeof SettingsDevicesRoute
   '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/settings/about': typeof SettingsAboutRoute
   '/settings/devices': typeof SettingsDevicesRoute
   '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/settings/about': typeof SettingsAboutRoute
   '/settings/devices': typeof SettingsDevicesRoute
   '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/devices'
     | '/settings/general'
+    | '/settings/network'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/devices'
     | '/settings/general'
+    | '/settings/network'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/settings/about'
     | '/settings/devices'
     | '/settings/general'
+    | '/settings/network'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -128,6 +140,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/network': {
+      id: '/settings/network'
+      path: '/network'
+      fullPath: '/settings/network'
+      preLoaderRoute: typeof SettingsNetworkRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/general': {
       id: '/settings/general'
       path: '/general'
@@ -156,12 +175,14 @@ interface SettingsRouteChildren {
   SettingsAboutRoute: typeof SettingsAboutRoute
   SettingsDevicesRoute: typeof SettingsDevicesRoute
   SettingsGeneralRoute: typeof SettingsGeneralRoute
+  SettingsNetworkRoute: typeof SettingsNetworkRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAboutRoute: SettingsAboutRoute,
   SettingsDevicesRoute: SettingsDevicesRoute,
   SettingsGeneralRoute: SettingsGeneralRoute,
+  SettingsNetworkRoute: SettingsNetworkRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

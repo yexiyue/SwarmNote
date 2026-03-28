@@ -18,6 +18,11 @@ use crate::protocol::{
 
 use super::code::PairingCodeInfo;
 
+fn parse_peer_id(s: &str) -> AppResult<PeerId> {
+    s.parse()
+        .map_err(|e| AppError::Pairing(format!("Invalid PeerId '{s}': {e}")))
+}
+
 /// 入站配对请求的过期时间（秒）。
 const PENDING_TTL: Duration = Duration::from_secs(120);
 
@@ -87,10 +92,7 @@ impl PairingManager {
 
         let models = Entity::find().all(&self.db).await?;
         for model in models {
-            let peer_id: PeerId = model
-                .peer_id
-                .parse()
-                .map_err(|e| AppError::Pairing(format!("Invalid PeerId in DB: {e}")))?;
+            let peer_id = parse_peer_id(&model.peer_id)?;
 
             let info = PairedDeviceInfo {
                 peer_id: model.peer_id,
@@ -216,9 +218,7 @@ impl PairingManager {
         method: PairingMethod,
         remote_os_info: Option<OsInfo>,
     ) -> AppResult<PairingResponse> {
-        let peer_id: PeerId = peer_id_str
-            .parse()
-            .map_err(|e| AppError::Pairing(format!("Invalid PeerId: {e}")))?;
+        let peer_id = parse_peer_id(peer_id_str)?;
 
         let request = PairingRequest {
             os_info: OsInfo::default(),
@@ -366,9 +366,7 @@ impl PairingManager {
     pub async fn unpair(&self, peer_id_str: &str) -> AppResult<()> {
         use entity::devices::paired_devices::Entity;
 
-        let peer_id: PeerId = peer_id_str
-            .parse()
-            .map_err(|e| AppError::Pairing(format!("Invalid PeerId: {e}")))?;
+        let peer_id = parse_peer_id(peer_id_str)?;
 
         self.paired_devices.remove(&peer_id);
         Entity::delete_by_id(peer_id_str).exec(&self.db).await?;

@@ -1,3 +1,5 @@
+//! 设备身份管理：Ed25519 密钥对、PeerId、设备信息。
+
 pub mod commands;
 pub mod keychain;
 
@@ -22,10 +24,19 @@ pub enum IdentityError {
 
 /// 运行时身份状态，存储在 Tauri State 中。
 pub struct IdentityState {
-    /// 供 P2P 网络层使用（Phase 1）。
-    #[allow(dead_code)]
     pub keypair: Keypair,
     pub device_info: RwLock<DeviceInfo>,
+}
+
+impl IdentityState {
+    /// 获取当前设备的 PeerId 字符串。
+    pub fn peer_id(&self) -> crate::error::AppResult<String> {
+        let info = self
+            .device_info
+            .read()
+            .map_err(|e| IdentityError::Config(format!("lock error: {e}")))?;
+        Ok(info.peer_id.clone())
+    }
 }
 
 /// 返回给前端的设备信息。
@@ -45,7 +56,7 @@ pub struct DeviceInfo {
 /// 2. 从公钥派生 PeerId
 /// 3. 加载或创建设备配置（device_name、created_at）
 /// 4. 将 IdentityState 和 GlobalConfigState 注册到 Tauri State
-pub fn init(app: &tauri::AppHandle) -> Result<(), IdentityError> {
+pub fn init(app: &tauri::AppHandle) -> Result<(), crate::error::AppError> {
     let keypair = keychain::load_or_generate_keypair()?;
     let peer_id = keypair.public().to_peer_id().to_string();
     let config = crate::config::load_or_create_config()?;

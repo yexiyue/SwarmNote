@@ -149,27 +149,3 @@ pub async fn get_nearby_devices(net_state: State<'_, NetManagerState>) -> AppRes
         .collect();
     Ok(nearby)
 }
-
-#[tauri::command]
-pub async fn open_settings_window(app: AppHandle, route: Option<String>) -> AppResult<()> {
-    use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
-
-    let target_route = format!("/settings/{}", route.unwrap_or("general".to_string()));
-
-    // 如果已存在，聚焦 + 导航
-    if let Some(win) = app.get_webview_window("settings") {
-        let _ = win.set_focus();
-        let _ = win.emit("navigate", &target_route);
-        return Ok(());
-    }
-
-    // 创建新窗口
-    WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(target_route.into()))
-        .title("SwarmNote 设置")
-        .inner_size(720.0, 520.0)
-        .resizable(false)
-        .build()
-        .map_err(|e| AppError::Window(format!("Failed to create settings window: {e}")))?;
-
-    Ok(())
-}
