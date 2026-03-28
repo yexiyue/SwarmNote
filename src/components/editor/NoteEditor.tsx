@@ -8,13 +8,15 @@ import {
 import { zh as bnZh } from "@blocknote/core/locales";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef } from "react";
+import { saveMedia } from "@/commands/document";
 import type { Locale } from "@/i18n";
 import { useEditorStore } from "@/stores/editorStore";
 import { useUIStore } from "@/stores/uiStore";
 import { EditorTitle } from "./EditorTitle";
 
-const { image: _, video: _v, audio: _a, file: _f, ...supportedBlockSpecs } = defaultBlockSpecs;
+const { audio: _a, file: _f, ...supportedBlockSpecs } = defaultBlockSpecs;
 
 const DEBOUNCE_MS = 1500;
 
@@ -40,15 +42,24 @@ export function NoteEditor() {
   const saveContentRef = useRef(saveContent);
   saveContentRef.current = saveContent;
 
+  const uploadFile = useCallback(async (file: File): Promise<string> => {
+    const relPath = useEditorStore.getState().relPath;
+    const buffer = await file.arrayBuffer();
+    const data = Array.from(new Uint8Array(buffer));
+    const absPath = await saveMedia(relPath, file.name, data);
+    return convertFileSrc(absPath);
+  }, []);
+
   const dictionary = bnDictMap[locale];
-  const editor = useCreateBlockNote({ schema, dictionary }, [locale]);
+  const editor = useCreateBlockNote({ schema, dictionary, uploadFile }, [locale]);
 
   // Load markdown content into editor on mount (one-time, non-reactive)
   useEffect(() => {
     const { markdown } = useEditorStore.getState();
-    if (!markdown) return;
     async function load() {
-      const blocks = await editor.tryParseMarkdownToBlocks(markdown);
+      const blocks = markdown
+        ? await editor.tryParseMarkdownToBlocks(markdown)
+        : [{ type: "paragraph" as const }];
       editor.replaceBlocks(editor.document, blocks);
     }
     load();

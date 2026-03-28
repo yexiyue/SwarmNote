@@ -5,7 +5,7 @@ import { useFileTreeStore } from "@/stores/fileTreeStore";
 export function EditorTitle() {
   const title = useEditorStore((s) => s.title);
   const relPath = useEditorStore((s) => s.relPath);
-  const updateTitle = useEditorStore((s) => s.updateTitle);
+  const updateRelPath = useEditorStore((s) => s.updateRelPath);
   const rename = useFileTreeStore((s) => s.rename);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -14,11 +14,11 @@ export function EditorTitle() {
     const newTitle = raw.toLowerCase().endsWith(".md") ? raw : `${raw}.md`;
     if (newTitle === title) return;
 
-    updateTitle(newTitle);
     if (relPath) {
-      await rename(relPath, newTitle);
+      const newRelPath = await rename(relPath, newTitle);
+      updateRelPath(newRelPath, newTitle);
     }
-  }, [title, relPath, updateTitle, rename]);
+  }, [title, relPath, updateRelPath, rename]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -30,7 +30,7 @@ export function EditorTitle() {
   return (
     <input
       ref={inputRef}
-      className="w-full border-none bg-transparent text-3xl font-bold text-foreground outline-none placeholder:text-muted-foreground"
+      className="w-full border-none bg-transparent text-2xl font-bold text-foreground outline-none placeholder:text-muted-foreground"
       placeholder="Untitled"
       defaultValue={title.replace(/\.md$/i, "")}
       onBlur={commitTitle}

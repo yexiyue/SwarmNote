@@ -146,7 +146,8 @@ export function FileTree({ width, height }: FileTreeProps) {
               onDelete={handleDelete}
               onRename={handleRename}
             >
-              <div>
+              {/* stopPropagation prevents outer ContextMenu from intercepting */}
+              <div role="none" onContextMenu={(e) => e.stopPropagation()}>
                 <FileTreeNodeRenderer {...props} />
               </div>
             </FileTreeContextMenu>

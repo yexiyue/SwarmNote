@@ -55,6 +55,9 @@ pub fn run() {
             fs::commands::fs_delete_file,
             fs::commands::fs_delete_dir,
             fs::commands::fs_rename,
+            fs::commands::load_document,
+            fs::commands::save_document,
+            fs::commands::save_media,
             // P2P 网络
             network::commands::start_p2p_node,
             network::commands::stop_p2p_node,

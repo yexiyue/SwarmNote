@@ -21,7 +21,7 @@ export function StatusBar() {
   return (
     <footer className="flex h-7 shrink-0 items-center justify-between border-t border-border bg-card px-4">
       <div className="flex items-center gap-3">
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {charCount.toLocaleString()} <Trans>字符</Trans>
         </span>
       </div>
@@ -29,14 +29,14 @@ export function StatusBar() {
         {isDirty ? (
           <>
             <Pencil className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               <Trans>未保存</Trans>
             </span>
           </>
         ) : timeStr ? (
           <>
             <CircleCheck className="h-3 w-3 text-green-500" />
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               <Trans>已保存</Trans> {timeStr}
             </span>
           </>

@@ -111,13 +111,25 @@ pub fn create_dir(workspace: &Path, parent_rel: &str, name: &str) -> Result<Stri
 }
 
 /// 删除文件。幂等操作 —— 文件不存在时也视为成功。
+///
+/// 对 `.md` 文件，同步删除同名资源目录（best-effort）。
 pub fn delete_file(workspace: &Path, rel_path: &str) -> Result<(), AppError> {
     let full = validate_rel_path(workspace, rel_path)?;
-    match std::fs::remove_file(full) {
-        Ok(()) => Ok(()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e.into()),
+    match std::fs::remove_file(&full) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.into()),
     }
+
+    // Best-effort: delete resource directory for .md files (e.g. "note.md" → "note/")
+    if full.extension().and_then(|e| e.to_str()) == Some("md") {
+        let resource_dir = full.with_extension("");
+        if resource_dir.is_dir() {
+            let _ = std::fs::remove_dir_all(resource_dir);
+        }
+    }
+
+    Ok(())
 }
 
 /// 递归删除目录及其所有内容。
@@ -152,6 +164,15 @@ pub fn rename(workspace: &Path, rel_path: &str, new_name: &str) -> Result<String
     let new_path = parent.join(&target_name);
     if new_path.exists() {
         return Err(AppError::NameConflict(target_name));
+    }
+
+    // Best-effort: rename resource directory for .md files (e.g. "note/" → "diary/")
+    if full.is_file() && full.extension().and_then(|e| e.to_str()) == Some("md") {
+        let old_resource_dir = full.with_extension("");
+        if old_resource_dir.is_dir() {
+            let new_resource_dir = new_path.with_extension("");
+            let _ = std::fs::rename(&old_resource_dir, &new_resource_dir);
+        }
     }
 
     std::fs::rename(&full, &new_path)?;

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { openSettingsWindow } from "@/commands/workspace";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
 import { isMac } from "@/lib/utils";
+import { useEditorStore } from "@/stores/editorStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -26,11 +27,15 @@ export function useKeyboardShortcuts() {
           break;
         case "n":
           e.preventDefault();
-          useFileTreeStore.getState().createFile("", "新建笔记");
+          useFileTreeStore.getState().createAndOpenFile("", "新建笔记");
           break;
         case "p":
           e.preventDefault();
           document.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE));
+          break;
+        case "s":
+          e.preventDefault();
+          useEditorStore.getState().saveContent();
           break;
         case ",":
           e.preventDefault();
