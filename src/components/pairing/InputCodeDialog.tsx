@@ -1,4 +1,4 @@
-import { Loader2, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useState } from "react";
 import { getDeviceByCode } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ErrorMessage } from "@/components/ui/error-message";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
 
 interface InputCodeDialogProps {
   open: boolean;
@@ -22,34 +24,25 @@ interface InputCodeDialogProps {
 
 export function InputCodeDialog({ open, onOpenChange, onDeviceFound }: InputCodeDialogProps) {
   const [code, setCode] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loading, error, run, clearError } = useAsyncAction();
 
   function handleCodeChange(value: string) {
     setCode(value.replace(/\D/g, "").slice(0, 6));
-    setError(null);
+    clearError();
   }
 
   async function handleSearch() {
     if (code.length < 6) return;
-    setSearching(true);
-    setError(null);
-    try {
+    await run(async () => {
       const result = await getDeviceByCode(code);
       onDeviceFound(result.peerId, result.osInfo);
-    } catch (e) {
-      console.error("Failed to find device by code:", e);
-      setError("未找到设备，请检查配对码是否正确");
-    } finally {
-      setSearching(false);
-    }
+    });
   }
 
   function handleClose(nextOpen: boolean) {
     if (!nextOpen) {
       setCode("");
-      setError(null);
-      setSearching(false);
+      clearError();
     }
     onOpenChange(nextOpen);
   }
@@ -74,18 +67,15 @@ export function InputCodeDialog({ open, onOpenChange, onDeviceFound }: InputCode
           />
         </div>
 
-        {error ? <p className="text-center text-xs text-destructive">{error}</p> : null}
+        <ErrorMessage error={error} className="text-center" />
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleClose(false)} disabled={searching}>
+          <Button variant="outline" onClick={() => handleClose(false)} disabled={loading}>
             取消
           </Button>
-          <Button onClick={handleSearch} disabled={code.length < 6 || searching}>
-            {searching ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                查找中...
-              </>
+          <Button onClick={handleSearch} disabled={code.length < 6} loading={loading}>
+            {loading ? (
+              "查找中..."
             ) : (
               <>
                 <Search className="h-4 w-4" />

@@ -1,4 +1,4 @@
-import { Loader2, Monitor } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DeviceInfoCard } from "./DeviceInfoCard";
 
 interface PairingWaitDialogProps {
   open: boolean;
@@ -31,15 +32,7 @@ export function PairingWaitDialog({
           <DialogTitle>等待对方确认...</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 rounded-lg border p-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-            <Monitor className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div>
-            <div className="text-sm font-medium">{deviceName}</div>
-            <div className="text-xs text-muted-foreground">{deviceOs}</div>
-          </div>
-        </div>
+        <DeviceInfoCard hostname={deviceName} os={deviceOs} />
 
         <DialogDescription className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />

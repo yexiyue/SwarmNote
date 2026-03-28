@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PairingCodeInfo } from "@/commands/pairing";
 import { generatePairingCode, getDeviceByCode, requestPairing } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
+import { ErrorMessage } from "@/components/ui/error-message";
 import { Input } from "@/components/ui/input";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
 
 type CardMode = "idle" | "generate" | "input";
 
@@ -12,8 +14,7 @@ export function CodePairingCard() {
   const [codeInfo, setCodeInfo] = useState<PairingCodeInfo | null>(null);
   const [remaining, setRemaining] = useState(0);
   const [inputCode, setInputCode] = useState("");
-  const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loading, error, run, setError, clearError } = useAsyncAction();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -29,8 +30,8 @@ export function CodePairingCard() {
     setCodeInfo(null);
     setRemaining(0);
     setInputCode("");
-    setError(null);
-  }, [clearTimer]);
+    clearError();
+  }, [clearTimer, clearError]);
 
   // Countdown timer
   useEffect(() => {
@@ -51,7 +52,7 @@ export function CodePairingCard() {
   }, [mode, codeInfo, clearTimer, resetToIdle]);
 
   async function handleGenerate() {
-    setError(null);
+    clearError();
     try {
       const info = await generatePairingCode(300);
       setCodeInfo(info);
@@ -73,9 +74,7 @@ export function CodePairingCard() {
       return;
     }
 
-    setConnecting(true);
-    setError(null);
-    try {
+    await run(async () => {
       const deviceInfo = await getDeviceByCode(inputCode);
       const resp = await requestPairing(deviceInfo.peerId, {
         type: "Code",
@@ -86,12 +85,7 @@ export function CodePairingCard() {
       } else {
         setError(resp.reason ?? "配对被拒绝");
       }
-    } catch (e) {
-      console.error("Failed to connect with code:", e);
-      setError("连接失败，请检查配对码");
-    } finally {
-      setConnecting(false);
-    }
+    });
   }
 
   function handleCopyCode() {
@@ -111,7 +105,7 @@ export function CodePairingCard() {
       <div className="rounded-lg border p-4">
         <div className="mb-2 text-sm font-medium">跨网络配对</div>
         <p className="mb-4 text-xs text-muted-foreground">在不同网络环境下，使用配对码连接设备</p>
-        {error ? <p className="mb-3 text-xs text-destructive">{error}</p> : null}
+        <ErrorMessage error={error} className="mb-3" />
         <div className="flex items-center gap-3">
           <Button size="sm" onClick={handleGenerate}>
             生成配对码
@@ -133,7 +127,7 @@ export function CodePairingCard() {
       <div className="rounded-lg border p-4">
         <div className="mb-2 text-sm font-medium">输入配对码</div>
         <p className="mb-4 text-xs text-muted-foreground">输入对方设备生成的6位配对码</p>
-        {error ? <p className="mb-3 text-xs text-destructive">{error}</p> : null}
+        <ErrorMessage error={error} className="mb-3" />
         <div className="flex items-center gap-2">
           <Input
             value={inputCode}
@@ -142,8 +136,8 @@ export function CodePairingCard() {
             className="w-32 text-center font-mono tracking-widest"
             maxLength={6}
           />
-          <Button size="sm" onClick={handleInputConnect} disabled={connecting}>
-            {connecting ? "连接中..." : "连接"}
+          <Button size="sm" onClick={handleInputConnect} loading={loading}>
+            {loading ? "连接中..." : "连接"}
           </Button>
           <button
             type="button"

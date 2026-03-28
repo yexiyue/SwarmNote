@@ -22,6 +22,10 @@
     ]
   },
   "dependencies": {
+    "@blocknote/code-block": "^0.47.3",
+    "@blocknote/core": "^0.47.3",
+    "@blocknote/react": "^0.47.3",
+    "@blocknote/shadcn": "^0.47.3",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@lingui/core": "^5.9.3",
