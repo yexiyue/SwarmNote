@@ -11,7 +11,7 @@ export function EditorTitle() {
 
   const commitTitle = useCallback(async () => {
     const raw = inputRef.current?.value.trim() || "Untitled";
-    const newTitle = raw.endsWith(".md") ? raw : `${raw}.md`;
+    const newTitle = raw.toLowerCase().endsWith(".md") ? raw : `${raw}.md`;
     if (newTitle === title) return;
 
     updateTitle(newTitle);

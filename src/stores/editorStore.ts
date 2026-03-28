@@ -54,7 +54,7 @@ export const useEditorStore = create<EditorState & EditorActions>()((set, get) =
 
   updateContent: (markdown) => set({ markdown, isDirty: true, charCount: markdown.length }),
 
-  updateTitle: (title) => set({ title, isDirty: true }),
+  updateTitle: (title) => set({ title }),
 
   clear: () => set(initialState),
 }));
