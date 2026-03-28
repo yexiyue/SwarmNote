@@ -20,6 +20,11 @@ export interface UpsertDocumentInput {
   folder_id?: string | null;
   title: string;
   rel_path: string;
+  file_hash?: string | null;
+}
+
+export interface SaveDocumentResult {
+  file_hash: string;
 }
 
 export async function getDocuments(workspaceId: string): Promise<DocumentModel[]> {
@@ -34,12 +39,21 @@ export async function deleteDocument(id: string): Promise<void> {
   return invoke("db_delete_document", { id });
 }
 
-// TODO(#6): Replace with Tauri invoke: invoke("load_document", { relPath })
 export async function loadDocumentContent(relPath: string): Promise<string> {
-  return localStorage.getItem(`swarmnote:doc:${relPath}`) ?? "";
+  return invoke<string>("load_document", { relPath });
 }
 
-// TODO(#6): Replace with Tauri invoke: invoke("save_document", { relPath, markdown })
-export async function saveDocumentContent(relPath: string, markdown: string): Promise<void> {
-  localStorage.setItem(`swarmnote:doc:${relPath}`, markdown);
+export async function saveDocumentContent(
+  relPath: string,
+  content: string,
+): Promise<SaveDocumentResult> {
+  return invoke<SaveDocumentResult>("save_document", { relPath, content });
+}
+
+export async function saveMedia(
+  relPath: string,
+  fileName: string,
+  data: number[],
+): Promise<string> {
+  return invoke<string>("save_media", { relPath, fileName, data });
 }

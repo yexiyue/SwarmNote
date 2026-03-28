@@ -41,7 +41,7 @@ export function Sidebar() {
   const setLocale = useUIStore((s) => s.setLocale);
   const workspace = useWorkspaceStore((s) => s.workspace);
   const rescan = useFileTreeStore((s) => s.rescan);
-  const createFile = useFileTreeStore((s) => s.createFile);
+  const createAndOpenFile = useFileTreeStore((s) => s.createAndOpenFile);
   const createDir = useFileTreeStore((s) => s.createDir);
 
   const pairedDevices = usePairingStore((s) => s.pairedDevices);
@@ -77,8 +77,8 @@ export function Sidebar() {
   }
 
   const handleCreateFile = useCallback(() => {
-    createFile("", t`新建笔记`);
-  }, [createFile, t]);
+    createAndOpenFile("", t`新建笔记`);
+  }, [createAndOpenFile, t]);
 
   const handleCreateDir = useCallback(() => {
     createDir("", t`新建文件夹`);

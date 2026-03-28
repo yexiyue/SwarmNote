@@ -1,5 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
+import { deleteDocument, upsertDocument } from "@/commands/document";
 import {
   type FileTreeNode,
   fsCreateDir,
@@ -9,6 +10,8 @@ import {
   fsRename,
   scanWorkspaceTree,
 } from "@/commands/fs";
+import { useEditorStore } from "@/stores/editorStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface FileTreeState {
   tree: FileTreeNode[];
@@ -20,6 +23,7 @@ interface FileTreeActions {
   rescan: () => Promise<void>;
   selectFile: (id: string | null) => void;
   createFile: (parentRel: string, name: string) => Promise<string>;
+  createAndOpenFile: (parentRel: string, name: string) => Promise<string>;
   createDir: (parentRel: string, name: string) => Promise<string>;
   deleteFile: (relPath: string) => Promise<void>;
   deleteDir: (relPath: string) => Promise<void>;
@@ -50,7 +54,25 @@ export const useFileTreeStore = create<FileTreeState & FileTreeActions>()((set, 
 
   createFile: async (parentRel, name) => {
     const relPath = await fsCreateFile(parentRel, name);
+    const workspace = useWorkspaceStore.getState().workspace;
+    if (workspace) {
+      const title = relPath.split("/").pop() ?? name;
+      await upsertDocument({
+        id: relPath,
+        workspace_id: workspace.id,
+        title,
+        rel_path: relPath,
+      });
+    }
     await get().rescan();
+    return relPath;
+  },
+
+  createAndOpenFile: async (parentRel, name) => {
+    const relPath = await get().createFile(parentRel, name);
+    const title = relPath.split("/").pop() ?? name;
+    set({ selectedId: relPath });
+    await useEditorStore.getState().loadDocument(relPath, title, relPath);
     return relPath;
   },
 
@@ -62,9 +84,11 @@ export const useFileTreeStore = create<FileTreeState & FileTreeActions>()((set, 
 
   deleteFile: async (relPath) => {
     await fsDeleteFile(relPath);
+    deleteDocument(relPath).catch(() => {});
     const { selectedId } = get();
     if (selectedId === relPath) {
       set({ selectedId: null });
+      useEditorStore.getState().clear();
     }
     await get().rescan();
   },

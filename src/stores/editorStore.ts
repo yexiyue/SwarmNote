@@ -1,5 +1,7 @@
 import { create } from "zustand";
-import { loadDocumentContent, saveDocumentContent } from "@/commands/document";
+import { loadDocumentContent, saveDocumentContent, upsertDocument } from "@/commands/document";
+import { assetUrlToRelativePath, relativePathToAssetUrl } from "@/lib/markdownMedia";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface EditorState {
   currentDocId: string | null;
@@ -16,6 +18,8 @@ interface EditorActions {
   saveContent: () => Promise<void>;
   updateContent: (markdown: string) => void;
   updateTitle: (title: string) => void;
+  /** Update relPath and currentDocId after file rename. */
+  updateRelPath: (newRelPath: string, newTitle: string) => void;
   clear: () => void;
 }
 
@@ -33,7 +37,9 @@ export const useEditorStore = create<EditorState & EditorActions>()((set, get) =
   ...initialState,
 
   loadDocument: async (id, title, relPath) => {
-    const markdown = await loadDocumentContent(relPath);
+    const workspace = useWorkspaceStore.getState().workspace;
+    const raw = await loadDocumentContent(relPath);
+    const markdown = workspace ? relativePathToAssetUrl(raw, workspace.path) : raw;
     set({
       ...initialState,
       currentDocId: id,
@@ -45,16 +51,31 @@ export const useEditorStore = create<EditorState & EditorActions>()((set, get) =
   },
 
   saveContent: async () => {
-    const { currentDocId, relPath, markdown } = get();
-    if (!currentDocId) return;
+    const { currentDocId, relPath, markdown, title } = get();
+    if (!currentDocId || !get().isDirty) return;
 
-    await saveDocumentContent(relPath, markdown);
+    const workspace = useWorkspaceStore.getState().workspace;
+    const contentToSave = workspace ? assetUrlToRelativePath(markdown, workspace.path) : markdown;
+    const { file_hash } = await saveDocumentContent(relPath, contentToSave);
     set({ isDirty: false, lastSavedAt: new Date() });
+
+    if (workspace) {
+      await upsertDocument({
+        id: currentDocId,
+        workspace_id: workspace.id,
+        title,
+        rel_path: relPath,
+        file_hash,
+      });
+    }
   },
 
   updateContent: (markdown) => set({ markdown, isDirty: true, charCount: markdown.length }),
 
   updateTitle: (title) => set({ title }),
+
+  updateRelPath: (newRelPath, newTitle) =>
+    set({ currentDocId: newRelPath, relPath: newRelPath, title: newTitle }),
 
   clear: () => set(initialState),
 }));

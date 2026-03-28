@@ -17,6 +17,7 @@ pub struct UpsertDocumentInput {
     pub folder_id: Option<String>,
     pub title: String,
     pub rel_path: String,
+    pub file_hash: Option<String>,
 }
 
 #[tauri::command]
@@ -49,6 +50,9 @@ pub async fn db_upsert_document(
             model.title = Set(input.title);
             model.folder_id = Set(input.folder_id);
             model.rel_path = Set(input.rel_path);
+            if let Some(hash) = input.file_hash {
+                model.file_hash = Set(Some(hash.into_bytes()));
+            }
             model.updated_at = Set(now);
             return Ok(model.update(db).await?);
         }
@@ -61,7 +65,7 @@ pub async fn db_upsert_document(
         folder_id: Set(input.folder_id),
         title: Set(input.title),
         rel_path: Set(input.rel_path),
-        file_hash: Set(None),
+        file_hash: Set(input.file_hash.map(|h| h.into_bytes())),
         yjs_state: Set(None),
         state_vector: Set(None),
         created_by: Set(identity.peer_id()?),
