@@ -30,3 +30,7 @@ export async function getRecentWorkspaces(): Promise<RecentWorkspace[]> {
 export async function openWorkspaceWindow(path: string): Promise<void> {
   return invoke("open_workspace_window", { path });
 }
+
+export async function openSettingsWindow(route?: string): Promise<void> {
+  return invoke("open_settings_window", { route });
+}

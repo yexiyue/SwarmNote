@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { openSettingsWindow } from "@/commands/pairing";
+import { openSettingsWindow } from "@/commands/workspace";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
 import { isMac } from "@/lib/utils";
+import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { useUIStore } from "@/stores/uiStore";
 
 export function useKeyboardShortcuts() {
@@ -9,8 +10,6 @@ export function useKeyboardShortcuts() {
     function handleKeyDown(e: KeyboardEvent) {
       const mod = isMac ? e.metaKey : e.ctrlKey;
       if (!mod) return;
-
-      const { toggleSidebar } = useUIStore.getState();
 
       // Ctrl+Shift+O: open workspace picker
       if (e.shiftKey && e.key.toLowerCase() === "o") {
@@ -23,15 +22,11 @@ export function useKeyboardShortcuts() {
       switch (e.key.toLowerCase()) {
         case "b":
           e.preventDefault();
-          toggleSidebar();
+          useUIStore.getState().toggleSidebar();
           break;
         case "n":
           e.preventDefault();
-          // TODO: create new note
-          break;
-        case "s":
-          e.preventDefault();
-          // TODO: save current note
+          useFileTreeStore.getState().createFile("", "新建笔记");
           break;
         case "p":
           e.preventDefault();

@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getDeviceInfo } from "@/commands/identity";
-import { openSettingsWindow } from "@/commands/pairing";
+import { openSettingsWindow } from "@/commands/workspace";
 import { FileTree } from "@/components/filetree/FileTree";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -53,9 +53,10 @@ export function Sidebar() {
 
   const ThemeIcon = themeIcons[theme];
 
-  // Load device name
   useEffect(() => {
-    getDeviceInfo().then((info) => setDeviceName(info.device_name));
+    getDeviceInfo()
+      .then((info) => setDeviceName(info.device_name))
+      .catch(() => setDeviceName("SwarmNote"));
   }, []);
 
   // Rescan when workspace changes
