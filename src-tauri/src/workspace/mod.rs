@@ -66,7 +66,7 @@ async fn try_auto_restore_workspace(
     };
 
     let last_path = {
-        let config = config_state.0.read().await;
+        let config = config_state.read().await;
         config.last_workspace_path.clone()
     };
 

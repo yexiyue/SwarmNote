@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::RwLock;
 use swarm_p2p_core::libp2p::identity::Keypair;
 use tauri::Manager;
-use tokio::sync::RwLock as TokioRwLock;
 
 /// 身份操作相关的错误类型。
 #[derive(Debug, thiserror::Error)]
@@ -80,7 +79,7 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), crate::error::AppError> {
         device_info: RwLock::new(device_info),
     });
 
-    app.manage(crate::config::GlobalConfigState(TokioRwLock::new(config)));
+    app.manage(crate::config::GlobalConfigState::new(config));
 
     Ok(())
 }

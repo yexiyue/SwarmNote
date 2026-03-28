@@ -11,7 +11,21 @@ use crate::error::{AppError, AppResult};
 const MAX_RECENT_WORKSPACES: usize = 10;
 
 /// 全局配置状态，存储在 Tauri State 中用于运行时读写。
-pub struct GlobalConfigState(pub TokioRwLock<GlobalConfig>);
+pub struct GlobalConfigState(TokioRwLock<GlobalConfig>);
+
+impl GlobalConfigState {
+    pub fn new(config: GlobalConfig) -> Self {
+        Self(TokioRwLock::new(config))
+    }
+
+    pub async fn read(&self) -> tokio::sync::RwLockReadGuard<'_, GlobalConfig> {
+        self.0.read().await
+    }
+
+    pub async fn write(&self) -> tokio::sync::RwLockWriteGuard<'_, GlobalConfig> {
+        self.0.write().await
+    }
+}
 
 /// 持久化在 `~/.swarmnote/config.json` 的全局应用配置。
 ///

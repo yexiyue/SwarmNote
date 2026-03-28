@@ -1,6 +1,9 @@
+//! P2P 事件循环：接收 NodeEvent 并分发到 DeviceManager、Tauri 事件、系统托盘。
+
 use std::sync::Arc;
 
 use swarm_p2p_core::event::NodeEvent;
+use swarm_p2p_core::libp2p::PeerId;
 use swarm_p2p_core::EventReceiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio_util::sync::CancellationToken;
@@ -58,43 +61,20 @@ async fn handle_event(
     pairing_manager: &PairingManager,
 ) {
     match event {
+        // ── 设备发现与连接 ──
         NodeEvent::Listening { addr } => {
             info!("Listening on {addr}");
         }
-
         NodeEvent::PeersDiscovered { peers } => {
             info!("Discovered {} peer(s)", peers.len());
             device_manager.add_peers(peers);
         }
-
         NodeEvent::PeerConnected { peer_id } => {
-            info!("Peer connected: {peer_id}");
-            device_manager.set_connected(&peer_id);
-            if let Some(peer_info) = device_manager.get_peer(&peer_id) {
-                let _ = app.emit(events::PEER_CONNECTED, &peer_info);
-            }
-            #[cfg(desktop)]
-            if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
-                let count = device_manager.connected_count();
-                tray.lock()
-                    .await
-                    .set_status(crate::tray::NodeStatus::Running { peer_count: count });
-            }
+            handle_peer_connected(app, device_manager, peer_id).await;
         }
-
         NodeEvent::PeerDisconnected { peer_id } => {
-            info!("Peer disconnected: {peer_id}");
-            device_manager.set_disconnected(&peer_id);
-            let _ = app.emit(events::PEER_DISCONNECTED, peer_id.to_string());
-            #[cfg(desktop)]
-            if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
-                let count = device_manager.connected_count();
-                tray.lock()
-                    .await
-                    .set_status(crate::tray::NodeStatus::Running { peer_count: count });
-            }
+            handle_peer_disconnected(app, device_manager, peer_id).await;
         }
-
         NodeEvent::IdentifyReceived {
             peer_id,
             agent_version,
@@ -108,11 +88,11 @@ async fn handle_event(
                 }
             }
         }
-
         NodeEvent::PingSuccess { peer_id, rtt_ms } => {
             device_manager.update_rtt(&peer_id, rtt_ms);
         }
 
+        // ── 网络状态 ──
         NodeEvent::NatStatusChanged {
             status,
             public_addr,
@@ -124,15 +104,12 @@ async fn handle_event(
             });
             let _ = app.emit(events::NETWORK_STATUS_CHANGED, payload);
         }
-
         NodeEvent::HolePunchSucceeded { peer_id } => {
             info!("Hole punch succeeded with {peer_id}");
         }
-
         NodeEvent::HolePunchFailed { peer_id, error } => {
             warn!("Hole punch failed with {peer_id}: {error}");
         }
-
         NodeEvent::RelayReservationAccepted {
             relay_peer_id,
             renewal,
@@ -143,59 +120,103 @@ async fn handle_event(
             );
         }
 
+        // ── 入站请求 ──
         NodeEvent::InboundRequest {
             peer_id,
             pending_id,
             request,
         } => {
-            match &request {
-                AppRequest::Pairing(ref pairing_req) => {
-                    info!("Received pairing request from {peer_id} (pending_id={pending_id})");
-                    pairing_manager.cache_inbound_request(peer_id, pending_id, pairing_req);
-
-                    // 构建 payload
-                    let expires_at = chrono::Utc::now().timestamp_millis() + 90_000; // 90s deadline
-                    let payload = serde_json::json!({
-                        "pendingId": pending_id,
-                        "peerId": peer_id.to_string(),
-                        "osInfo": pairing_req.os_info,
-                        "method": pairing_req.method,
-                        "expiresAt": expires_at,
-                    });
-
-                    // 定向 emit 或广播 + 通知
-                    emit_to_focused_or_all(app, events::PAIRING_REQUEST_RECEIVED, &payload);
-                    notify_if_unfocused(
-                        app,
-                        "配对请求",
-                        &format!("{} 请求与您配对", pairing_req.os_info.hostname),
-                    );
-                }
-                AppRequest::Sync(_) => {
-                    warn!("Received sync request from {peer_id} (pending_id={pending_id}), but sync handler not yet implemented");
-                }
-            }
+            handle_inbound_request(app, pairing_manager, peer_id, pending_id, request);
         }
 
+        // ── GossipSub（未实现） ──
         NodeEvent::GossipMessage { source, topic, .. } => {
             info!(
                 "GossipSub message from {source:?} on topic {topic} (handler not yet implemented)"
             );
         }
-
         NodeEvent::GossipSubscribed { peer_id, topic } => {
             info!("Peer {peer_id} subscribed to topic {topic}");
         }
-
         NodeEvent::GossipUnsubscribed { peer_id, topic } => {
             info!("Peer {peer_id} unsubscribed from topic {topic}");
         }
     }
 }
 
+// ── 拆分的事件处理函数 ──
+
+async fn handle_peer_connected(app: &AppHandle, device_manager: &DeviceManager, peer_id: PeerId) {
+    info!("Peer connected: {peer_id}");
+    device_manager.set_connected(&peer_id);
+    if let Some(peer_info) = device_manager.get_peer(&peer_id) {
+        let _ = app.emit(events::PEER_CONNECTED, &peer_info);
+    }
+    #[cfg(desktop)]
+    update_tray_peer_count(app, device_manager).await;
+}
+
+async fn handle_peer_disconnected(
+    app: &AppHandle,
+    device_manager: &DeviceManager,
+    peer_id: PeerId,
+) {
+    info!("Peer disconnected: {peer_id}");
+    device_manager.set_disconnected(&peer_id);
+    let _ = app.emit(events::PEER_DISCONNECTED, peer_id.to_string());
+    #[cfg(desktop)]
+    update_tray_peer_count(app, device_manager).await;
+}
+
+fn handle_inbound_request(
+    app: &AppHandle,
+    pairing_manager: &PairingManager,
+    peer_id: PeerId,
+    pending_id: u64,
+    request: AppRequest,
+) {
+    match &request {
+        AppRequest::Pairing(pairing_req) => {
+            info!("Received pairing request from {peer_id} (pending_id={pending_id})");
+            pairing_manager.cache_inbound_request(peer_id, pending_id, pairing_req);
+
+            let expires_at = chrono::Utc::now().timestamp_millis() + 90_000;
+            let payload = serde_json::json!({
+                "pendingId": pending_id,
+                "peerId": peer_id.to_string(),
+                "osInfo": pairing_req.os_info,
+                "method": pairing_req.method,
+                "expiresAt": expires_at,
+            });
+
+            emit_to_focused_or_all(app, events::PAIRING_REQUEST_RECEIVED, &payload);
+            notify_if_unfocused(
+                app,
+                "配对请求",
+                &format!("{} 请求与您配对", pairing_req.os_info.hostname),
+            );
+        }
+        AppRequest::Sync(_) => {
+            warn!("Received sync request from {peer_id} (pending_id={pending_id}), but sync handler not yet implemented");
+        }
+    }
+}
+
+// ── 辅助函数 ──
+
+/// 更新托盘的 peer 连接计数
+#[cfg(desktop)]
+async fn update_tray_peer_count(app: &AppHandle, device_manager: &DeviceManager) {
+    if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
+        let count = device_manager.connected_count();
+        tray.lock()
+            .await
+            .set_status(crate::tray::NodeStatus::Running { peer_count: count });
+    }
+}
+
 /// 向聚焦窗口定向 emit，无聚焦窗口时广播给所有窗口
 fn emit_to_focused_or_all<S: serde::Serialize + Clone>(app: &AppHandle, event: &str, payload: &S) {
-    use tauri::Manager;
     let focused = app
         .webview_windows()
         .values()
@@ -208,13 +229,11 @@ fn emit_to_focused_or_all<S: serde::Serialize + Clone>(app: &AppHandle, event: &
             return;
         }
     }
-    // 无聚焦窗口，广播
     let _ = app.emit(event, payload.clone());
 }
 
 /// 当所有窗口都不在前台时发送系统通知
 fn notify_if_unfocused(app: &AppHandle, title: &str, body: &str) {
-    use tauri::Manager;
     let any_focused = app
         .webview_windows()
         .values()

@@ -27,7 +27,7 @@ pub async fn set_device_name(
         info.device_name = name;
     }
 
-    let mut config = config_state.0.write().await;
+    let mut config = config_state.write().await;
     let info = state
         .device_info
         .read()

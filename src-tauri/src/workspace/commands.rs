@@ -104,7 +104,7 @@ async fn bind_workspace_to_window(
 
     let dir_name = workspace_name_from_path(Path::new(path));
     {
-        let mut config = config_state.0.write().await;
+        let mut config = config_state.write().await;
         if let Err(e) = crate::config::update_last_workspace(&mut config, path, &dir_name) {
             log::warn!("Failed to update global config: {e}");
         }
@@ -192,7 +192,7 @@ pub async fn get_workspace_info(
 pub async fn get_recent_workspaces(
     config_state: State<'_, GlobalConfigState>,
 ) -> AppResult<Vec<crate::config::RecentWorkspace>> {
-    let config = config_state.0.read().await;
+    let config = config_state.read().await;
     Ok(config.recent_workspaces.clone())
 }
 
