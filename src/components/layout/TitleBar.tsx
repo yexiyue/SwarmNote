@@ -1,9 +1,7 @@
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Minus, PanelLeft, PenLine, Search, Settings, Square, X } from "lucide-react";
-import { openSettingsWindow } from "@/commands/workspace";
+import { Minus, PanelLeft, PenLine, Search, Square, X } from "lucide-react";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isMac, modKey } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
@@ -29,22 +27,28 @@ export function TitleBar() {
         className={`flex items-center gap-3 ${needsTrafficLightPadding ? "pl-[70px]" : ""}`}
         data-tauri-drag-region
       >
-        {!sidebarOpen && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" onClick={toggleSidebar}>
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {t`展开侧边栏`} ({modKey}B)
-            </TooltipContent>
-          </Tooltip>
-        )}
-        <div className="flex items-center gap-1.5">
-          <div className="flex h-[22px] w-[22px] items-center justify-center rounded bg-primary">
-            <PenLine className="h-3.5 w-3.5 text-white" />
-          </div>
+        <div className="group/logo flex items-center gap-1.5">
+          {sidebarOpen ? (
+            <div className="flex h-5.5 w-5.5 items-center justify-center rounded bg-primary">
+              <PenLine className="h-3.5 w-3.5 text-white" />
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className="relative flex h-5.5 w-5.5 items-center justify-center rounded bg-primary"
+                >
+                  <PenLine className="h-3.5 w-3.5 text-white transition-opacity duration-150 group-hover/logo:opacity-0" />
+                  <PanelLeft className="absolute h-3.5 w-3.5 text-white opacity-0 transition-opacity duration-150 group-hover/logo:opacity-100" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t`展开侧边栏`} ({modKey}B)
+              </TooltipContent>
+            </Tooltip>
+          )}
           <span className="text-sm font-semibold text-foreground">SwarmNote</span>
         </div>
         <div className="h-4 w-px bg-border" />
@@ -64,17 +68,6 @@ export function TitleBar() {
           <span className="text-xs">{t`搜索...`}</span>
           <span className="text-[10px] font-medium">{modKey}P</span>
         </button>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" onClick={() => openSettingsWindow("general")}>
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <Trans>设置</Trans>
-          </TooltipContent>
-        </Tooltip>
 
         {!isMac && (
           <>
