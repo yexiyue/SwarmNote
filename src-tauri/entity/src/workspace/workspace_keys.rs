@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "workspace_keys")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub workspace_id: String,
+    pub workspace_id: Uuid,
     pub read_key_enc: Vec<u8>,
     pub write_key_enc: Option<Vec<u8>>,
     pub admin_key_enc: Option<Vec<u8>>,

@@ -18,7 +18,7 @@ use crate::identity::IdentityState;
 /// 返回给前端的工作区信息，组合数据库记录 + 运行时路径。
 #[derive(Debug, Clone, Serialize)]
 pub struct WorkspaceInfo {
-    pub id: String,
+    pub id: Uuid,
     pub name: String,
     pub path: String,
     pub created_by: String,
@@ -29,7 +29,7 @@ pub struct WorkspaceInfo {
 impl WorkspaceInfo {
     pub fn from_model(model: &workspaces::Model, path: &str) -> Self {
         Self {
-            id: model.id.clone(),
+            id: model.id,
             name: model.name.clone(),
             path: path.to_owned(),
             created_by: model.created_by.clone(),
@@ -68,9 +68,7 @@ async fn ensure_workspace(
         }
         None => {
             let now = Utc::now().timestamp();
-            #[expect(clippy::needless_update)]
             let model = workspaces::ActiveModel {
-                id: Set(Uuid::now_v7().to_string()),
                 name: Set(dir_name),
                 created_by: Set(identity.peer_id()?),
                 created_at: Set(now),

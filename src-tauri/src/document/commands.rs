@@ -12,9 +12,9 @@ use crate::workspace::state::DbState;
 
 #[derive(serde::Deserialize)]
 pub struct UpsertDocumentInput {
-    pub id: Option<String>,
-    pub workspace_id: String,
-    pub folder_id: Option<String>,
+    pub id: Option<Uuid>,
+    pub workspace_id: Uuid,
+    pub folder_id: Option<Uuid>,
     pub title: String,
     pub rel_path: String,
     pub file_hash: Option<String>,
@@ -23,12 +23,12 @@ pub struct UpsertDocumentInput {
 #[tauri::command]
 pub async fn db_get_documents(
     window: tauri::Window,
-    workspace_id: String,
+    workspace_id: Uuid,
     db_state: State<'_, DbState>,
 ) -> AppResult<Vec<documents::Model>> {
     let guard = db_state.workspace_db_for(window.label()).await?;
     Ok(documents::Entity::find()
-        .filter(documents::Column::WorkspaceId.eq(&workspace_id))
+        .filter(documents::Column::WorkspaceId.eq(workspace_id))
         .all(guard.conn())
         .await?)
 }
@@ -44,7 +44,7 @@ pub async fn db_upsert_document(
     let db = guard.conn();
     let now = Utc::now().timestamp();
 
-    if let Some(ref id) = input.id {
+    if let Some(id) = input.id {
         if let Some(existing) = documents::Entity::find_by_id(id).one(db).await? {
             let mut model: documents::ActiveModel = existing.into();
             model.title = Set(input.title);
@@ -60,7 +60,7 @@ pub async fn db_upsert_document(
 
     #[expect(clippy::needless_update)]
     let model = documents::ActiveModel {
-        id: Set(input.id.unwrap_or_else(|| Uuid::now_v7().to_string())),
+        id: Set(input.id.unwrap_or_else(Uuid::now_v7)),
         workspace_id: Set(input.workspace_id),
         folder_id: Set(input.folder_id),
         title: Set(input.title),
@@ -79,11 +79,11 @@ pub async fn db_upsert_document(
 #[tauri::command]
 pub async fn db_delete_document(
     window: tauri::Window,
-    id: String,
+    id: Uuid,
     db_state: State<'_, DbState>,
 ) -> AppResult<()> {
     let guard = db_state.workspace_db_for(window.label()).await?;
-    documents::Entity::delete_by_id(&id)
+    documents::Entity::delete_by_id(id)
         .exec(guard.conn())
         .await?;
     Ok(())
@@ -93,8 +93,8 @@ pub async fn db_delete_document(
 
 #[derive(serde::Deserialize)]
 pub struct CreateFolderInput {
-    pub workspace_id: String,
-    pub parent_folder_id: Option<String>,
+    pub workspace_id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
     pub name: String,
     pub rel_path: String,
 }
@@ -102,12 +102,12 @@ pub struct CreateFolderInput {
 #[tauri::command]
 pub async fn db_get_folders(
     window: tauri::Window,
-    workspace_id: String,
+    workspace_id: Uuid,
     db_state: State<'_, DbState>,
 ) -> AppResult<Vec<folders::Model>> {
     let guard = db_state.workspace_db_for(window.label()).await?;
     Ok(folders::Entity::find()
-        .filter(folders::Column::WorkspaceId.eq(&workspace_id))
+        .filter(folders::Column::WorkspaceId.eq(workspace_id))
         .all(guard.conn())
         .await?)
 }
@@ -122,9 +122,7 @@ pub async fn db_create_folder(
     let guard = db_state.workspace_db_for(window.label()).await?;
     let now = Utc::now().timestamp();
 
-    #[expect(clippy::needless_update)]
     let model = folders::ActiveModel {
-        id: Set(Uuid::now_v7().to_string()),
         workspace_id: Set(input.workspace_id),
         parent_folder_id: Set(input.parent_folder_id),
         name: Set(input.name),
@@ -140,14 +138,14 @@ pub async fn db_create_folder(
 #[tauri::command]
 pub async fn db_delete_folder(
     window: tauri::Window,
-    id: String,
+    id: Uuid,
     db_state: State<'_, DbState>,
 ) -> AppResult<()> {
     let guard = db_state.workspace_db_for(window.label()).await?;
     let db = guard.conn();
 
     let child_folders = folders::Entity::find()
-        .filter(folders::Column::ParentFolderId.eq(Some(id.clone())))
+        .filter(folders::Column::ParentFolderId.eq(Some(id)))
         .count(db)
         .await?;
     if child_folders > 0 {
@@ -155,13 +153,13 @@ pub async fn db_delete_folder(
     }
 
     let child_docs = documents::Entity::find()
-        .filter(documents::Column::FolderId.eq(Some(id.clone())))
+        .filter(documents::Column::FolderId.eq(Some(id)))
         .count(db)
         .await?;
     if child_docs > 0 {
         return Err(AppError::FolderNotEmpty("contains documents".into()));
     }
 
-    folders::Entity::delete_by_id(&id).exec(db).await?;
+    folders::Entity::delete_by_id(id).exec(db).await?;
     Ok(())
 }

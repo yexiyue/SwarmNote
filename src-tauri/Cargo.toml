@@ -3,7 +3,8 @@ members = [".", "entity", "migration"]
 resolver = "2"
 
 [workspace.dependencies]
-sea-orm = { version = "~2.0.0-rc", features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
+sea-orm = { version = "~2.0.0-rc", features = ["sqlx-sqlite", "runtime-tokio", "macros", "with-uuid"] }
+uuid = { version = "1", features = ["v7", "serde"] }
 
 [package]
 name = "swarmnote"
@@ -37,7 +38,7 @@ directories = "6"
 sea-orm = { workspace = true }
 entity = { path = "entity" }
 migration = { path = "migration" }
-uuid = { version = "1", features = ["v7"] }
+uuid = { workspace = true }
 tokio = { version = "1", features = ["sync", "time", "macros"] }
 tokio-util = "0.7"
 dashmap = "6"

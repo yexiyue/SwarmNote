@@ -1,4 +1,5 @@
 use sea_orm::entity::prelude::*;
+use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
@@ -6,9 +7,9 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "folders")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id: String,
-    pub workspace_id: String,
-    pub parent_folder_id: Option<String>,
+    pub id: Uuid,
+    pub workspace_id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
     pub name: String,
     pub rel_path: String,
     pub created_by: String,
@@ -34,4 +35,11 @@ pub struct Model {
     pub documents: HasMany<super::documents::Entity>,
 }
 
-impl ActiveModelBehavior for ActiveModel {}
+impl ActiveModelBehavior for ActiveModel {
+    fn new() -> Self {
+        Self {
+            id: Set(Uuid::now_v7()),
+            ..ActiveModelTrait::default()
+        }
+    }
+}
