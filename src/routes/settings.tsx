@@ -26,9 +26,9 @@ function SettingsLayout() {
   }, [router]);
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-muted/30">
       {/* Sidebar */}
-      <nav className="flex w-55 flex-col border-r bg-muted/30">
+      <nav className="flex w-55 flex-col border-r bg-background/60">
         <div className="p-5 pb-2">
           <h2 className="text-base font-semibold tracking-tight">设置</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">管理应用偏好与设备</p>
