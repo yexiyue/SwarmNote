@@ -46,6 +46,8 @@
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.2",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.30",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

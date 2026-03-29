@@ -9,16 +9,18 @@ import { zh as bnZh } from "@blocknote/core/locales";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef } from "react";
-import { saveMedia } from "@/commands/document";
+import { listen } from "@tauri-apps/api/event";
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as Y from "yjs";
+import { openYDoc, saveMedia } from "@/commands/document";
 import type { Locale } from "@/i18n";
+import { TauriYjsProvider } from "@/lib/TauriYjsProvider";
 import { useEditorStore } from "@/stores/editorStore";
 import { useUIStore } from "@/stores/uiStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { EditorTitle } from "./EditorTitle";
 
 const { audio: _a, file: _f, ...supportedBlockSpecs } = defaultBlockSpecs;
-
-const DEBOUNCE_MS = 1500;
 
 const schema = BlockNoteSchema.create({
   blockSpecs: {
@@ -32,15 +34,88 @@ const bnDictMap: Record<Locale, Dictionary | undefined> = {
   en: undefined,
 };
 
+interface YjsContext {
+  ydoc: Y.Doc;
+  provider: TauriYjsProvider;
+}
+
+/**
+ * Outer component: initializes Y.Doc from Rust backend, then renders the
+ * inner editor once ready. Remounted per document via `key={currentDocId}`
+ * in EditorPane.
+ */
 export function NoteEditor() {
-  const updateContent = useEditorStore((s) => s.updateContent);
-  const saveContent = useEditorStore((s) => s.saveContent);
+  const docId = useEditorStore((s) => s.currentDocId);
+  const relPath = useEditorStore((s) => s.relPath);
+  const workspace = useWorkspaceStore((s) => s.workspace);
+
+  const [yjsCtx, setYjsCtx] = useState<YjsContext | null>(null);
+
+  useEffect(() => {
+    if (!workspace || !docId) return;
+    let cancelled = false;
+
+    const wsPath = workspace.path;
+    const wsId = workspace.id;
+
+    async function init() {
+      const assetUrlPrefix = convertFileSrc(`${wsPath}/`);
+      const result = await openYDoc(relPath, wsId, assetUrlPrefix);
+
+      if (cancelled) return;
+
+      // Store the stable UUID for subsequent IPC calls
+      useEditorStore.getState().setDocUuid(result.doc_uuid);
+
+      const ydoc = new Y.Doc();
+      Y.applyUpdate(ydoc, new Uint8Array(result.yjs_state));
+
+      const provider = new TauriYjsProvider(ydoc, result.doc_uuid);
+      setYjsCtx({ ydoc, provider });
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+      setYjsCtx((prev) => {
+        if (prev) {
+          prev.provider.destroy();
+          prev.ydoc.destroy();
+        }
+        return null;
+      });
+    };
+  }, [docId, relPath, workspace]);
+
+  if (!yjsCtx) {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <div className="h-8" />
+        <div className="animate-pulse text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  return <NoteEditorInner ydoc={yjsCtx.ydoc} provider={yjsCtx.provider} />;
+}
+
+/**
+ * Inner component: creates BlockNote in collaboration mode using the
+ * initialized Y.Doc and TauriYjsProvider.
+ */
+function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsProvider }) {
   const resolvedTheme = useUIStore((s) => s.resolvedTheme);
   const locale = useUIStore((s) => s.locale);
+  const markDirty = useEditorStore((s) => s.markDirty);
+  const setCharCount = useEditorStore((s) => s.setCharCount);
+  const docUuid = useEditorStore((s) => s.docUuid);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveContentRef = useRef(saveContent);
-  saveContentRef.current = saveContent;
+  // Stable refs for callbacks
+  const markDirtyRef = useRef(markDirty);
+  markDirtyRef.current = markDirty;
+  const setCharCountRef = useRef(setCharCount);
+  setCharCountRef.current = setCharCount;
 
   const uploadFile = useCallback(async (file: File): Promise<string> => {
     const relPath = useEditorStore.getState().relPath;
@@ -51,52 +126,69 @@ export function NoteEditor() {
   }, []);
 
   const dictionary = bnDictMap[locale];
-  const editor = useCreateBlockNote({ schema, dictionary, uploadFile }, [locale]);
+  const editor = useCreateBlockNote(
+    {
+      schema,
+      dictionary,
+      uploadFile,
+      collaboration: {
+        provider,
+        fragment: ydoc.getXmlFragment("document-store"),
+        user: {
+          name: "Local",
+          color: "#3b82f6",
+        },
+      },
+    },
+    [locale],
+  );
 
-  // Load markdown content into editor on mount (one-time, non-reactive)
+  // Track dirty state + debounced char count from Y.Doc updates (single listener)
   useEffect(() => {
-    const { markdown } = useEditorStore.getState();
-    async function load() {
-      const blocks = markdown
-        ? await editor.tryParseMarkdownToBlocks(markdown)
-        : [{ type: "paragraph" as const }];
-      editor.replaceBlocks(editor.document, blocks);
-    }
-    load();
-  }, [editor]);
-
-  // Flush pending save on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
-        saveContentRef.current();
+    let charCountTimer: ReturnType<typeof setTimeout> | null = null;
+    const handler = (_update: Uint8Array, origin: unknown) => {
+      if (origin !== "remote") {
+        markDirtyRef.current();
       }
+      if (charCountTimer) clearTimeout(charCountTimer);
+      charCountTimer = setTimeout(() => {
+        let count = 0;
+        editor._tiptapEditor.state.doc.descendants((node) => {
+          if (node.isText && node.text) count += node.text.length;
+        });
+        setCharCountRef.current(count);
+      }, 300);
     };
-  }, []);
+    ydoc.on("update", handler);
+    handler(new Uint8Array(), null);
+    return () => {
+      ydoc.off("update", handler);
+      if (charCountTimer) clearTimeout(charCountTimer);
+    };
+  }, [ydoc, editor]);
 
-  const handleChange = useCallback(async () => {
-    const md = await editor.blocksToMarkdownLossy(editor.document);
-    updateContent(md);
+  // Listen for flush events from Rust (race-safe cleanup)
+  useEffect(() => {
+    if (!docUuid) return;
+    const uuid = docUuid;
 
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      saveContentRef.current();
-    }, DEBOUNCE_MS);
-  }, [editor, updateContent]);
+    let cancelled = false;
+    const unlistenPromise = listen<{ docUuid: string }>("yjs:flushed", (event) => {
+      if (!cancelled && event.payload.docUuid === uuid) {
+        useEditorStore.getState().markFlushed(new Date());
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [docUuid]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       <EditorTitle />
-      <BlockNoteView
-        editor={editor}
-        theme={resolvedTheme === "dark" ? "dark" : "light"}
-        onChange={handleChange}
-      />
+      <BlockNoteView editor={editor} theme={resolvedTheme === "dark" ? "dark" : "light"} />
     </div>
   );
 }

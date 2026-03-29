@@ -23,10 +23,6 @@ export interface UpsertDocumentInput {
   file_hash?: string | null;
 }
 
-export interface SaveDocumentResult {
-  file_hash: string;
-}
-
 export async function getDocuments(workspaceId: string): Promise<DocumentModel[]> {
   return invoke<DocumentModel[]>("db_get_documents", { workspaceId });
 }
@@ -39,21 +35,37 @@ export async function deleteDocument(id: string): Promise<void> {
   return invoke("db_delete_document", { id });
 }
 
-export async function loadDocumentContent(relPath: string): Promise<string> {
-  return invoke<string>("load_document", { relPath });
-}
-
-export async function saveDocumentContent(
-  relPath: string,
-  content: string,
-): Promise<SaveDocumentResult> {
-  return invoke<SaveDocumentResult>("save_document", { relPath, content });
-}
-
 export async function saveMedia(
   relPath: string,
   fileName: string,
   data: number[],
 ): Promise<string> {
   return invoke<string>("save_media", { relPath, fileName, data });
+}
+
+// ── Y.Doc commands ──
+
+export interface OpenDocResult {
+  doc_uuid: string;
+  yjs_state: number[];
+}
+
+export async function openYDoc(
+  relPath: string,
+  workspaceId: string,
+  assetUrlPrefix: string,
+): Promise<OpenDocResult> {
+  return invoke<OpenDocResult>("open_ydoc", { relPath, workspaceId, assetUrlPrefix });
+}
+
+export async function applyYDocUpdate(docUuid: string, update: number[]): Promise<void> {
+  return invoke("apply_ydoc_update", { docUuid, update });
+}
+
+export async function closeYDoc(docUuid: string): Promise<void> {
+  return invoke("close_ydoc", { docUuid });
+}
+
+export async function renameYDoc(docUuid: string, newRelPath: string): Promise<void> {
+  return invoke("rename_ydoc", { docUuid, newRelPath });
 }

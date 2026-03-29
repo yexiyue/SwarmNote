@@ -34,6 +34,10 @@ pub enum AppError {
     Pairing(String),
     #[error("Window error: {0}")]
     Window(String),
+    #[error("Yjs error: {0}")]
+    Yjs(String),
+    #[error("Document not open: {0}")]
+    DocNotOpen(String),
 }
 
 /// 结构化序列化：为前端提供 `{ kind: "...", message: "..." }` 格式。
@@ -65,6 +69,8 @@ impl Serialize for AppError {
             AppError::Network(msg) => ("Network", Cow::Borrowed(msg)),
             AppError::Pairing(msg) => ("Pairing", Cow::Borrowed(msg)),
             AppError::Window(msg) => ("Window", Cow::Borrowed(msg)),
+            AppError::Yjs(msg) => ("Yjs", Cow::Borrowed(msg)),
+            AppError::DocNotOpen(msg) => ("DocNotOpen", Cow::Borrowed(msg)),
         };
 
         state.serialize_field("kind", kind)?;

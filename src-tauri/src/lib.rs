@@ -10,6 +10,7 @@ mod protocol;
 #[cfg(desktop)]
 pub mod tray;
 mod workspace;
+mod yjs;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -71,6 +72,11 @@ pub fn run() {
             pairing::commands::unpair_device,
             pairing::commands::get_nearby_devices,
             workspace::commands::open_settings_window,
+            // Y.Doc 管理
+            yjs::commands::open_ydoc,
+            yjs::commands::apply_ydoc_update,
+            yjs::commands::close_ydoc,
+            yjs::commands::rename_ydoc,
         ])
         .on_window_event(|window, event| {
             #[cfg(desktop)]
@@ -130,6 +136,9 @@ pub fn run() {
                     }
                 }
             }
+
+            // Y.Doc 管理器
+            app.manage(yjs::manager::YDocManager::new());
 
             // P2P 网络状态（初始为 None，由前端根据偏好触发启动）
             let net_state: network::NetManagerState = tokio::sync::Mutex::new(None);

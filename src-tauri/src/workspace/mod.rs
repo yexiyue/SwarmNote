@@ -41,18 +41,23 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
 
 /// 清理指定窗口的所有 per-window 资源。
 pub async fn cleanup_window(
+    app: &tauri::AppHandle,
     label: &str,
     db_state: &DbState,
     ws_state: &WorkspaceState,
     watcher_state: &crate::fs::watcher::FsWatcherState,
 ) {
+    // Flush and close all Y.Doc instances for this window
+    let ydoc_mgr = app.state::<crate::yjs::manager::YDocManager>();
+    ydoc_mgr.close_all_for_window(app, label).await;
+
     crate::fs::watcher::stop_watching(label, watcher_state);
 
     if ws_state.remove(label).await {
-        log::info!("Cleaned up WorkspaceInfo for window '{label}'");
+        tracing::info!("Cleaned up WorkspaceInfo for window '{label}'");
     }
     if db_state.remove_workspace_db(label).await {
-        log::info!("Cleaned up workspace DB for window '{label}'");
+        tracing::info!("Cleaned up workspace DB for window '{label}'");
     }
 }
 

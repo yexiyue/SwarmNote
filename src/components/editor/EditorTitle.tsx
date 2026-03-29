@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useCallback, useRef } from "react";
+import { renameYDoc } from "@/commands/document";
 import { useEditorStore } from "@/stores/editorStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 
@@ -17,6 +18,12 @@ export function EditorTitle() {
     if (relPath) {
       const newRelPath = await rename(relPath, newTitle);
       updateRelPath(newRelPath, newTitle);
+
+      // Notify Rust YDocManager about the path change (UUID stays the same)
+      const docUuid = useEditorStore.getState().docUuid;
+      if (docUuid) {
+        await renameYDoc(docUuid, newRelPath);
+      }
     }
   }, [title, relPath, updateRelPath, rename]);
 

@@ -75,15 +75,10 @@ fn blocks_ids_are_unique() {
 }
 
 #[test]
-fn doc_to_blocks_returns_fragment_not_found_for_empty_doc() {
+fn doc_to_blocks_returns_empty_for_empty_fragment() {
     let doc = yrs::Doc::new();
-    let result = yrs_blocknote::doc_to_blocks(&doc, "nonexistent");
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(
-        err.to_string().contains("nonexistent"),
-        "error should mention fragment name: {err}"
-    );
+    let result = yrs_blocknote::doc_to_blocks(&doc, "nonexistent").unwrap();
+    assert!(result.is_empty(), "empty fragment should return empty blocks");
 }
 
 #[test]

@@ -204,15 +204,14 @@ pub(crate) fn doc_to_blocks(doc: &Doc, fragment_name: &str) -> crate::ConvertRes
     let fragment = doc.get_or_insert_xml_fragment(fragment_name);
     let txn = doc.transact();
 
+    // Empty fragment = empty document, not an error
     if fragment.len(&txn) == 0 {
-        return Err(crate::ConvertError::FragmentNotFound(
-            fragment_name.to_string(),
-        ));
+        return Ok(vec![]);
     }
 
-    let first = fragment
-        .get(&txn, 0)
-        .ok_or_else(|| crate::ConvertError::InvalidSchema("empty XmlFragment".to_string()))?;
+    let first = fragment.get(&txn, 0).ok_or_else(|| {
+        crate::ConvertError::InvalidSchema("fragment reports non-zero len but no children".into())
+    })?;
     let block_group = first.into_xml_element().ok_or_else(|| {
         crate::ConvertError::InvalidSchema("root child is not an XmlElement".to_string())
     })?;

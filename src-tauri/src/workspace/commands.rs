@@ -129,7 +129,7 @@ fn bind_window_cleanup(window: &tauri::WebviewWindow, app: &tauri::AppHandle, la
                 let db = a.state::<DbState>();
                 let ws = a.state::<WorkspaceState>();
                 let watcher = a.state::<crate::fs::watcher::FsWatcherState>();
-                super::cleanup_window(&lbl, &db, &ws, &watcher).await;
+                super::cleanup_window(&a, &lbl, &db, &ws, &watcher).await;
             });
         }
     });
