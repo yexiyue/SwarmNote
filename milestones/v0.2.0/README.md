@@ -14,6 +14,7 @@
 
 - **swarm-p2p-core 集成** — 全量引入 P2P 网络库（mDNS + DHT + NAT 穿透 + Relay），定义笔记同步协议消息
 - **设备发现与配对** — mDNS 局域网发现 + DHT 跨网络发现，Direct/Code 两种配对方式，配对是同步的前提条件
+- **Markdown ↔ Y.Doc 转换器** — Rust 端（yrs）实现 Markdown 与 BlockNote Y.Doc XML 的双向转换，使后端能独立导入/导出 .md 文件
 - **编辑器 yjs 集成** — BlockNote + yjs 协作层，Rust 端透传 yjs 二进制
 - **yjs CRDT 同步** — 全量同步（state_vector 交换）+ GossipSub 增量广播
 - **离线合并** — 重连后自动全量同步，CRDT 无冲突合并
@@ -47,6 +48,7 @@ graph TD
     MultiWS[多工作区 per-window]
     Core[swarm-p2p-core 集成]
     IgnoreFilter[工作区自定义忽略规则]
+    Converter[Markdown ↔ Y.Doc 转换器]
     Pairing[设备发现与配对]
     YjsEditor[编辑器 yjs 集成]
     CRDT[yjs CRDT 同步]
@@ -54,6 +56,8 @@ graph TD
     DeviceUI[设备状态 UI]
 
     Core --> Pairing
+    Converter --> YjsEditor
+    Converter --> CRDT
     MultiWS --> YjsEditor
     Pairing --> CRDT
     YjsEditor --> CRDT
@@ -64,9 +68,9 @@ graph TD
 
 | 层级 | 功能 | 可并行 |
 |------|------|--------|
-| L0（无依赖） | **多工作区 per-window**、swarm-p2p-core 集成、工作区自定义忽略规则 | 全部可并行 |
-| L1（依赖 L0） | 设备发现与配对（依赖 p2p-core）、编辑器 yjs 集成（依赖多工作区） | 可并行 |
-| L2（依赖 L1） | yjs CRDT 同步（依赖设备配对 + 编辑器 yjs） | - |
+| L0（无依赖） | **多工作区 per-window**、swarm-p2p-core 集成、工作区自定义忽略规则、**Markdown ↔ Y.Doc 转换器** | 全部可并行 |
+| L1（依赖 L0） | 设备发现与配对（依赖 p2p-core）、编辑器 yjs 集成（依赖多工作区 + 转换器） | 可并行 |
+| L2（依赖 L1） | yjs CRDT 同步（依赖设备配对 + 编辑器 yjs + 转换器） | - |
 | L3（依赖 L2） | 离线合并、设备状态 UI | 离线合并依赖 CRDT |
 
 ### 功能清单
@@ -75,9 +79,10 @@ graph TD
 |------|--------|------|-------------|-------|
 | **多工作区 per-window** | **P0** | **-** | [multi-workspace-window.md](features/multi-workspace-window.md) | [#22](https://github.com/yexiyue/SwarmNote/issues/22) |
 | swarm-p2p-core 集成 | P0 | - | [p2p-core-integration.md](features/p2p-core-integration.md) | [#24](https://github.com/yexiyue/SwarmNote/issues/24) |
+| Markdown ↔ Y.Doc 转换器 | P0 | - | [markdown-yrs-converter.md](features/markdown-yrs-converter.md) | [#37](https://github.com/yexiyue/SwarmNote/issues/37) |
 | 设备发现与配对 | P0 | p2p-core | [device-pairing.md](features/device-pairing.md) | [#26](https://github.com/yexiyue/SwarmNote/issues/26) |
-| 编辑器 yjs 集成 | P0 | 多工作区 | [yjs-editor.md](features/yjs-editor.md) | [#27](https://github.com/yexiyue/SwarmNote/issues/27) |
-| yjs CRDT 同步 | P0 | 设备配对, 编辑器 yjs | [crdt-sync.md](features/crdt-sync.md) | [#28](https://github.com/yexiyue/SwarmNote/issues/28) |
+| 编辑器 yjs 集成 | P0 | 多工作区, 转换器 | [yjs-editor.md](features/yjs-editor.md) | [#27](https://github.com/yexiyue/SwarmNote/issues/27) |
+| yjs CRDT 同步 | P0 | 设备配对, 编辑器 yjs, 转换器 | [crdt-sync.md](features/crdt-sync.md) | [#28](https://github.com/yexiyue/SwarmNote/issues/28) |
 | 离线合并 | P0 | yjs CRDT 同步 | [offline-merge.md](features/offline-merge.md) | [#29](https://github.com/yexiyue/SwarmNote/issues/29) |
 | 设备状态 UI | P1 | yjs CRDT 同步, 离线合并 | [device-status-ui.md](features/device-status-ui.md) | [#30](https://github.com/yexiyue/SwarmNote/issues/30) |
 | v0.2.0 UI 设计 | P1 | 设备配对, 设备状态 UI | [ui-design.md](features/ui-design.md) | [#31](https://github.com/yexiyue/SwarmNote/issues/31) |
