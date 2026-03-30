@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock, Mutex as StdMutex, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use std::time::Duration;
 
 use chrono::Utc;
@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 use yrs::updates::decoder::Decode;
 use yrs::updates::encoder::Encode;
-use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
+use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, Transact, Update};
 
 use crate::error::{AppError, AppResult};
 use crate::workspace::state::{DbState, WorkspaceState};
@@ -47,10 +47,11 @@ struct DocSnapshot {
 
 /// Per-document Y.Doc entry held in memory.
 ///
-/// `Doc` is wrapped in `StdMutex` because yrs `Doc` is `Send` but not `Sync`.
-/// `rel_path` uses `RwLock` so rename can update it without rebuilding the entry.
+/// `Doc` uses `tokio::sync::Mutex` (not `std::sync::Mutex`) so that:
+/// - The lock never poisons on panic — other operations remain unaffected.
+/// - All callers are already in async context, so `.await` is natural.
 struct DocEntry {
-    doc: StdMutex<Doc>,
+    doc: tokio::sync::Mutex<Doc>,
     rel_path: RwLock<String>,
     workspace_path: String,
     asset_url_prefix: String,
@@ -58,11 +59,17 @@ struct DocEntry {
     dirty: AtomicBool,
     last_update_ms: AtomicU64,
     writeback_handle: tokio::sync::Mutex<Option<JoinHandle<()>>>,
+    /// Blake3 hash of the last .md file we wrote, for self-write detection.
+    file_hash: RwLock<Vec<u8>>,
+    /// Timestamp (ms) of the last .md file we wrote (reserved for future optimization).
+    _last_write_ms: AtomicU64,
+    /// Mutual exclusion between writeback and external reload.
+    reload_lock: tokio::sync::Mutex<()>,
 }
 
 impl DocEntry {
-    fn apply_update(&self, update: &[u8]) -> AppResult<()> {
-        let doc = self.doc.lock().expect("doc lock poisoned");
+    async fn apply_update(&self, update: &[u8]) -> AppResult<()> {
+        let doc = self.doc.lock().await;
         apply_binary_update(&doc, update)
     }
 
@@ -71,16 +78,14 @@ impl DocEntry {
         self.last_update_ms.store(now_ms(), Ordering::Release);
     }
 
-    fn encode_full_state(&self) -> Vec<u8> {
-        let doc = self.doc.lock().expect("doc lock poisoned");
+    async fn encode_full_state(&self) -> Vec<u8> {
+        let doc = self.doc.lock().await;
         let txn = doc.transact();
-        let state = txn.encode_state_as_update_v1(&StateVector::default());
-        drop(txn);
-        state
+        txn.encode_state_as_update_v1(&StateVector::default())
     }
 
-    fn snapshot(&self) -> AppResult<DocSnapshot> {
-        let doc = self.doc.lock().expect("doc lock poisoned");
+    async fn snapshot(&self) -> AppResult<DocSnapshot> {
+        let doc = self.doc.lock().await;
         let txn = doc.transact();
         let yjs_state = txn.encode_state_as_update_v1(&StateVector::default());
         let state_vector = txn.state_vector().encode_v1();
@@ -104,6 +109,31 @@ impl DocEntry {
     fn set_rel_path(&self, new_path: &str) {
         *self.rel_path.write().expect("rel_path lock poisoned") = new_path.to_owned();
     }
+
+    fn file_hash(&self) -> Vec<u8> {
+        self.file_hash
+            .read()
+            .expect("file_hash lock poisoned")
+            .clone()
+    }
+
+    fn set_file_hash(&self, hash: &[u8]) {
+        *self.file_hash.write().expect("file_hash lock poisoned") = hash.to_vec();
+    }
+
+    /// Replace the Y.Doc content from markdown and return the incremental diff.
+    ///
+    /// Must be called while holding `reload_lock`.
+    async fn replace_content_from_md(&self, md: &str) -> Vec<u8> {
+        let doc = self.doc.lock().await;
+        let sv_before = {
+            let txn = doc.transact();
+            txn.state_vector()
+        };
+        yrs_blocknote::replace_doc_content(&doc, md, FRAGMENT_NAME);
+        let txn = doc.transact();
+        txn.encode_state_as_update_v1(&sv_before)
+    }
 }
 
 // ── YDocManager ───────────────────────────────────────────────
@@ -120,6 +150,8 @@ impl YDocManager {
         }
     }
 
+    // ── Open / Close / Update ────────────────────────────────
+
     /// Open a document: look up or create UUID, load Y.Doc, return UUID + state.
     pub async fn open_doc(
         &self,
@@ -133,6 +165,15 @@ impl YDocManager {
         let ws_path = ws_state.workspace_path_for(label).await?;
         let db_state = app.state::<DbState>();
 
+        // If already open for this rel_path, return current state (fast path).
+        // This also prevents duplicate entries when React strict mode remounts.
+        if let Some((existing_uuid, entry)) = self.find_entry_by_rel_path(label, rel_path) {
+            return Ok(OpenDocResult {
+                doc_uuid: existing_uuid,
+                yjs_state: entry.encode_full_state().await,
+            });
+        }
+
         // Look up document by rel_path → get stable UUID
         let guard = db_state.workspace_db_for(label).await?;
         let db_doc = documents::Entity::find()
@@ -142,17 +183,12 @@ impl YDocManager {
         let doc_uuid = db_doc.as_ref().map(|m| m.id).unwrap_or_else(Uuid::now_v7);
         drop(guard);
 
-        let key = (label.to_owned(), doc_uuid);
-
-        // If already open, return current state
-        if let Some(entry) = self.docs.get(&key) {
-            return Ok(OpenDocResult {
-                doc_uuid,
-                yjs_state: entry.encode_full_state(),
-            });
-        }
-
-        let doc = Doc::new();
+        // Use Utf16 offset kind to match frontend JS yjs — Bytes (yrs default) causes
+        // panics in block_offset when processing CJK characters.
+        let doc = Doc::with_options(Options {
+            offset_kind: OffsetKind::Utf16,
+            ..Options::default()
+        });
         // Pre-register the fragment name so it exists even after applying updates
         doc.get_or_insert_xml_fragment(FRAGMENT_NAME);
 
@@ -186,8 +222,13 @@ impl YDocManager {
             .transact()
             .encode_state_as_update_v1(&StateVector::default());
 
+        let init_hash = db_doc
+            .as_ref()
+            .and_then(|m| m.file_hash.clone())
+            .unwrap_or_default();
+
         let entry = Arc::new(DocEntry {
-            doc: StdMutex::new(doc),
+            doc: tokio::sync::Mutex::new(doc),
             rel_path: RwLock::new(rel_path.to_owned()),
             workspace_path: ws_path,
             asset_url_prefix: asset_url_prefix.to_owned(),
@@ -195,10 +236,13 @@ impl YDocManager {
             dirty: AtomicBool::new(false),
             last_update_ms: AtomicU64::new(now_ms()),
             writeback_handle: tokio::sync::Mutex::new(None),
+            file_hash: RwLock::new(init_hash),
+            _last_write_ms: AtomicU64::new(0),
+            reload_lock: tokio::sync::Mutex::new(()),
         });
 
         if !has_yjs_state {
-            let snapshot = entry.snapshot()?;
+            let snapshot = entry.snapshot().await?;
             Self::persist_snapshot(app, label, &entry, snapshot).await?;
         }
 
@@ -206,7 +250,7 @@ impl YDocManager {
             spawn_writeback_task(app.clone(), label.to_owned(), doc_uuid, Arc::clone(&entry));
         *entry.writeback_handle.lock().await = Some(handle);
 
-        self.docs.insert(key, entry);
+        self.docs.insert((label.to_owned(), doc_uuid), entry);
         Ok(OpenDocResult {
             doc_uuid,
             yjs_state: state,
@@ -214,14 +258,14 @@ impl YDocManager {
     }
 
     /// Apply an incremental Y.Doc update from the frontend.
-    pub fn apply_update(&self, label: &str, doc_uuid: Uuid, update: &[u8]) -> AppResult<()> {
+    pub async fn apply_update(&self, label: &str, doc_uuid: Uuid, update: &[u8]) -> AppResult<()> {
         let key = (label.to_owned(), doc_uuid);
         let entry = self
             .docs
             .get(&key)
             .ok_or_else(|| AppError::DocNotOpen(doc_uuid.to_string()))?;
 
-        entry.apply_update(update)?;
+        entry.apply_update(update).await?;
         entry.mark_dirty();
         Ok(())
     }
@@ -238,7 +282,7 @@ impl YDocManager {
         }
 
         if entry.dirty.load(Ordering::Acquire) {
-            let snapshot = entry.snapshot()?;
+            let snapshot = entry.snapshot().await?;
             Self::persist_snapshot(app, label, &entry, snapshot).await?;
         }
 
@@ -269,7 +313,128 @@ impl YDocManager {
         }
     }
 
+    // ── External file reload ─────────────────────────────────
+
+    /// Find an open DocEntry by its workspace-relative path.
+    fn find_entry_by_rel_path(&self, label: &str, rel_path: &str) -> Option<(Uuid, Arc<DocEntry>)> {
+        self.docs
+            .iter()
+            .find(|e| e.key().0 == label && e.rel_path() == rel_path)
+            .map(|e| (e.key().1, Arc::clone(e.value())))
+    }
+
+    /// Called by the file watcher when a .md file changes on disk.
+    ///
+    /// Compares blake3 hashes to skip self-writes, then either silently reloads
+    /// (not dirty) or notifies the frontend of a conflict (dirty).
+    pub async fn reload_from_file(
+        &self,
+        app: &AppHandle,
+        label: &str,
+        rel_path: &str,
+    ) -> AppResult<()> {
+        let Some((doc_uuid, entry)) = self.find_entry_by_rel_path(label, rel_path) else {
+            return Ok(()); // not open — next open_ydoc will load from disk
+        };
+
+        // Read the new file content and compute hash
+        let full_path = PathBuf::from(&entry.workspace_path).join(rel_path);
+        let new_content = match tokio::fs::read_to_string(&full_path).await {
+            Ok(c) => c,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(AppError::Io(e)),
+        };
+        let new_hash = blake3::hash(new_content.as_bytes());
+
+        // Self-write detection: if hash matches what we last wrote, skip
+        if new_hash.as_bytes() == entry.file_hash().as_slice() {
+            return Ok(());
+        }
+
+        if entry.dirty.load(Ordering::Acquire) {
+            // Document has unsaved edits — ask the user
+            tracing::info!("External conflict for {rel_path} (doc {doc_uuid})");
+            let _ = app.emit_to(
+                label,
+                "yjs:external-conflict",
+                serde_json::json!({
+                    "docUuid": doc_uuid.to_string(),
+                    "relPath": rel_path,
+                }),
+            );
+            return Ok(());
+        }
+
+        // Silent reload
+        tracing::info!("External reload for {rel_path} (doc {doc_uuid})");
+        self.do_reload(app, label, doc_uuid, &entry, &new_content)
+            .await
+    }
+
+    /// Called after the user confirms reload in the conflict dialog.
+    pub async fn reload_confirmed(
+        &self,
+        app: &AppHandle,
+        label: &str,
+        doc_uuid: Uuid,
+    ) -> AppResult<()> {
+        let entry = {
+            let key = (label.to_owned(), doc_uuid);
+            let guard = self
+                .docs
+                .get(&key)
+                .ok_or_else(|| AppError::DocNotOpen(doc_uuid.to_string()))?;
+            Arc::clone(guard.value())
+            // `guard` (DashMap Ref) dropped here at scope exit
+        };
+
+        // Re-read the file (it may have changed again since the conflict was reported)
+        let full_path = PathBuf::from(&entry.workspace_path).join(entry.rel_path());
+        let content = tokio::fs::read_to_string(&full_path)
+            .await
+            .map_err(AppError::Io)?;
+
+        entry.dirty.store(false, Ordering::Release);
+        self.do_reload(app, label, doc_uuid, &entry, &content).await
+    }
+
+    /// Shared reload logic: replace Y.Doc content, persist, and notify frontend.
+    async fn do_reload(
+        &self,
+        app: &AppHandle,
+        label: &str,
+        doc_uuid: Uuid,
+        entry: &DocEntry,
+        raw_md: &str,
+    ) -> AppResult<()> {
+        let _guard = entry.reload_lock.lock().await;
+
+        let md = relative_to_asset_url(raw_md, &entry.asset_url_prefix);
+        let diff = entry.replace_content_from_md(&md).await;
+
+        // Persist the new state
+        let snapshot = entry.snapshot().await?;
+        Self::persist_snapshot(app, label, entry, snapshot).await?;
+
+        // Notify the frontend with the incremental diff
+        let _ = app.emit_to(
+            label,
+            "yjs:external-update",
+            serde_json::json!({
+                "docUuid": doc_uuid.to_string(),
+                "update": diff,
+            }),
+        );
+
+        Ok(())
+    }
+
+    // ── Persistence ──────────────────────────────────────────
+
     /// Persist a snapshot to DB + write .md file.
+    ///
+    /// After writing the file, immediately updates the in-memory `file_hash`
+    /// and `file_hash` so the file watcher can distinguish self-writes.
     async fn persist_snapshot(
         app: &AppHandle,
         label: &str,
@@ -288,6 +453,10 @@ impl YDocManager {
         })
         .await
         .map_err(|e| AppError::Yjs(e.to_string()))??;
+
+        // Update in-memory hash before DB write, so watcher can skip self-writes
+        entry.set_file_hash(&file_hash);
+        entry._last_write_ms.store(now_ms(), Ordering::Release);
 
         let now = Utc::now().timestamp();
         let db_state = app.state::<DbState>();
@@ -341,7 +510,15 @@ fn spawn_writeback_task(
                 continue;
             }
 
-            let snapshot = match entry.snapshot() {
+            // Acquire reload_lock to prevent racing with external reload
+            let _guard = entry.reload_lock.lock().await;
+
+            // Re-check dirty after acquiring lock (reload may have cleared it)
+            if !entry.dirty.load(Ordering::Acquire) {
+                continue;
+            }
+
+            let snapshot = match entry.snapshot().await {
                 Ok(s) => s,
                 Err(e) => {
                     tracing::warn!("snapshot failed for doc {doc_uuid}: {e}");

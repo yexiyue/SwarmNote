@@ -10,9 +10,10 @@ import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as Y from "yjs";
-import { openYDoc, saveMedia } from "@/commands/document";
+import { openYDoc, reloadYDocConfirmed, saveMedia } from "@/commands/document";
 import type { Locale } from "@/i18n";
 import { TauriYjsProvider } from "@/lib/TauriYjsProvider";
 import { useEditorStore } from "@/stores/editorStore";
@@ -178,6 +179,53 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
         useEditorStore.getState().markFlushed(new Date());
       }
     });
+
+    return () => {
+      cancelled = true;
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [docUuid]);
+
+  // Apply external .md file changes (silent reload — document was not dirty)
+  useEffect(() => {
+    if (!docUuid) return;
+    const uuid = docUuid;
+
+    let cancelled = false;
+    const unlistenPromise = listen<{ docUuid: string; update: number[] }>(
+      "yjs:external-update",
+      (event) => {
+        if (!cancelled && event.payload.docUuid === uuid) {
+          Y.applyUpdate(ydoc, new Uint8Array(event.payload.update), "remote");
+        }
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [docUuid, ydoc]);
+
+  // Handle external .md file changes when document has unsaved edits
+  useEffect(() => {
+    if (!docUuid) return;
+    const uuid = docUuid;
+
+    let cancelled = false;
+    const unlistenPromise = listen<{ docUuid: string; relPath: string }>(
+      "yjs:external-conflict",
+      async (event) => {
+        if (cancelled || event.payload.docUuid !== uuid) return;
+        const confirmed = await confirm(
+          `"${event.payload.relPath}" 已被外部修改。是否重新加载？当前未保存的编辑将丢失。`,
+          { title: "文件已修改", kind: "warning" },
+        );
+        if (confirmed && !cancelled) {
+          await reloadYDocConfirmed(event.payload.docUuid);
+        }
+      },
+    );
 
     return () => {
       cancelled = true;

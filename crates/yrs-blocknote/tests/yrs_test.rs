@@ -1,4 +1,7 @@
-use yrs_blocknote::{Block, BlockType, InlineContent, Styles, blocks_to_doc, doc_to_blocks};
+use yrs_blocknote::{
+    Block, BlockType, InlineContent, Styles, blocks_to_doc, doc_to_blocks, doc_to_markdown,
+    markdown_to_doc, replace_doc_content,
+};
 
 fn make_paragraph(id: &str, text: &str) -> Block {
     Block::new(BlockType::Paragraph, id.into()).with_content(vec![InlineContent::plain(text)])
@@ -133,4 +136,63 @@ fn roundtrip_image() {
     assert_eq!(result[0].block_type, BlockType::Image);
     assert_eq!(result[0].props.url.as_deref(), Some("photo.png"));
     assert_eq!(result[0].props.caption.as_deref(), Some("A photo"));
+}
+
+// ── replace_doc_content tests ────────────────────────────────
+
+const FRAG: &str = "document-store";
+
+#[test]
+fn replace_content_replaces_all_blocks() {
+    let doc = blocks_to_doc(&[make_paragraph("p1", "old content")], FRAG);
+
+    replace_doc_content(&doc, "## New Heading\n", FRAG);
+
+    let result = doc_to_blocks(&doc, FRAG).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].block_type, BlockType::Heading);
+    match &result[0].content[0] {
+        InlineContent::Text { text, .. } => assert_eq!(text, "New Heading"),
+        InlineContent::HardBreak => panic!("expected text"),
+    }
+}
+
+#[test]
+fn replace_content_on_empty_doc() {
+    let doc = yrs::Doc::new();
+    doc.get_or_insert_xml_fragment(FRAG);
+
+    replace_doc_content(&doc, "Hello\n", FRAG);
+
+    let result = doc_to_blocks(&doc, FRAG).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].block_type, BlockType::Paragraph);
+}
+
+#[test]
+fn replace_content_markdown_roundtrip() {
+    let original_md = "## Title\n\nSome paragraph\n\n- item 1\n- item 2\n";
+    let doc = markdown_to_doc(original_md, FRAG);
+
+    let new_md = "New paragraph\n\n> blockquote is not supported so becomes paragraph\n";
+    replace_doc_content(&doc, new_md, FRAG);
+
+    let output = doc_to_markdown(&doc, FRAG).unwrap();
+    assert!(output.contains("New paragraph"));
+    assert!(!output.contains("Title"));
+}
+
+#[test]
+fn replace_content_multiple_times() {
+    let doc = markdown_to_doc("first\n", FRAG);
+
+    replace_doc_content(&doc, "second\n", FRAG);
+    replace_doc_content(&doc, "third\n", FRAG);
+
+    let result = doc_to_blocks(&doc, FRAG).unwrap();
+    assert_eq!(result.len(), 1);
+    match &result[0].content[0] {
+        InlineContent::Text { text, .. } => assert_eq!(text, "third"),
+        InlineContent::HardBreak => panic!("expected text"),
+    }
 }

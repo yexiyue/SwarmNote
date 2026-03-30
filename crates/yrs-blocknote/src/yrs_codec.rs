@@ -4,8 +4,8 @@ use std::sync::{Arc, LazyLock};
 use yrs::types::Attrs;
 use yrs::types::text::YChange;
 use yrs::{
-    Any, Doc, Out, Text, Transact, TransactionMut, Xml, XmlElementPrelim, XmlElementRef,
-    XmlFragment, XmlOut, XmlTextPrelim,
+    Any, Doc, OffsetKind, Options, Out, Text, Transact, TransactionMut, Xml, XmlElementPrelim,
+    XmlElementRef, XmlFragment, XmlOut, XmlTextPrelim,
 };
 
 use crate::blocks::{Block, InlineContent, Styles};
@@ -142,7 +142,10 @@ pub(crate) fn blocks_to_doc(
     fragment_name: &str,
     mut id_gen: impl FnMut() -> String,
 ) -> Doc {
-    let doc = Doc::new();
+    let doc = Doc::with_options(Options {
+        offset_kind: OffsetKind::Utf16,
+        ..Options::default()
+    });
     let fragment = doc.get_or_insert_xml_fragment(fragment_name);
     let mut txn = doc.transact_mut();
 
@@ -195,6 +198,30 @@ fn encode_block(
         for child in &block.children {
             encode_block(&child_group, txn, child, id_gen);
         }
+    }
+}
+
+/// Replace the entire content of an existing Y.Doc's XmlFragment.
+///
+/// Clears the fragment via `remove_range`, then re-encodes the given blocks.
+/// Keeps the same Doc instance so CRDT history stays continuous.
+pub(crate) fn replace_fragment_content(
+    doc: &Doc,
+    blocks: &[Block],
+    fragment_name: &str,
+    mut id_gen: impl FnMut() -> String,
+) {
+    let fragment = doc.get_or_insert_xml_fragment(fragment_name);
+    let mut txn = doc.transact_mut();
+
+    let len = fragment.len(&txn);
+    if len > 0 {
+        fragment.remove_range(&mut txn, 0, len);
+    }
+
+    let block_group = fragment.push_back(&mut txn, XmlElementPrelim::empty(BLOCK_GROUP));
+    for block in blocks {
+        encode_block(&block_group, &mut txn, block, &mut id_gen);
     }
 }
 

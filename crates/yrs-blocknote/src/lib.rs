@@ -105,6 +105,26 @@ pub fn doc_to_markdown(doc: &Doc, fragment_name: &str) -> ConvertResult<String> 
     blocks_to_markdown(&blocks)
 }
 
+/// Replace the entire content of an existing Y.Doc's `XmlFragment` from Markdown.
+///
+/// Clears the fragment and re-encodes the parsed blocks in a single transaction.
+/// The Doc instance is preserved so CRDT history stays continuous.
+pub fn replace_doc_content(doc: &Doc, md: &str, fragment_name: &str) {
+    replace_doc_content_with(doc, md, fragment_name, default_id_generator);
+}
+
+/// Replace the entire content of an existing Y.Doc's `XmlFragment` from Markdown,
+/// with a custom ID generator for blocks missing an ID.
+pub fn replace_doc_content_with(
+    doc: &Doc,
+    md: &str,
+    fragment_name: &str,
+    id_gen: impl FnMut() -> String,
+) {
+    let blocks = markdown_to_blocks(md);
+    yrs_codec::replace_fragment_content(doc, &blocks, fragment_name, id_gen);
+}
+
 /// Default ID generator: uses nanoid, or UUID v7 with the `uuid` feature.
 pub fn default_id_generator() -> String {
     #[cfg(feature = "uuid")]

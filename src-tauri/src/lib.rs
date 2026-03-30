@@ -77,6 +77,7 @@ pub fn run() {
             yjs::commands::apply_ydoc_update,
             yjs::commands::close_ydoc,
             yjs::commands::rename_ydoc,
+            yjs::commands::reload_ydoc_confirmed,
         ])
         .on_window_event(|window, event| {
             #[cfg(desktop)]

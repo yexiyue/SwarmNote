@@ -2,7 +2,13 @@ use tauri::{Manager, State};
 use uuid::Uuid;
 
 use super::manager::{OpenDocResult, YDocManager};
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
+
+fn parse_doc_uuid(doc_uuid: &str) -> AppResult<Uuid> {
+    doc_uuid
+        .parse()
+        .map_err(|e| AppError::Yjs(format!("invalid doc_uuid: {e}")))
+}
 
 #[tauri::command]
 pub async fn open_ydoc(
@@ -30,10 +36,8 @@ pub async fn apply_ydoc_update(
     update: Vec<u8>,
     ydoc_mgr: State<'_, YDocManager>,
 ) -> AppResult<()> {
-    let uuid: Uuid = doc_uuid
-        .parse()
-        .map_err(|e| crate::error::AppError::Yjs(format!("invalid doc_uuid: {e}")))?;
-    ydoc_mgr.apply_update(window.label(), uuid, &update)
+    let uuid = parse_doc_uuid(&doc_uuid)?;
+    ydoc_mgr.apply_update(window.label(), uuid, &update).await
 }
 
 #[tauri::command]
@@ -42,9 +46,7 @@ pub async fn close_ydoc(
     doc_uuid: String,
     ydoc_mgr: State<'_, YDocManager>,
 ) -> AppResult<()> {
-    let uuid: Uuid = doc_uuid
-        .parse()
-        .map_err(|e| crate::error::AppError::Yjs(format!("invalid doc_uuid: {e}")))?;
+    let uuid = parse_doc_uuid(&doc_uuid)?;
     ydoc_mgr
         .close_doc(window.app_handle(), window.label(), uuid)
         .await
@@ -57,9 +59,19 @@ pub async fn rename_ydoc(
     new_rel_path: String,
     ydoc_mgr: State<'_, YDocManager>,
 ) -> AppResult<()> {
-    let uuid: Uuid = doc_uuid
-        .parse()
-        .map_err(|e| crate::error::AppError::Yjs(format!("invalid doc_uuid: {e}")))?;
+    let uuid = parse_doc_uuid(&doc_uuid)?;
     ydoc_mgr.rename_doc(window.label(), uuid, &new_rel_path);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn reload_ydoc_confirmed(
+    window: tauri::Window,
+    doc_uuid: String,
+    ydoc_mgr: State<'_, YDocManager>,
+) -> AppResult<()> {
+    let uuid = parse_doc_uuid(&doc_uuid)?;
+    ydoc_mgr
+        .reload_confirmed(window.app_handle(), window.label(), uuid)
+        .await
 }

@@ -4,7 +4,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use notify_debouncer_mini::{new_debouncer, DebouncedEventKind, Debouncer};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
+
+use crate::yjs::manager::YDocManager;
 
 type FsNotifyWatcher = notify::RecommendedWatcher;
 
@@ -42,9 +44,17 @@ fn is_relevant_change(path: &Path, workspace: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()) == Some("md")
 }
 
+/// Convert a path to a forward-slash workspace-relative string.
+fn to_rel_path(path: &Path, workspace: &Path) -> Option<String> {
+    let rel = path.strip_prefix(workspace).ok()?;
+    // Normalize to forward slashes (Windows produces backslashes)
+    Some(rel.to_string_lossy().replace('\\', "/"))
+}
+
 /// 开始监听工作区目录的文件变更，事件定向发送给指定窗口。
 ///
 /// 以 100ms 防抖后向目标窗口发送 `fs:tree-changed` 事件。
+/// 对 .md 文件变更还会触发 Y.Doc 外部重载检查。
 pub fn start_watching(
     app_handle: &AppHandle,
     label: &str,
@@ -69,15 +79,40 @@ pub fn start_watching(
                 }
             };
 
-            let any_relevant = events
+            let relevant: Vec<&Path> = events
                 .iter()
                 .filter(|e| e.kind == DebouncedEventKind::Any)
-                .any(|e| is_relevant_change(&e.path, &ws_path));
+                .map(|e| e.path.as_path())
+                .filter(|p| is_relevant_change(p, &ws_path))
+                .collect();
 
-            if any_relevant {
-                if let Err(e) = app.emit_to(&target_label, "fs:tree-changed", ()) {
-                    log::warn!("Failed to emit fs:tree-changed to {target_label}: {e}");
-                }
+            if relevant.is_empty() {
+                return;
+            }
+
+            // Emit tree-changed event (existing behaviour)
+            if let Err(e) = app.emit_to(&target_label, "fs:tree-changed", ()) {
+                log::warn!("Failed to emit fs:tree-changed to {target_label}: {e}");
+            }
+
+            // Trigger Y.Doc reload check for each changed .md file
+            let md_paths: Vec<String> = relevant
+                .iter()
+                .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
+                .filter_map(|p| to_rel_path(p, &ws_path))
+                .collect();
+
+            if !md_paths.is_empty() {
+                let app = app.clone();
+                let label = target_label.clone();
+                tauri::async_runtime::spawn(async move {
+                    let ydoc_mgr = app.state::<YDocManager>();
+                    for rel_path in md_paths {
+                        if let Err(e) = ydoc_mgr.reload_from_file(&app, &label, &rel_path).await {
+                            tracing::warn!("reload_from_file failed for {rel_path}: {e}");
+                        }
+                    }
+                });
             }
         },
     )
@@ -145,5 +180,19 @@ mod tests {
     fn md_files_relevant() {
         let path = Path::new("/workspace/note.md");
         assert!(is_relevant_change(path, &ws()));
+    }
+
+    #[test]
+    fn to_rel_path_normalizes_slashes() {
+        let ws = PathBuf::from("/workspace");
+        let path = Path::new("/workspace/notes/hello.md");
+        assert_eq!(to_rel_path(path, &ws), Some("notes/hello.md".to_owned()));
+    }
+
+    #[test]
+    fn to_rel_path_outside_workspace() {
+        let ws = PathBuf::from("/workspace");
+        let path = Path::new("/other/hello.md");
+        assert_eq!(to_rel_path(path, &ws), None);
     }
 }

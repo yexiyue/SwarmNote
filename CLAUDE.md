@@ -109,6 +109,7 @@ SwarmNote 通过 path 依赖引用：`yrs-blocknote = { path = "../crates/yrs-bl
 | `pairing/` | 设备配对码生成/验证、配对请求/响应流程（PairingManager） |
 | `protocol/` | 自定义 P2P 协议定义（AppRequest/AppResponse） |
 | `device/` | DeviceManager——追踪在线设备信息 |
+| `yjs/` | YDocManager——per-doc Y.Doc 生命周期、yrs ↔ DB 持久化、debounce 自动保存 |
 | `config/` | 全局配置持久化（最近工作区列表等） |
 | `tray.rs` | 系统托盘（仅桌面端，最后一个窗口隐藏到托盘而非退出） |
 | `error.rs` | 统一错误类型 AppError，序列化为 `{ kind, message }` 供前端消费 |

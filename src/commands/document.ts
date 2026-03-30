@@ -69,3 +69,7 @@ export async function closeYDoc(docUuid: string): Promise<void> {
 export async function renameYDoc(docUuid: string, newRelPath: string): Promise<void> {
   return invoke("rename_ydoc", { docUuid, newRelPath });
 }
+
+export async function reloadYDocConfirmed(docUuid: string): Promise<void> {
+  return invoke("reload_ydoc_confirmed", { docUuid });
+}
