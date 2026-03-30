@@ -14,16 +14,31 @@
 
 ## 技术方案
 
+### 核心机制
+
+离线合并本质上是全量同步的子场景——yjs 的 CRDT 天然支持离线编辑后的无冲突合并。不需要额外的合并算法，只需要：
+
+1. **离线期间**：yjs updates 正常存入 SQLite（`yjs_state` + `state_vector`），.md 文件正常保存
+2. **重连检测**：`NodeEvent::PeerConnected`（已配对 peer）→ 自动触发全量同步
+3. **全量同步**：交换 state_vector → 互发缺失 updates → yjs CRDT 自动合并 → 写回 .md
+4. **前端刷新**：emit `yjs:external-update` → 编辑器自动更新内容
+
+### 与全量同步的关系
+
+离线合并复用 crdt-sync 的全量同步流程，无额外实现。区别仅在于：
+
+- 正常全量同步：一方有缺失，单向补齐
+- 离线合并：双方都有独立编辑，双向互发 → yjs 自动合并
+
 ### 后端
 
-- 离线期间：yjs updates 正常存入 SQLite，.md 文件正常保存
-- 重连检测：`NodeEvent::PeerConnected` → 对每个已打开文档触发全量同步
-- 全量同步流程：交换 state_vector → 互发缺失 updates → 合并 → 写回 .md
-- 合并后通知前端刷新编辑器内容
+- 重连后全量同步按优先级排序（当前打开文档优先）
+- 合并后 persist snapshot → 更新 .md + DB
+- emit `doc-sync-status-changed` 通知前端状态变化
 
 ### 前端
 
-- 监听重连事件 → 等待同步完成 → 刷新 Y.Doc → 编辑器自动更新
+- 监听重连事件 → 等待同步完成 → 编辑器通过 `yjs:external-update` 自动刷新
 - 同步状态指示：离线待同步 → 同步中 → 已同步
 
 ## 验收标准
@@ -36,5 +51,4 @@
 
 ## 开放问题
 
-- 长时间离线后 yjs updates 积累较多，全量同步性能如何
-- 是否需要同步进度指示（大文档同步可能需要几秒）
+- 长时间离线后 yjs updates 积累较多，全量同步性能如何（可能需要 Y.Doc compaction）

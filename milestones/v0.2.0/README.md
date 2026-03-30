@@ -51,16 +51,21 @@ graph TD
     Converter[Markdown ↔ Y.Doc 转换器]
     Pairing[设备发现与配对]
     YjsEditor[编辑器 yjs 集成]
+    ExtSync[外部文件同步]
+    UUIDRefactor[文档全局 UUID 重构]
     CRDT[yjs CRDT 同步]
     Offline[离线合并]
     DeviceUI[设备状态 UI]
 
     Core --> Pairing
     Converter --> YjsEditor
-    Converter --> CRDT
+    Converter --> ExtSync
     MultiWS --> YjsEditor
+    YjsEditor --> ExtSync
+    UUIDRefactor --> CRDT
     Pairing --> CRDT
     YjsEditor --> CRDT
+    Converter --> CRDT
     CRDT --> Offline
     CRDT --> DeviceUI
     Offline --> DeviceUI
@@ -69,8 +74,9 @@ graph TD
 | 层级 | 功能 | 可并行 |
 |------|------|--------|
 | L0（无依赖） | **多工作区 per-window**、swarm-p2p-core 集成、工作区自定义忽略规则、**Markdown ↔ Y.Doc 转换器** | 全部可并行 |
-| L1（依赖 L0） | 设备发现与配对（依赖 p2p-core）、编辑器 yjs 集成（依赖多工作区 + 转换器） | 可并行 |
-| L2（依赖 L1） | yjs CRDT 同步（依赖设备配对 + 编辑器 yjs + 转换器） | - |
+| L1（依赖 L0） | 设备发现与配对（依赖 p2p-core）、编辑器 yjs 集成（依赖多工作区 + 转换器）、外部文件同步（依赖编辑器 yjs + 转换器） | 可并行 |
+| L1.5（前置重构） | **文档全局 UUID 重构**（扫描建库 + UUID 稳定化，CRDT 同步的前置条件） | 独立 |
+| L2（依赖 L1 + L1.5） | yjs CRDT 同步（依赖 UUID 重构 + 设备配对 + 编辑器 yjs + 转换器） | - |
 | L3（依赖 L2） | 离线合并、设备状态 UI | 离线合并依赖 CRDT |
 
 ### 功能清单

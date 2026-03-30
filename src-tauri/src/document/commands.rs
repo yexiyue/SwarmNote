@@ -1,5 +1,5 @@
 use chrono::Utc;
-use entity::workspace::{documents, folders};
+use entity::workspace::{deletion_log, documents, folders};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Set};
 use tauri::State;
 use uuid::Uuid;
@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::error::{AppError, AppResult};
 use crate::identity::IdentityState;
 use crate::workspace::state::DbState;
+use crate::yjs::manager::YDocManager;
 
 // ── Document ──
 
@@ -58,7 +59,6 @@ pub async fn db_upsert_document(
         }
     }
 
-    #[expect(clippy::needless_update)]
     let model = documents::ActiveModel {
         id: Set(input.id.unwrap_or_else(Uuid::now_v7)),
         workspace_id: Set(input.workspace_id),
@@ -68,10 +68,10 @@ pub async fn db_upsert_document(
         file_hash: Set(input.file_hash.map(|h| h.into_bytes())),
         yjs_state: Set(None),
         state_vector: Set(None),
+        lamport_clock: Set(0),
         created_by: Set(identity.peer_id()?),
         created_at: Set(now),
         updated_at: Set(now),
-        ..Default::default()
     };
     Ok(model.insert(db).await?)
 }
@@ -86,6 +86,91 @@ pub async fn db_delete_document(
     documents::Entity::delete_by_id(id)
         .exec(guard.conn())
         .await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_document_by_rel_path(
+    window: tauri::Window,
+    rel_path: String,
+    db_state: State<'_, DbState>,
+    identity: State<'_, IdentityState>,
+) -> AppResult<()> {
+    let guard = db_state.workspace_db_for(window.label()).await?;
+    let db = guard.conn();
+
+    let Some(doc) = documents::Entity::find()
+        .filter(documents::Column::RelPath.eq(&rel_path))
+        .one(db)
+        .await?
+    else {
+        return Ok(()); // no record — nothing to delete
+    };
+
+    let doc_id = doc.id;
+
+    // Write tombstone to deletion_log
+    let tombstone = deletion_log::ActiveModel {
+        doc_id: Set(doc_id),
+        rel_path: Set(rel_path),
+        deleted_at: Set(Utc::now().timestamp()),
+        deleted_by: Set(identity.peer_id()?),
+        lamport_clock: Set(doc.lamport_clock + 1),
+    };
+    deletion_log::Entity::insert(tombstone)
+        .on_conflict(
+            sea_orm::sea_query::OnConflict::column(deletion_log::Column::DocId)
+                .update_columns([
+                    deletion_log::Column::DeletedAt,
+                    deletion_log::Column::DeletedBy,
+                    deletion_log::Column::LamportClock,
+                ])
+                .to_owned(),
+        )
+        .exec(db)
+        .await?;
+
+    // Remove the document record
+    documents::Entity::delete_by_id(doc_id).exec(db).await?;
+
+    Ok(())
+}
+
+#[derive(serde::Deserialize)]
+pub struct RenameDocumentInput {
+    pub old_rel_path: String,
+    pub new_rel_path: String,
+    pub new_title: String,
+}
+
+#[tauri::command]
+pub async fn rename_document(
+    window: tauri::Window,
+    input: RenameDocumentInput,
+    db_state: State<'_, DbState>,
+    ydoc_mgr: State<'_, YDocManager>,
+) -> AppResult<()> {
+    let guard = db_state.workspace_db_for(window.label()).await?;
+    let db = guard.conn();
+
+    let Some(doc) = documents::Entity::find()
+        .filter(documents::Column::RelPath.eq(&input.old_rel_path))
+        .one(db)
+        .await?
+    else {
+        return Ok(()); // no record — nothing to rename
+    };
+
+    let doc_uuid = doc.id;
+    let mut model: documents::ActiveModel = doc.into();
+    model.rel_path = Set(input.new_rel_path.clone());
+    model.title = Set(input.new_title);
+    model.updated_at = Set(Utc::now().timestamp());
+    model.update(db).await?;
+
+    // Update in-memory YDocManager entry
+    ydoc_mgr.rename_doc(window.label(), doc_uuid, &input.new_rel_path);
+
     Ok(())
 }
 

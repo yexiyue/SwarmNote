@@ -1,8 +1,12 @@
+use std::collections::HashSet;
 use std::path::Path;
 
-use crate::error::AppError;
+use entity::workspace::documents;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use uuid::Uuid;
 
 use super::FileTreeNode;
+use crate::error::{AppError, AppResult};
 
 /// 递归扫描工作区目录并构建 `FileTreeNode` 树。
 ///
@@ -78,6 +82,77 @@ fn scan_dir(root: &Path, dir: &Path) -> Result<Vec<FileTreeNode>, AppError> {
     // 目录在前，文件在后
     dirs.extend(files);
     Ok(dirs)
+}
+
+// ── Reconcile scan results with DB ───────────────────────────
+
+/// Collect all .md file rel_paths from a scan tree (flattened).
+fn collect_md_paths(nodes: &[FileTreeNode], out: &mut HashSet<String>) {
+    for node in nodes {
+        if let Some(children) = &node.children {
+            collect_md_paths(children, out);
+        } else if node.id.ends_with(".md") {
+            out.insert(node.id.clone());
+        }
+    }
+}
+
+/// Reconcile scanned .md files with the documents table.
+///
+/// - Files on disk but not in DB → INSERT new records (assign UUID).
+/// - Files in DB but not on disk → **not deleted** (may be a file move;
+///   cleanup is left to the tombstone GC mechanism).
+pub async fn reconcile_with_db(
+    db: &DatabaseConnection,
+    workspace_id: Uuid,
+    peer_id: &str,
+    tree: &[FileTreeNode],
+) -> AppResult<usize> {
+    let mut disk_paths = HashSet::new();
+    collect_md_paths(tree, &mut disk_paths);
+
+    // Fetch existing rel_paths from DB
+    let existing: HashSet<String> = documents::Entity::find()
+        .filter(documents::Column::WorkspaceId.eq(workspace_id))
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|m| m.rel_path)
+        .collect();
+
+    // INSERT missing files
+    let missing: Vec<&String> = disk_paths.difference(&existing).collect();
+    let count = missing.len();
+    let now = chrono::Utc::now().timestamp();
+
+    for rel_path in &missing {
+        let title = rel_path
+            .rsplit('/')
+            .next()
+            .unwrap_or(rel_path)
+            .trim_end_matches(".md")
+            .to_owned();
+
+        let model = documents::ActiveModel {
+            id: Set(Uuid::now_v7()),
+            workspace_id: Set(workspace_id),
+            folder_id: Set(None),
+            title: Set(title),
+            rel_path: Set((*rel_path).clone()),
+            lamport_clock: Set(0),
+            created_by: Set(peer_id.to_owned()),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        };
+        model.insert(db).await?;
+    }
+
+    if count > 0 {
+        tracing::info!("Reconcile: inserted {count} missing document records");
+    }
+
+    Ok(count)
 }
 
 #[cfg(test)]

@@ -114,8 +114,15 @@ pub enum SyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocMeta {
     pub doc_id: String,
+    pub rel_path: String,
     pub title: String,
     pub updated_at: i64,
+    /// `None` = active document, `Some` = deleted (tombstone)
+    pub deleted_at: Option<i64>,
+    /// Monotonic version clock for conflict ordering
+    pub lamport_clock: i64,
+    /// Workspace UUID for cross-device workspace matching
+    pub workspace_uuid: String,
 }
 
 // ── 配对子协议 ──
@@ -226,8 +233,12 @@ mod tests {
             AppResponse::Sync(SyncResponse::DocList {
                 docs: vec![DocMeta {
                     doc_id: "doc-1".to_string(),
+                    rel_path: "notes/todo.md".to_string(),
                     title: "Test Note".to_string(),
                     updated_at: 1234567890,
+                    deleted_at: None,
+                    lamport_clock: 0,
+                    workspace_uuid: "ws-uuid-1".to_string(),
                 }],
             }),
             AppResponse::Sync(SyncResponse::Updates {

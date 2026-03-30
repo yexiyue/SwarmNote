@@ -35,6 +35,20 @@ export async function deleteDocument(id: string): Promise<void> {
   return invoke("db_delete_document", { id });
 }
 
+export async function deleteDocumentByRelPath(relPath: string): Promise<void> {
+  return invoke("delete_document_by_rel_path", { relPath });
+}
+
+export async function renameDocument(
+  oldRelPath: string,
+  newRelPath: string,
+  newTitle: string,
+): Promise<void> {
+  return invoke("rename_document", {
+    input: { old_rel_path: oldRelPath, new_rel_path: newRelPath, new_title: newTitle },
+  });
+}
+
 export async function saveMedia(
   relPath: string,
   fileName: string,

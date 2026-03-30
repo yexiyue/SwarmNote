@@ -49,6 +49,9 @@ pub(crate) fn workspace_name_from_path(path: &Path) -> String {
 // ── 内部 helpers ──
 
 /// 幂等地打开或创建工作区数据库记录，返回 DB 连接和工作区 model。
+///
+/// Ensures `workspace.json` exists (source of truth for workspace UUID)
+/// and that the `workspaces` table uses the same UUID.
 async fn ensure_workspace(
     ws_path: &Path,
     identity: &IdentityState,
@@ -56,10 +59,19 @@ async fn ensure_workspace(
     let conn = init_workspace_db(ws_path).await?;
     let dir_name = workspace_name_from_path(ws_path);
 
-    let workspace = match workspaces::Entity::find().one(&conn).await? {
+    let existing_ws = workspaces::Entity::find().one(&conn).await?;
+
+    // Resolve workspace UUID from workspace.json (source of truth).
+    // Falls back to existing DB UUID for upgrades, or generates new.
+    let ws_uuid =
+        super::identity::ensure_identity(ws_path, existing_ws.as_ref().map(|ws| ws.id), &dir_name)?;
+
+    let workspace = match existing_ws {
         Some(mut ws) => {
-            if ws.name != dir_name {
+            let needs_update = ws.name != dir_name || ws.id != ws_uuid;
+            if needs_update {
                 let mut active: workspaces::ActiveModel = ws.clone().into();
+                active.id = Set(ws_uuid);
                 active.name = Set(dir_name);
                 active.updated_at = Set(Utc::now().timestamp());
                 ws = active.update(&conn).await?;
@@ -69,11 +81,11 @@ async fn ensure_workspace(
         None => {
             let now = Utc::now().timestamp();
             let model = workspaces::ActiveModel {
+                id: Set(ws_uuid),
                 name: Set(dir_name),
                 created_by: Set(identity.peer_id()?),
                 created_at: Set(now),
                 updated_at: Set(now),
-                ..Default::default()
             };
             model.insert(&conn).await?
         }
@@ -89,18 +101,32 @@ async fn bind_workspace_to_window(
     path: &str,
     conn: DatabaseConnection,
     workspace: &workspaces::Model,
+    identity: &IdentityState,
     db_state: &DbState,
     ws_state: &WorkspaceState,
     config_state: &GlobalConfigState,
     watcher_state: &crate::fs::watcher::FsWatcherState,
     app_handle: &tauri::AppHandle,
 ) -> WorkspaceInfo {
+    // Reconcile scanned files with DB before starting the watcher,
+    // so every .md file has a stable UUID from the start.
+    let ws_path = Path::new(path);
+    if let Ok(tree) = crate::fs::scan::scan_workspace_tree(ws_path) {
+        if let Ok(peer_id) = identity.peer_id() {
+            if let Err(e) =
+                crate::fs::scan::reconcile_with_db(&conn, workspace.id, &peer_id, &tree).await
+            {
+                log::warn!("Reconcile failed for '{path}': {e}");
+            }
+        }
+    }
+
     db_state.insert_workspace_db(label, conn).await;
 
     let info = WorkspaceInfo::from_model(workspace, path);
     ws_state.insert(label, info.clone()).await;
 
-    let dir_name = workspace_name_from_path(Path::new(path));
+    let dir_name = workspace_name_from_path(ws_path);
     {
         let mut config = config_state.write().await;
         if let Err(e) = crate::config::update_last_workspace(&mut config, path, &dir_name) {
@@ -108,9 +134,7 @@ async fn bind_workspace_to_window(
         }
     }
 
-    if let Err(e) =
-        crate::fs::watcher::start_watching(app_handle, label, Path::new(path), watcher_state)
-    {
+    if let Err(e) = crate::fs::watcher::start_watching(app_handle, label, ws_path, watcher_state) {
         log::warn!("Failed to start fs watcher for window '{label}': {e}");
     }
 
@@ -166,6 +190,7 @@ pub async fn open_workspace(
         &path,
         conn,
         &workspace,
+        &identity,
         &db_state,
         &ws_state,
         &config_state,
@@ -252,6 +277,7 @@ pub async fn open_workspace_window(
         &path,
         conn,
         &workspace,
+        &identity,
         &db_state,
         &ws_state,
         &config_state,

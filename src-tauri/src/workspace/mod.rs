@@ -2,6 +2,7 @@
 
 pub mod commands;
 pub mod db;
+pub mod identity;
 pub mod state;
 
 use std::collections::HashMap;

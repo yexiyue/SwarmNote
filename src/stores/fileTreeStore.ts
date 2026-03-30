@@ -1,6 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
-import { deleteDocument, upsertDocument } from "@/commands/document";
+import { deleteDocumentByRelPath, renameDocument, upsertDocument } from "@/commands/document";
 import {
   type FileTreeNode,
   fsCreateDir,
@@ -58,7 +58,6 @@ export const useFileTreeStore = create<FileTreeState & FileTreeActions>()((set, 
     if (workspace) {
       const title = relPath.split("/").pop() ?? name;
       await upsertDocument({
-        id: relPath,
         workspace_id: workspace.id,
         title,
         rel_path: relPath,
@@ -84,7 +83,7 @@ export const useFileTreeStore = create<FileTreeState & FileTreeActions>()((set, 
 
   deleteFile: async (relPath) => {
     await fsDeleteFile(relPath);
-    deleteDocument(relPath).catch(() => {});
+    await deleteDocumentByRelPath(relPath);
     const { selectedId } = get();
     if (selectedId === relPath) {
       set({ selectedId: null });
@@ -100,6 +99,8 @@ export const useFileTreeStore = create<FileTreeState & FileTreeActions>()((set, 
 
   rename: async (relPath, newName) => {
     const newRelPath = await fsRename(relPath, newName);
+    const newTitle = newRelPath.split("/").pop()?.replace(/\.md$/i, "") ?? newName;
+    await renameDocument(relPath, newRelPath, newTitle);
     const { selectedId } = get();
     if (selectedId === relPath) {
       set({ selectedId: newRelPath });

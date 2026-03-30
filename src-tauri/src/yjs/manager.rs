@@ -153,12 +153,15 @@ impl YDocManager {
     // ── Open / Close / Update ────────────────────────────────
 
     /// Open a document: look up or create UUID, load Y.Doc, return UUID + state.
+    ///
+    /// If the document has no DB record (e.g. externally copied .md file),
+    /// a new record is inserted automatically (upsert semantics).
     pub async fn open_doc(
         &self,
         app: &AppHandle,
         label: &str,
         rel_path: &str,
-        _workspace_id: Uuid,
+        workspace_id: Uuid,
         asset_url_prefix: &str,
     ) -> AppResult<OpenDocResult> {
         let ws_state = app.state::<WorkspaceState>();
@@ -174,13 +177,44 @@ impl YDocManager {
             });
         }
 
-        // Look up document by rel_path → get stable UUID
+        // Look up document by rel_path → get stable UUID.
+        // If no DB record exists, INSERT one immediately (upsert).
         let guard = db_state.workspace_db_for(label).await?;
         let db_doc = documents::Entity::find()
             .filter(documents::Column::RelPath.eq(rel_path))
             .one(guard.conn())
             .await?;
-        let doc_uuid = db_doc.as_ref().map(|m| m.id).unwrap_or_else(Uuid::now_v7);
+
+        let doc_uuid = match &db_doc {
+            Some(model) => model.id,
+            None => {
+                let new_id = Uuid::now_v7();
+                let identity = app.state::<crate::identity::IdentityState>();
+                let now = chrono::Utc::now().timestamp();
+                let title = rel_path
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or(rel_path)
+                    .trim_end_matches(".md")
+                    .to_owned();
+
+                let model = documents::ActiveModel {
+                    id: sea_orm::Set(new_id),
+                    workspace_id: sea_orm::Set(workspace_id),
+                    folder_id: sea_orm::Set(None),
+                    title: sea_orm::Set(title),
+                    rel_path: sea_orm::Set(rel_path.to_owned()),
+                    lamport_clock: sea_orm::Set(0),
+                    created_by: sea_orm::Set(identity.peer_id()?),
+                    created_at: sea_orm::Set(now),
+                    updated_at: sea_orm::Set(now),
+                    ..Default::default()
+                };
+                model.insert(guard.conn()).await?;
+                tracing::info!("Auto-created DB record for {rel_path} → {new_id}");
+                new_id
+            }
+        };
         drop(guard);
 
         // Use Utf16 offset kind to match frontend JS yjs — Bytes (yrs default) causes

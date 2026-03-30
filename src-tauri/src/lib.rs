@@ -46,6 +46,8 @@ pub fn run() {
             document::commands::db_get_documents,
             document::commands::db_upsert_document,
             document::commands::db_delete_document,
+            document::commands::delete_document_by_rel_path,
+            document::commands::rename_document,
             document::commands::db_get_folders,
             document::commands::db_create_folder,
             document::commands::db_delete_folder,

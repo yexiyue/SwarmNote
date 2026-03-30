@@ -15,6 +15,7 @@ pub struct Model {
     pub file_hash: Option<Vec<u8>>,
     pub yjs_state: Option<Vec<u8>>,
     pub state_vector: Option<Vec<u8>>,
+    pub lamport_clock: i64,
     pub created_by: String,
     pub created_at: i64,
     pub updated_at: i64,
