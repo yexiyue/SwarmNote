@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Fingerprint, Play, Power, Shield, Users, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { getDeviceInfo } from "@/commands/identity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { type NodeStatus, useNetworkStore } from "@/stores/networkStore";
 import { usePreferencesStore } from "@/stores/preferencesStore";
@@ -17,6 +19,61 @@ const statusConfig: Record<
   running: { label: "运行中", variant: "default" },
   error: { label: "错误", variant: "destructive" },
 };
+
+function SettingCard({
+  children,
+  title,
+  description,
+  action,
+}: {
+  children: React.ReactNode;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border bg-card">
+      <div className="flex items-center justify-between px-5 py-4">
+        <div>
+          <h3 className="text-sm font-medium">{title}</h3>
+          {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <Separator />
+      <div className="px-5 py-3">{children}</div>
+    </div>
+  );
+}
+
+function SettingRow({
+  icon: Icon,
+  label,
+  description,
+  children,
+}: {
+  icon?: React.ComponentType<{ className?: string }>;
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-3">
+        {Icon && (
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+        <div>
+          <div className="text-sm">{label}</div>
+          {description && <div className="text-xs text-muted-foreground">{description}</div>}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 function NetworkSettingsPage() {
   const status = useNetworkStore((s) => s.status);
@@ -48,99 +105,94 @@ function NetworkSettingsPage() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="mb-1 text-lg font-semibold">网络</h1>
-      <p className="mb-6 text-sm text-muted-foreground">P2P 节点状态和网络设置</p>
+    <div>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold tracking-tight">网络</h1>
+        <p className="mt-1 text-sm text-muted-foreground">P2P 节点状态和网络设置</p>
+      </div>
 
-      <div className="space-y-6">
-        {/* Node status */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium">节点状态</div>
-            <div className="text-xs text-muted-foreground">当前 P2P 节点运行状态</div>
-          </div>
-          <Badge variant={variant}>{label}</Badge>
-        </div>
+      <div className="space-y-4">
+        {/* Node Status Card */}
+        <SettingCard
+          title="节点状态"
+          description="当前 P2P 节点运行状态"
+          action={<Badge variant={variant}>{label}</Badge>}
+        >
+          <div className="space-y-1">
+            {/* Error message */}
+            {status === "error" && error && (
+              <div className="my-1 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
 
-        {/* Error message */}
-        {status === "error" && error && (
-          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+            {/* Peer ID */}
+            {peerId && (
+              <SettingRow icon={Fingerprint} label="Peer ID" description="本设备的 P2P 网络标识">
+                <code className="max-w-50 truncate rounded-md bg-muted px-2.5 py-1 text-xs">
+                  {peerId}
+                </code>
+              </SettingRow>
+            )}
 
-        {/* Peer ID */}
-        {peerId && (
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">Peer ID</div>
-              <div className="text-xs text-muted-foreground">本设备的 P2P 网络标识</div>
-            </div>
-            <code className="max-w-[240px] truncate rounded bg-muted px-2 py-1 text-xs">
-              {peerId}
-            </code>
-          </div>
-        )}
+            {/* NAT status */}
+            {status === "running" && natStatus && (
+              <>
+                {peerId && <Separator />}
+                <SettingRow icon={Shield} label="NAT 状态" description="网络地址转换类型">
+                  <span className="text-sm text-muted-foreground">{natStatus}</span>
+                </SettingRow>
+              </>
+            )}
 
-        {/* NAT status */}
-        {status === "running" && natStatus && (
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">NAT 状态</div>
-              <div className="text-xs text-muted-foreground">网络地址转换类型</div>
-            </div>
-            <span className="text-sm text-muted-foreground">{natStatus}</span>
+            {/* Connected peers */}
+            {status === "running" && (
+              <>
+                {(peerId || natStatus) && <Separator />}
+                <SettingRow icon={Users} label="连接设备" description="当前已连接的 P2P 设备数">
+                  <span className="rounded-md bg-muted px-2.5 py-1 text-sm font-medium">
+                    {connectedPeers.length}
+                  </span>
+                </SettingRow>
+              </>
+            )}
           </div>
-        )}
+        </SettingCard>
 
-        {/* Connected peers */}
-        {status === "running" && (
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">连接设备</div>
-              <div className="text-xs text-muted-foreground">当前已连接的 P2P 设备数</div>
-            </div>
-            <span className="text-sm font-medium">{connectedPeers.length}</span>
+        {/* Control Card */}
+        <SettingCard title="节点控制" description="启动或停止 P2P 节点">
+          <div className="space-y-1">
+            <SettingRow
+              icon={status === "running" ? Power : Play}
+              label={status === "running" ? "停止节点" : "启动节点"}
+              description={
+                status === "running" ? "停止后将断开所有 P2P 连接" : "启动 P2P 节点以同步笔记"
+              }
+            >
+              {status === "running" ? (
+                <Button variant="destructive" size="sm" onClick={handleStop}>
+                  停止
+                </Button>
+              ) : (
+                <Button size="sm" onClick={startNode} disabled={status === "starting"}>
+                  {status === "starting" ? "启动中..." : "启动"}
+                </Button>
+              )}
+            </SettingRow>
+            <Separator />
+            <SettingRow icon={Zap} label="自动启动" description="打开工作区时自动启动 P2P 节点">
+              <Switch checked={autoStartP2P} onCheckedChange={setAutoStartP2P} />
+            </SettingRow>
           </div>
-        )}
-
-        {/* Start/Stop button */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium">
-              {status === "running" ? "停止节点" : "启动节点"}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {status === "running" ? "停止后将断开所有 P2P 连接" : "启动 P2P 节点以同步笔记"}
-            </div>
-          </div>
-          {status === "running" ? (
-            <Button variant="destructive" size="sm" onClick={handleStop}>
-              停止节点
-            </Button>
-          ) : (
-            <Button size="sm" onClick={startNode} disabled={status === "starting"}>
-              {status === "starting" ? "启动中..." : "启动节点"}
-            </Button>
-          )}
-        </div>
-
-        {/* Auto-start toggle */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium">自动启动</div>
-            <div className="text-xs text-muted-foreground">打开工作区时自动启动 P2P 节点</div>
-          </div>
-          <Switch checked={autoStartP2P} onCheckedChange={setAutoStartP2P} />
-        </div>
+        </SettingCard>
       </div>
 
       {/* Stop confirmation dialog */}
       {showStopConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-[360px] rounded-lg border bg-background p-6 shadow-lg">
+          <div className="w-90 rounded-xl border bg-background p-6 shadow-lg">
             <h3 className="mb-2 text-sm font-semibold">确认停止节点？</h3>
-            <p className="mb-4 text-sm text-muted-foreground">
+            <p className="mb-5 text-sm text-muted-foreground">
               停止 P2P 节点将断开与所有设备的连接，笔记将停止同步。
             </p>
             <div className="flex justify-end gap-2">
