@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 
@@ -49,9 +50,23 @@ export const useWorkspaceStore = create<WorkspaceState & WorkspaceActions>()((se
   initFromBackend: async () => {
     set({ isLoading: true, error: null });
     try {
+      // 先注册事件监听，再调用 get_workspace_info，避免新建窗口场景下事件丢失
+      let unlistenFn: (() => void) | null = null;
+      const unlistenPromise = listen<WorkspaceInfo>("workspace:ready", (event) => {
+        set({ workspace: event.payload });
+        maybeAutoStartP2P();
+        unlistenFn?.();
+      });
       const info = await getWorkspaceInfo();
-      set({ workspace: info });
-      if (info) maybeAutoStartP2P();
+      unlistenFn = await unlistenPromise;
+      if (info) {
+        // auto-restore 或新建窗口（Rust 已在建窗口前完成绑定）场景：直接拿到数据
+        set({ workspace: info });
+        maybeAutoStartP2P();
+        unlistenFn();
+      }
+      // info 为 null 时（全新启动无历史工作区）：保留监听，等待 workspace:ready 事件
+      // 若用户通过 WorkspacePicker fullscreen 选择，openWorkspace() 会直接 set，监听自然不触发
     } catch (e) {
       set({ error: String(e) });
     } finally {
