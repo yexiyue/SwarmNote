@@ -69,7 +69,7 @@
   --sidebar-primary-foreground: #fafafa;
   --sidebar-accent: #f4f4f4;
   --sidebar-accent-foreground: #18181b;
-  --sidebar-border: #e4e4e7;
+  --sidebar-border: #e2e8f0;
   --sidebar-ring: #71717a;
 }
 
@@ -100,6 +100,12 @@
   --sidebar-accent-foreground: #fafafa;
   --sidebar-border: #ffffff1a;
   --sidebar-ring: #71717a;
+}
+
+*,
+*::before,
+*::after {
+  border-color: var(--color-border);
 }
 
 body {
