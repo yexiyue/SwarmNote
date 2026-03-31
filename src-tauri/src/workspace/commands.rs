@@ -317,12 +317,20 @@ pub async fn open_settings_window(app: tauri::AppHandle, route: Option<String>) 
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(target_route.into()))
-        .title("SwarmNote 设置")
-        .inner_size(720.0, 520.0)
-        .resizable(false)
-        .build()
-        .map_err(|e| AppError::Window(format!("Failed to create settings window: {e}")))?;
+    let settings_window =
+        WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(target_route.into()))
+            .title("SwarmNote 设置")
+            .inner_size(720.0, 520.0)
+            .resizable(false)
+            .decorations(cfg!(target_os = "macos"))
+            .build()
+            .map_err(|e| AppError::Window(format!("Failed to create settings window: {e}")))?;
+
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::TitleBarStyle;
+        let _ = settings_window.set_title_bar_style(TitleBarStyle::Overlay);
+    }
 
     Ok(())
 }

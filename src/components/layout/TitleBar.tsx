@@ -1,8 +1,19 @@
 import { useLingui } from "@lingui/react/macro";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Minus, PanelLeft, PenLine, Search, Square, X } from "lucide-react";
+import {
+  ChevronsUpDown,
+  Minus,
+  PanelLeft,
+  PenLine,
+  Search,
+  Settings,
+  Square,
+  X,
+} from "lucide-react";
+import { openSettingsWindow } from "@/commands/workspace";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { WorkspacePopover } from "@/components/workspace/WorkspacePopover";
 import { isMac, modKey } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -24,7 +35,7 @@ export function TitleBar() {
     >
       {/* Left: Logo + Nav */}
       <div
-        className={`flex items-center gap-3 ${needsTrafficLightPadding ? "pl-[70px]" : ""}`}
+        className={`flex items-center gap-3 ${needsTrafficLightPadding ? "pl-17.5" : ""}`}
         data-tauri-drag-region
       >
         <div className="group/logo flex items-center gap-1.5">
@@ -52,9 +63,15 @@ export function TitleBar() {
           <span className="text-sm font-semibold text-foreground">SwarmNote</span>
         </div>
         <div className="h-4 w-px bg-border" />
-        <span className="text-[13px] font-medium text-foreground">
-          {workspace?.name ?? "SwarmNote"}
-        </span>
+        <WorkspacePopover side="bottom">
+          <button
+            type="button"
+            className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[13px] font-medium text-foreground hover:bg-muted"
+          >
+            <span className="max-w-32 truncate">{workspace?.name ?? "SwarmNote"}</span>
+            <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+          </button>
+        </WorkspacePopover>
       </div>
 
       {/* Right: Search + Settings + Window Controls */}
@@ -62,12 +79,25 @@ export function TitleBar() {
         <button
           type="button"
           onClick={() => document.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE))}
-          className="flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-[5px] text-muted-foreground hover:bg-secondary/80"
+          className="flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1.25 text-muted-foreground hover:bg-secondary/80"
         >
           <Search className="h-3.5 w-3.5" />
           <span className="text-xs">{t`搜索...`}</span>
           <span className="text-[10px] font-medium">{modKey}P</span>
         </button>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => openSettingsWindow("general")}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{t`设置`}</TooltipContent>
+        </Tooltip>
 
         {!isMac && (
           <>
