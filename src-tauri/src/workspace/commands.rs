@@ -255,7 +255,23 @@ pub async fn open_workspace_window(
         )));
     }
 
-    // 创建新窗口
+    // 先完成 DB 初始化和状态绑定，再创建窗口，消除竞态
+    let (conn, workspace) = ensure_workspace(&ws_path, &identity).await?;
+    let info = bind_workspace_to_window(
+        &label,
+        &path,
+        conn,
+        &workspace,
+        &identity,
+        &db_state,
+        &ws_state,
+        &config_state,
+        &watcher_state,
+        &app,
+    )
+    .await;
+
+    // 状态就绪后再创建窗口
     let new_window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
         .title("SwarmNote")
         .inner_size(800.0, 600.0)
@@ -270,21 +286,10 @@ pub async fn open_workspace_window(
         let _ = new_window.set_title_bar_style(TitleBarStyle::Overlay);
     }
 
-    // 原子预绑定
-    let (conn, workspace) = ensure_workspace(&ws_path, &identity).await?;
-    bind_workspace_to_window(
-        &label,
-        &path,
-        conn,
-        &workspace,
-        &identity,
-        &db_state,
-        &ws_state,
-        &config_state,
-        &watcher_state,
-        &app,
-    )
-    .await;
+    // 推送工作区信息给新窗口，前端可通过事件直接获取而无需轮询
+    if let Err(e) = new_window.emit("workspace:ready", &info) {
+        log::warn!("Failed to emit workspace:ready to window '{label}': {e}");
+    }
 
     bind_window_cleanup(&new_window, &app, &label);
 

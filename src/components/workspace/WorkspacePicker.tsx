@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WorkspaceItem } from "@/components/workspace/WorkspaceItem";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface WorkspacePickerProps {
   mode: "fullscreen" | "dialog";
@@ -19,28 +20,41 @@ interface WorkspacePickerProps {
 
 export function WorkspacePicker({ mode, open: dialogOpen, onOpenChange }: WorkspacePickerProps) {
   const [recents, setRecents] = useState<RecentWorkspace[]>([]);
+  const openWorkspace = useWorkspaceStore((s) => s.openWorkspace);
 
   useEffect(() => {
     getRecentWorkspaces().then(setRecents);
   }, []);
 
   async function handleSelectWorkspace(path: string) {
-    await openWorkspaceWindow(path);
-    onOpenChange?.(false);
+    if (mode === "fullscreen") {
+      await openWorkspace(path);
+    } else {
+      await openWorkspaceWindow(path);
+      onOpenChange?.(false);
+    }
   }
 
   async function handleOpenFolder() {
     const selected = await open({ directory: true, title: "打开工作区文件夹" });
     if (!selected) return;
-    await openWorkspaceWindow(selected);
-    onOpenChange?.(false);
+    if (mode === "fullscreen") {
+      await openWorkspace(selected);
+    } else {
+      await openWorkspaceWindow(selected);
+      onOpenChange?.(false);
+    }
   }
 
   async function handleCreateWorkspace() {
     const selected = await open({ directory: true, title: "选择新工作区目录" });
     if (!selected) return;
-    await openWorkspaceWindow(selected);
-    onOpenChange?.(false);
+    if (mode === "fullscreen") {
+      await openWorkspace(selected);
+    } else {
+      await openWorkspaceWindow(selected);
+      onOpenChange?.(false);
+    }
   }
 
   const content = (

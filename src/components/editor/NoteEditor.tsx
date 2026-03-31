@@ -21,11 +21,9 @@ import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { EditorTitle } from "./EditorTitle";
 
-const { audio: _a, file: _f, ...supportedBlockSpecs } = defaultBlockSpecs;
-
 const schema = BlockNoteSchema.create({
   blockSpecs: {
-    ...supportedBlockSpecs,
+    ...defaultBlockSpecs,
     codeBlock: createCodeBlockSpec(codeBlockOptions),
   },
 });
