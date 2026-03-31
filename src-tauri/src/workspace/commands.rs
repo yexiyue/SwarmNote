@@ -317,7 +317,7 @@ pub async fn open_settings_window(app: tauri::AppHandle, route: Option<String>) 
         return Ok(());
     }
 
-    let settings_window =
+    let _settings_window =
         WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(target_route.into()))
             .title("SwarmNote 设置")
             .inner_size(720.0, 520.0)
@@ -329,7 +329,7 @@ pub async fn open_settings_window(app: tauri::AppHandle, route: Option<String>) 
     #[cfg(target_os = "macos")]
     {
         use tauri::TitleBarStyle;
-        let _ = settings_window.set_title_bar_style(TitleBarStyle::Overlay);
+        let _ = _settings_window.set_title_bar_style(TitleBarStyle::Overlay);
     }
 
     Ok(())
