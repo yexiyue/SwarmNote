@@ -22,21 +22,18 @@ interface PairingRequestPayload {
 
 interface PairingRequestDialogProps {
   data: PairingRequestPayload;
+  notificationId: string;
 }
 
-export function PairingRequestDialog({ data }: PairingRequestDialogProps) {
+export function PairingRequestDialog({ data, notificationId }: PairingRequestDialogProps) {
   const [responding, setResponding] = useState(false);
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, Math.ceil((new Date(data.expiresAt).getTime() - Date.now()) / 1000)),
   );
   const respondedRef = useRef(false);
 
-  const notificationId = useNotificationStore((s) => s.current?.id);
-
   const close = useCallback(() => {
-    if (notificationId) {
-      useNotificationStore.getState().respond(notificationId);
-    }
+    useNotificationStore.getState().respond(notificationId);
   }, [notificationId]);
 
   const handleReject = useCallback(async () => {
