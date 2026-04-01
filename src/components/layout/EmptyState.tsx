@@ -1,10 +1,11 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { modKey } from "@/lib/utils";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 
 export function EmptyState() {
+  const { t } = useLingui();
   const createAndOpenFile = useFileTreeStore((s) => s.createAndOpenFile);
 
   return (
@@ -20,7 +21,7 @@ export function EmptyState() {
       </p>
       <Button
         className="gap-1.5 rounded-lg px-5 py-2.5"
-        onClick={() => createAndOpenFile("", "新建笔记")}
+        onClick={() => createAndOpenFile("", t`新建笔记`)}
       >
         <Plus className="h-4 w-4" />
         <Trans>新建笔记</Trans>

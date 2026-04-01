@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2, Monitor, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -8,6 +9,10 @@ import { PairedDeviceCard } from "@/components/pairing/PairedDeviceCard";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { setupPairingListeners, usePairingStore } from "@/stores/pairingStore";
+
+function DeviceCountLabel({ count }: { count: number }) {
+  return count > 0 ? <Trans>{count} 台设备</Trans> : <Trans>无</Trans>;
+}
 
 function DevicesPage() {
   const pairedDevices = usePairingStore((s) => s.pairedDevices);
@@ -31,8 +36,12 @@ function DevicesPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">设备管理</h1>
-          <p className="mt-1 text-sm text-muted-foreground">管理已配对设备和发现附近设备</p>
+          <h1 className="text-xl font-semibold tracking-tight">
+            <Trans>设备管理</Trans>
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <Trans>管理已配对设备和发现附近设备</Trans>
+          </p>
         </div>
         <Button variant="outline" size="icon-sm" onClick={refresh} disabled={isLoading}>
           {isLoading ? (
@@ -68,9 +77,11 @@ function DevicesPage() {
         {/* Paired Devices */}
         <div className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-3">
-            <h3 className="text-sm font-medium">已配对设备</h3>
+            <h3 className="text-sm font-medium">
+              <Trans>已配对设备</Trans>
+            </h3>
             <span className="text-xs text-muted-foreground">
-              {pairedDevices.length > 0 ? `${pairedDevices.length} 台设备` : "无"}
+              <DeviceCountLabel count={pairedDevices.length} />
             </span>
           </div>
           <Separator />
@@ -83,7 +94,7 @@ function DevicesPage() {
               </div>
             ) : (
               <p className="py-2 text-center text-xs text-muted-foreground">
-                通过配对码连接其他设备
+                <Trans>通过配对码连接其他设备</Trans>
               </p>
             )}
           </div>
@@ -92,9 +103,11 @@ function DevicesPage() {
         {/* Nearby Devices */}
         <div className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-3">
-            <h3 className="text-sm font-medium">附近设备</h3>
+            <h3 className="text-sm font-medium">
+              <Trans>附近设备</Trans>
+            </h3>
             <span className="text-xs text-muted-foreground">
-              {nearbyDevices.length > 0 ? `${nearbyDevices.length} 台设备` : "无"}
+              <DeviceCountLabel count={nearbyDevices.length} />
             </span>
           </div>
           <Separator />
@@ -107,7 +120,7 @@ function DevicesPage() {
               </div>
             ) : (
               <p className="py-2 text-center text-xs text-muted-foreground">
-                在局域网中发现可配对设备
+                <Trans>在局域网中发现可配对设备</Trans>
               </p>
             )}
           </div>
@@ -116,8 +129,12 @@ function DevicesPage() {
         {/* Code Pairing */}
         <div className="rounded-xl border bg-card">
           <div className="px-5 py-3">
-            <h3 className="text-sm font-medium">配对码连接</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">使用配对码与远程设备配对</p>
+            <h3 className="text-sm font-medium">
+              <Trans>配对码连接</Trans>
+            </h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              <Trans>使用配对码与远程设备配对</Trans>
+            </p>
           </div>
           <Separator />
           <div className="px-5 py-3">

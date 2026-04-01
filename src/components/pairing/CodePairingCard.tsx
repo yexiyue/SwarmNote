@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Copy, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PairingCodeInfo } from "@/commands/pairing";
@@ -10,6 +11,7 @@ import { useAsyncAction } from "@/hooks/useAsyncAction";
 type CardMode = "idle" | "generate" | "input";
 
 export function CodePairingCard() {
+  const { t } = useLingui();
   const [mode, setMode] = useState<CardMode>("idle");
   const [codeInfo, setCodeInfo] = useState<PairingCodeInfo | null>(null);
   const [remaining, setRemaining] = useState(0);
@@ -62,7 +64,7 @@ export function CodePairingCard() {
       setMode("generate");
     } catch (e) {
       console.error("Failed to generate pairing code:", e);
-      setError("生成配对码失败");
+      setError(t`生成配对码失败`);
     }
   }
 
@@ -73,7 +75,7 @@ export function CodePairingCard() {
 
   async function handleInputConnect() {
     if (inputCode.length !== 6) {
-      setError("请输入6位配对码");
+      setError(t`请输入6位配对码`);
       return;
     }
 
@@ -87,7 +89,7 @@ export function CodePairingCard() {
       if (resp.status === "Success") {
         resetToIdle();
       } else {
-        setError(resp.reason ?? "配对被拒绝");
+        setError(resp.reason ?? t`配对被拒绝`);
       }
     });
   }
@@ -107,19 +109,23 @@ export function CodePairingCard() {
   if (mode === "idle") {
     return (
       <div className="rounded-lg border p-4">
-        <div className="mb-2 text-sm font-medium">跨网络配对</div>
-        <p className="mb-4 text-xs text-muted-foreground">在不同网络环境下，使用配对码连接设备</p>
+        <div className="mb-2 text-sm font-medium">
+          <Trans>跨网络配对</Trans>
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">
+          <Trans>在不同网络环境下，使用配对码连接设备</Trans>
+        </p>
         <ErrorMessage error={error} className="mb-3" />
         <div className="flex items-center gap-3">
           <Button size="sm" onClick={handleGenerate}>
-            生成配对码
+            <Trans>生成配对码</Trans>
           </Button>
           <button
             type="button"
             className="text-xs text-muted-foreground underline hover:text-foreground"
             onClick={() => setMode("input")}
           >
-            或 输入配对码连接
+            <Trans>或 输入配对码连接</Trans>
           </button>
         </div>
       </div>
@@ -129,8 +135,12 @@ export function CodePairingCard() {
   if (mode === "input") {
     return (
       <div className="rounded-lg border p-4">
-        <div className="mb-2 text-sm font-medium">输入配对码</div>
-        <p className="mb-4 text-xs text-muted-foreground">输入对方设备生成的6位配对码</p>
+        <div className="mb-2 text-sm font-medium">
+          <Trans>输入配对码</Trans>
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">
+          <Trans>输入对方设备生成的6位配对码</Trans>
+        </p>
         <ErrorMessage error={error} className="mb-3" />
         <div className="flex items-center gap-2">
           <Input
@@ -141,14 +151,14 @@ export function CodePairingCard() {
             maxLength={6}
           />
           <Button size="sm" onClick={handleInputConnect} loading={loading}>
-            {loading ? "连接中..." : "连接"}
+            {loading ? <Trans>连接中...</Trans> : <Trans>连接</Trans>}
           </Button>
           <button
             type="button"
             className="text-xs text-muted-foreground underline hover:text-foreground"
             onClick={resetToIdle}
           >
-            取消
+            <Trans>取消</Trans>
           </button>
         </div>
       </div>
@@ -158,9 +168,11 @@ export function CodePairingCard() {
   // mode === "generate"
   return (
     <div className="rounded-lg border p-4">
-      <div className="mb-2 text-sm font-medium">跨网络配对</div>
+      <div className="mb-2 text-sm font-medium">
+        <Trans>跨网络配对</Trans>
+      </div>
       <p className="mb-4 text-xs text-muted-foreground">
-        将此配对码告知对方设备，配对码将在 {formatSeconds(remaining)} 后过期
+        <Trans>将此配对码告知对方设备，配对码将在 {formatSeconds(remaining)} 后过期</Trans>
       </p>
 
       <div className="mb-4 flex items-center gap-3">
@@ -170,22 +182,24 @@ export function CodePairingCard() {
             <span key={`${arr.length}-${_i}`}>{digit}</span>
           ))}
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={handleCopyCode} title="复制配对码">
+        <Button variant="ghost" size="icon-sm" onClick={handleCopyCode} title={t`复制配对码`}>
           <Copy className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon-sm" onClick={handleRefresh} title="刷新码">
+        <Button variant="ghost" size="icon-sm" onClick={handleRefresh} title={t`刷新码`}>
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">等待对方连接...</span>
+        <span className="text-xs text-muted-foreground">
+          <Trans>等待对方连接...</Trans>
+        </span>
         <button
           type="button"
           className="text-xs text-muted-foreground underline hover:text-foreground"
           onClick={resetToIdle}
         >
-          取消
+          <Trans>取消</Trans>
         </button>
       </div>
     </div>

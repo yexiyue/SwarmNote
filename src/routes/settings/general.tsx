@@ -1,7 +1,10 @@
+import { Trans } from "@lingui/react/macro";
 import { createFileRoute } from "@tanstack/react-router";
-import { Globe, Palette } from "lucide-react";
+import { FolderOpen, Globe, Palette } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import type { Locale } from "@/i18n";
+import { usePreferencesStore } from "@/stores/preferencesStore";
 import { useUIStore } from "@/stores/uiStore";
 
 function SettingCard({
@@ -84,15 +87,22 @@ function GeneralSettingsPage() {
   const setTheme = useUIStore((s) => s.setTheme);
   const setLocale = useUIStore((s) => s.setLocale);
 
+  const restoreLastWorkspace = usePreferencesStore((s) => s.restoreLastWorkspace);
+  const setRestoreLastWorkspace = usePreferencesStore((s) => s.setRestoreLastWorkspace);
+
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">通用</h1>
-        <p className="mt-1 text-sm text-muted-foreground">管理界面外观和语言偏好</p>
+        <h1 className="text-xl font-semibold tracking-tight">
+          <Trans>通用</Trans>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          <Trans>管理界面外观和语言偏好</Trans>
+        </p>
       </div>
 
       <div className="space-y-4">
-        <SettingCard title="界面偏好" description="自定义应用的显示方式">
+        <SettingCard title="外观" description="自定义应用的显示方式">
           <div className="space-y-1">
             <SettingRow icon={Globe} label="语言" description="选择界面显示语言">
               <StyledSelect
@@ -117,6 +127,16 @@ function GeneralSettingsPage() {
               />
             </SettingRow>
           </div>
+        </SettingCard>
+
+        <SettingCard title="启动行为" description="控制应用启动时的默认行为">
+          <SettingRow
+            icon={FolderOpen}
+            label="恢复上次工作区"
+            description="启动时自动打开上次使用的工作区"
+          >
+            <Switch checked={restoreLastWorkspace} onCheckedChange={setRestoreLastWorkspace} />
+          </SettingRow>
         </SettingCard>
       </div>
     </div>

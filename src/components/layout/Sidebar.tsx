@@ -149,14 +149,14 @@ export function Sidebar() {
             />
             <span className="truncate text-xs text-muted-foreground">
               {nodeLoading
-                ? "连接中..."
+                ? t`连接中...`
                 : nodeStatus === "running"
                   ? connectedPeers.length > 0
-                    ? `已连接 · ${connectedPeers.length} 台设备在线`
-                    : "已连接"
+                    ? t`已连接 · ${connectedPeers.length} 台设备在线`
+                    : t`已连接`
                   : nodeStatus === "error"
-                    ? "连接失败"
-                    : "未连接"}
+                    ? t`连接失败`
+                    : t`未连接`}
             </span>
           </button>
         </div>

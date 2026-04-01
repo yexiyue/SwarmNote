@@ -1,8 +1,11 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute } from "@tanstack/react-router";
-import { Cpu, Fingerprint, Info, Monitor } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { Cpu, Fingerprint, Info, Monitor, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { DeviceInfo } from "@/commands/identity";
 import { getDeviceInfo } from "@/commands/identity";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 function InfoRow({
@@ -34,6 +37,7 @@ function InfoRow({
 }
 
 function AboutPage() {
+  const { t } = useLingui();
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
 
   useEffect(() => {
@@ -43,8 +47,12 @@ function AboutPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">关于</h1>
-        <p className="mt-1 text-sm text-muted-foreground">SwarmNote 版本与设备信息</p>
+        <h1 className="text-xl font-semibold tracking-tight">
+          <Trans>关于</Trans>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          <Trans>SwarmNote 版本与设备信息</Trans>
+        </p>
       </div>
 
       <div className="space-y-4">
@@ -56,11 +64,21 @@ function AboutPage() {
             </div>
             <div>
               <h3 className="text-sm font-semibold">SwarmNote</h3>
-              <p className="text-xs text-muted-foreground">去中心化 P2P 笔记应用</p>
+              <p className="text-xs text-muted-foreground">
+                <Trans>去中心化 P2P 笔记应用</Trans>
+              </p>
             </div>
-            <span className="ml-auto rounded-full bg-muted px-3 py-1 text-xs font-medium">
-              v0.2.0
-            </span>
+            <div className="ml-auto flex items-center gap-3">
+              <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">v0.2.0</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openUrl("https://github.com/yexiyue/SwarmNote/releases")}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <Trans>检查更新</Trans>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -68,19 +86,23 @@ function AboutPage() {
         {deviceInfo && (
           <div className="rounded-xl border bg-card">
             <div className="px-5 py-4">
-              <h3 className="text-sm font-medium">设备信息</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">当前运行设备的详细信息</p>
+              <h3 className="text-sm font-medium">
+                <Trans>设备信息</Trans>
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                <Trans>当前运行设备的详细信息</Trans>
+              </p>
             </div>
             <Separator />
             <div className="px-5 py-3">
               <div className="space-y-1">
-                <InfoRow icon={Monitor} label="设备名称" value={deviceInfo.device_name} />
+                <InfoRow icon={Monitor} label={t`设备名称`} value={deviceInfo.device_name} />
                 <Separator />
                 <InfoRow icon={Fingerprint} label="Peer ID" value={deviceInfo.peer_id} mono />
                 <Separator />
                 <InfoRow
                   icon={Cpu}
-                  label="操作系统"
+                  label={t`操作系统`}
                   value={`${deviceInfo.os} · ${deviceInfo.platform} · ${deviceInfo.arch}`}
                 />
               </div>
@@ -91,24 +113,27 @@ function AboutPage() {
         {/* Links */}
         <div className="rounded-xl border bg-card">
           <div className="px-5 py-4">
-            <h3 className="text-sm font-medium">更多</h3>
+            <h3 className="text-sm font-medium">
+              <Trans>更多</Trans>
+            </h3>
           </div>
           <Separator />
           <div className="px-5 py-3">
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            <button
+              type="button"
+              onClick={() => openUrl("https://github.com/yexiyue/SwarmNote")}
+              className="flex w-full items-center justify-between py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <span>开源仓库</span>
+                <span>
+                  <Trans>开源仓库</Trans>
+                </span>
               </div>
-              <span className="text-xs">GitHub &rarr;</span>
-            </a>
+              <span className="text-xs">GitHub →</span>
+            </button>
           </div>
         </div>
       </div>
