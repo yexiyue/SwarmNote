@@ -44,16 +44,27 @@ pub async fn get_device_by_code(
 
 #[tauri::command]
 pub async fn request_pairing(
+    app: AppHandle,
     net_state: State<'_, NetManagerState>,
     peer_id: String,
     method: PairingMethod,
     remote_os_info: Option<OsInfo>,
 ) -> AppResult<crate::protocol::PairingResponse> {
-    net_state
+    let resp = net_state
         .pairing()
         .await?
         .request_pairing(&peer_id, method, remote_os_info)
-        .await
+        .await?;
+
+    if matches!(resp, crate::protocol::PairingResponse::Success) {
+        let _ = app.emit(events::PAIRED_DEVICE_ADDED, ());
+        if let Ok(dm) = net_state.devices().await {
+            let devices = dm.get_devices(DeviceFilter::All);
+            let _ = app.emit(events::DEVICES_CHANGED, &devices);
+        }
+    }
+
+    Ok(resp)
 }
 
 #[tauri::command]

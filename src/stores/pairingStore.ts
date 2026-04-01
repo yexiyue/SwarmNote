@@ -53,11 +53,11 @@ export function setupPairingListeners() {
   listenersSetup = true;
 
   listen("paired-device-added", () => {
-    usePairingStore.getState().loadPairedDevices();
+    usePairingStore.getState().refresh();
   });
 
   listen("paired-device-removed", () => {
-    usePairingStore.getState().loadPairedDevices();
+    usePairingStore.getState().refresh();
   });
 
   listen("devices-changed", () => {

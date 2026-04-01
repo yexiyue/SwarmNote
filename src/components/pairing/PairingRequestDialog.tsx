@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { respondPairingRequest } from "@/commands/pairing";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useNotificationStore } from "@/stores/notificationStore";
 import { DeviceInfoCard } from "./DeviceInfoCard";
 
 interface PairingRequestPayload {
@@ -22,65 +20,40 @@ interface PairingRequestPayload {
 
 interface PairingRequestDialogProps {
   data: PairingRequestPayload;
-  notificationId: string;
+  responding: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+  onClose: () => void;
 }
 
-export function PairingRequestDialog({ data, notificationId }: PairingRequestDialogProps) {
-  const [responding, setResponding] = useState(false);
+export function PairingRequestDialog({
+  data,
+  responding,
+  onAccept,
+  onReject,
+  onClose,
+}: PairingRequestDialogProps) {
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, Math.ceil((new Date(data.expiresAt).getTime() - Date.now()) / 1000)),
   );
-  const respondedRef = useRef(false);
 
-  const close = useCallback(() => {
-    useNotificationStore.getState().respond(notificationId);
-  }, [notificationId]);
-
-  const handleReject = useCallback(async () => {
-    if (respondedRef.current) return;
-    respondedRef.current = true;
-    setResponding(true);
-    try {
-      await respondPairingRequest(data.pendingId, false);
-    } catch (e) {
-      console.error("Failed to reject pairing request:", e);
-    } finally {
-      setResponding(false);
-      close();
-    }
-  }, [data.pendingId, close]);
-
-  async function handleAccept() {
-    if (respondedRef.current) return;
-    respondedRef.current = true;
-    setResponding(true);
-    try {
-      await respondPairingRequest(data.pendingId, true);
-    } catch (e) {
-      console.error("Failed to accept pairing request:", e);
-    } finally {
-      setResponding(false);
-      close();
-    }
-  }
-
-  // Countdown timer
+  // Countdown timer — auto-reject on expiry
   useEffect(() => {
     const interval = setInterval(() => {
       const left = Math.max(0, Math.ceil((new Date(data.expiresAt).getTime() - Date.now()) / 1000));
       setRemaining(left);
       if (left <= 0) {
         clearInterval(interval);
-        handleReject();
+        onReject();
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [data.expiresAt, handleReject]);
+  }, [data.expiresAt, onReject]);
 
   return (
-    <Dialog open onOpenChange={(open) => !open && handleReject()}>
-      <DialogContent showCloseButton={false}>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>收到配对请求</DialogTitle>
         </DialogHeader>
@@ -100,11 +73,11 @@ export function PairingRequestDialog({ data, notificationId }: PairingRequestDia
         <div className="text-center text-xs text-muted-foreground">剩余时间：{remaining} 秒</div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleReject} disabled={responding}>
+          <Button variant="outline" onClick={onReject} disabled={responding}>
             拒绝
           </Button>
-          <Button onClick={handleAccept} loading={responding}>
-            {responding ? "处理中..." : "接受"}
+          <Button onClick={onAccept} disabled={responding}>
+            接受
           </Button>
         </DialogFooter>
       </DialogContent>
