@@ -16,6 +16,7 @@ export interface PairedDeviceInfo {
   lastSeen: string | null;
   isOnline?: boolean;
   rttMs?: number;
+  connection?: ConnectionType;
 }
 
 export interface PeerInfo {

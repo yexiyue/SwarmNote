@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsSyncRouteImport } from './routes/settings/sync'
 import { Route as SettingsNetworkRouteImport } from './routes/settings/network'
 import { Route as SettingsGeneralRouteImport } from './routes/settings/general'
 import { Route as SettingsDevicesRouteImport } from './routes/settings/devices'
@@ -31,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsSyncRoute = SettingsSyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsNetworkRoute = SettingsNetworkRouteImport.update({
   id: '/network',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/settings/devices': typeof SettingsDevicesRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/network': typeof SettingsNetworkRoute
+  '/settings/sync': typeof SettingsSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/settings/devices': typeof SettingsDevicesRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/network': typeof SettingsNetworkRoute
+  '/settings/sync': typeof SettingsSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/settings/devices': typeof SettingsDevicesRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/network': typeof SettingsNetworkRoute
+  '/settings/sync': typeof SettingsSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/settings/devices'
     | '/settings/general'
     | '/settings/network'
+    | '/settings/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/settings/devices'
     | '/settings/general'
     | '/settings/network'
+    | '/settings/sync'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/settings/devices'
     | '/settings/general'
     | '/settings/network'
+    | '/settings/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -139,6 +151,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/settings/sync': {
+      id: '/settings/sync'
+      path: '/sync'
+      fullPath: '/settings/sync'
+      preLoaderRoute: typeof SettingsSyncRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/settings/network': {
       id: '/settings/network'
@@ -176,6 +195,7 @@ interface SettingsRouteChildren {
   SettingsDevicesRoute: typeof SettingsDevicesRoute
   SettingsGeneralRoute: typeof SettingsGeneralRoute
   SettingsNetworkRoute: typeof SettingsNetworkRoute
+  SettingsSyncRoute: typeof SettingsSyncRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -183,6 +203,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsDevicesRoute: SettingsDevicesRoute,
   SettingsGeneralRoute: SettingsGeneralRoute,
   SettingsNetworkRoute: SettingsNetworkRoute,
+  SettingsSyncRoute: SettingsSyncRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

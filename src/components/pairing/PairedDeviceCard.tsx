@@ -1,13 +1,8 @@
-import { MoreHorizontal } from "lucide-react";
+import { Loader2, Unlink } from "lucide-react";
 import type { PairedDeviceInfo } from "@/commands/pairing";
 import { unpairDevice } from "@/commands/pairing";
+import { ConnectionBadge } from "@/components/pairing/ConnectionBadge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { formatDate, formatRelativeTime } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
@@ -41,12 +36,16 @@ export function PairedDeviceCard({ device, onUnpaired }: PairedDeviceCardProps) 
           <span
             className={cn(
               "inline-block h-2 w-2 rounded-full",
-              isOnline ? "bg-green-500" : "bg-gray-300",
+              isOnline ? "bg-green-500" : "bg-muted-foreground/30",
             )}
           />
-          <span className="text-xs text-muted-foreground">
-            {device.rttMs != null ? `${device.rttMs}ms` : null}
-          </span>
+          {isOnline && device.connection ? (
+            <ConnectionBadge type={device.connection} latency={device.rttMs} />
+          ) : (
+            device.rttMs != null && (
+              <span className="text-xs text-muted-foreground">{device.rttMs}ms</span>
+            )
+          )}
         </div>
         <div className="text-xs text-muted-foreground">
           {isOnline
@@ -55,22 +54,16 @@ export function PairedDeviceCard({ device, onUnpaired }: PairedDeviceCardProps) 
         </div>
       </DeviceInfoCard>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={handleUnpair}
-            disabled={loading}
-          >
-            {loading ? "取消配对中..." : "取消配对"}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={handleUnpair}
+        disabled={loading}
+        className="shrink-0 text-muted-foreground hover:text-destructive"
+        title="取消配对"
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4" />}
+      </Button>
     </div>
   );
 }
