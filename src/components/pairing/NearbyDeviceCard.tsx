@@ -15,7 +15,16 @@ export function NearbyDeviceCard({ device, onPaired }: NearbyDeviceCardProps) {
 
   async function handlePair() {
     await run(async () => {
-      const resp = await requestPairing(device.peerId, { type: "Direct" });
+      const resp = await requestPairing(
+        device.peerId,
+        { type: "Direct" },
+        {
+          hostname: device.hostname,
+          os: device.os,
+          platform: device.platform,
+          arch: device.arch,
+        },
+      );
       if (resp.status === "Success") {
         onPaired?.();
       }

@@ -23,7 +23,7 @@ fn parse_peer_id(s: &str) -> AppResult<PeerId> {
         .map_err(|e| AppError::Pairing(format!("Invalid PeerId '{s}': {e}")))
 }
 
-/// 入站配对请求的过期时间（秒）。
+/// 入站配对请求的过期时间（秒）。大于前端展示的 90s 倒计时，作为后端缓存宽限。
 const PENDING_TTL: Duration = Duration::from_secs(120);
 
 /// 配对码发布到 DHT 的记录内容。

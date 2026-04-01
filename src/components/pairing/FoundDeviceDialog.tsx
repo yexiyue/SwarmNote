@@ -34,7 +34,7 @@ export function FoundDeviceDialog({
 
   async function handleConfirm() {
     await run(async () => {
-      const resp = await requestPairing(peerId, { type: "Code", code });
+      const resp = await requestPairing(peerId, { type: "Code", code }, osInfo);
       if (resp.status === "Success") {
         onSuccess();
       } else {
