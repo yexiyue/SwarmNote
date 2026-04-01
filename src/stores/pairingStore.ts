@@ -1,11 +1,11 @@
 import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
-import type { PairedDeviceInfo, PeerInfo } from "@/commands/pairing";
+import type { Device, PairedDeviceInfo } from "@/commands/pairing";
 import { getNearbyDevices, getPairedDevices } from "@/commands/pairing";
 
 interface PairingState {
   pairedDevices: PairedDeviceInfo[];
-  nearbyDevices: PeerInfo[];
+  nearbyDevices: Device[];
   isLoading: boolean;
 }
 
@@ -60,15 +60,7 @@ export function setupPairingListeners() {
     usePairingStore.getState().loadPairedDevices();
   });
 
-  listen("nearby-devices-changed", () => {
-    usePairingStore.getState().loadNearbyDevices();
-  });
-
-  listen("peer-connected", () => {
-    usePairingStore.getState().loadNearbyDevices();
-  });
-
-  listen("peer-disconnected", () => {
+  listen("devices-changed", () => {
     usePairingStore.getState().loadNearbyDevices();
   });
 }

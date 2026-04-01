@@ -23,7 +23,8 @@ export function Sidebar() {
 
   const nodeStatus = useNetworkStore((s) => s.status);
   const nodeLoading = useNetworkStore((s) => s.loading);
-  const connectedPeers = useNetworkStore((s) => s.connectedPeers);
+  const devices = useNetworkStore((s) => s.devices);
+  const connectedPeers = devices.filter((d) => d.status === "online");
 
   // Rescan when workspace changes
   useEffect(() => {

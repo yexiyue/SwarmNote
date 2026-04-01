@@ -44,9 +44,15 @@ pub struct NetManager {
 
 impl NetManager {
     pub fn new(client: AppNetClient, peer_id: PeerId, db: DatabaseConnection) -> Self {
-        let device_manager = Arc::new(DeviceManager::new());
+        let paired_devices = Arc::new(dashmap::DashMap::new());
+        let device_manager = Arc::new(DeviceManager::new(paired_devices.clone()));
         let online_announcer = Arc::new(OnlineAnnouncer::new(client.clone(), peer_id));
-        let pairing_manager = Arc::new(PairingManager::new(client.clone(), peer_id, db));
+        let pairing_manager = Arc::new(PairingManager::new(
+            client.clone(),
+            peer_id,
+            db,
+            paired_devices,
+        ));
         let cancel_token = CancellationToken::new();
 
         Self {

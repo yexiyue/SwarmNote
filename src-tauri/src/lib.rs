@@ -74,6 +74,7 @@ pub fn run() {
             pairing::commands::get_paired_devices,
             pairing::commands::unpair_device,
             pairing::commands::get_nearby_devices,
+            pairing::commands::list_devices,
             workspace::commands::open_settings_window,
             // Y.Doc 管理
             yjs::commands::open_ydoc,

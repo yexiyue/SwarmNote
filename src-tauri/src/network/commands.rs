@@ -3,7 +3,7 @@ use swarm_p2p_core::libp2p::identity::Keypair;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tracing::info;
 
-use crate::device::PeerInfo;
+use crate::device::{Device, DeviceFilter};
 use crate::error::{AppError, AppResult};
 use crate::identity::IdentityState;
 use crate::protocol::{AppRequest, AppResponse, OsInfo};
@@ -146,13 +146,11 @@ pub async fn get_network_status(
     Ok(net_state.status().await)
 }
 
-/// 获取已连接的 peers 列表
+/// 获取已连接的设备列表
 #[tauri::command]
-pub async fn get_connected_peers(
-    net_state: State<'_, NetManagerState>,
-) -> AppResult<Vec<PeerInfo>> {
+pub async fn get_connected_peers(net_state: State<'_, NetManagerState>) -> AppResult<Vec<Device>> {
     match net_state.devices().await {
-        Ok(dm) => Ok(dm.get_connected_peers()),
+        Ok(dm) => Ok(dm.get_devices(DeviceFilter::Connected)),
         Err(_) => Ok(Vec::new()),
     }
 }

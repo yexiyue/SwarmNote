@@ -2,18 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 
-// ── Types ──
+import type { Device } from "@/commands/pairing";
 
-export interface PeerInfo {
-  peer_id: string;
-  hostname: string;
-  os: string;
-  platform: string;
-  arch: string;
-  is_connected: boolean;
-  rtt_ms: number | null;
-  connection_type: string | null;
-}
+// ── Types ──
 
 interface NetworkStatus {
   natStatus: string | null;
@@ -32,7 +23,8 @@ interface NodeStatusPayload {
 interface NetworkState {
   status: NodeStatus;
   error: string | null;
-  connectedPeers: PeerInfo[];
+  /** 统一设备列表（包含连接类型、配对状态等完整信息） */
+  devices: Device[];
   natStatus: string | null;
   userManuallyStopped: boolean;
   /** True while an async start/stop operation is in-flight */
@@ -42,7 +34,13 @@ interface NetworkState {
 interface NetworkActions {
   startNode: () => Promise<void>;
   stopNode: (manual?: boolean) => Promise<void>;
-  refreshPeers: () => Promise<void>;
+  refreshDevices: () => Promise<void>;
+  /** 已连接的设备 */
+  getConnectedDevices: () => Device[];
+  /** 已配对的设备 */
+  getPairedDevices: () => Device[];
+  /** 附近设备（已连接但未配对） */
+  getNearbyDevices: () => Device[];
 }
 
 // ── Store ──
@@ -50,7 +48,7 @@ interface NetworkActions {
 export const useNetworkStore = create<NetworkState & NetworkActions>()((set, get) => ({
   status: "stopped",
   error: null,
-  connectedPeers: [],
+  devices: [],
   natStatus: null,
   userManuallyStopped: false,
   loading: false,
@@ -74,7 +72,7 @@ export const useNetworkStore = create<NetworkState & NetworkActions>()((set, get
     set({ loading: true });
     try {
       await invoke("stop_p2p_node");
-      set({ status: "stopped", connectedPeers: [], natStatus: null });
+      set({ status: "stopped", devices: [], natStatus: null });
       if (manual) {
         set({ userManuallyStopped: true });
       }
@@ -85,10 +83,18 @@ export const useNetworkStore = create<NetworkState & NetworkActions>()((set, get
     }
   },
 
-  refreshPeers: async () => {
-    const peers = await invoke<PeerInfo[]>("get_connected_peers");
-    set({ connectedPeers: peers });
+  refreshDevices: async () => {
+    try {
+      const result = await invoke<{ devices: Device[] }>("list_devices", { filter: "all" });
+      set({ devices: result.devices });
+    } catch {
+      // Node might not be running
+    }
   },
+
+  getConnectedDevices: () => get().devices.filter((d) => d.status === "online"),
+  getPairedDevices: () => get().devices.filter((d) => d.isPaired),
+  getNearbyDevices: () => get().devices.filter((d) => d.status === "online" && !d.isPaired),
 }));
 
 // ── Tauri Event Listeners ──
@@ -98,50 +104,38 @@ let unlisteners: UnlistenFn[] = [];
 export async function setupNetworkListeners() {
   await cleanupNetworkListeners();
 
-  const u1 = await listen<PeerInfo>("peer-connected", (event) => {
-    const peer = event.payload;
-    useNetworkStore.setState((state) => {
-      const existing = state.connectedPeers.findIndex((p) => p.peer_id === peer.peer_id);
-      const peers =
-        existing >= 0
-          ? state.connectedPeers.map((p, i) => (i === existing ? peer : p))
-          : [...state.connectedPeers, peer];
-      return { connectedPeers: peers };
-    });
+  // 统一设备列表更新（替代旧的 peer-connected / peer-disconnected）
+  const u1 = await listen<Device[]>("devices-changed", (event) => {
+    useNetworkStore.setState({ devices: event.payload });
   });
 
-  const u2 = await listen<string>("peer-disconnected", (event) => {
-    const peerId = event.payload;
-    useNetworkStore.setState((state) => ({
-      connectedPeers: state.connectedPeers.filter((p) => p.peer_id !== peerId),
-    }));
-  });
-
-  const u3 = await listen<NetworkStatus>("network-status-changed", (event) => {
+  const u2 = await listen<NetworkStatus>("network-status-changed", (event) => {
     useNetworkStore.setState({ natStatus: event.payload.natStatus });
   });
 
   // Events from backend — used to sync other windows
-  const u4 = await listen("node-started", () => {
+  const u3 = await listen("node-started", () => {
     useNetworkStore.setState({ status: "running", error: null, loading: false });
   });
 
-  const u5 = await listen("node-stopped", () => {
+  const u4 = await listen("node-stopped", () => {
     useNetworkStore.setState({
       status: "stopped",
-      connectedPeers: [],
+      devices: [],
       natStatus: null,
       loading: false,
     });
   });
 
-  unlisteners = [u1, u2, u3, u4, u5];
+  unlisteners = [u1, u2, u3, u4];
 
   // Sync initial status from backend (handles page refresh / new window)
   try {
     const payload = await invoke<NodeStatusPayload>("get_network_status");
     if (payload.kind === "running") {
       useNetworkStore.setState({ status: "running", error: null });
+      // 初始化时也拉取一次设备列表
+      useNetworkStore.getState().refreshDevices();
     } else if (payload.kind === "error") {
       useNetworkStore.setState({ status: "error", error: payload.message ?? null });
     }

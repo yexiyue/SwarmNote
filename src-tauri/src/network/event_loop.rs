@@ -3,26 +3,22 @@
 use std::sync::Arc;
 
 use swarm_p2p_core::event::NodeEvent;
-use swarm_p2p_core::libp2p::PeerId;
 use swarm_p2p_core::EventReceiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::device::DeviceManager;
+use crate::device::{DeviceFilter, DeviceManager};
 use crate::pairing::PairingManager;
 use crate::protocol::AppRequest;
 
 /// Tauri 事件名常量
 pub mod events {
-    pub const PEER_CONNECTED: &str = "peer-connected";
-    pub const PEER_DISCONNECTED: &str = "peer-disconnected";
+    pub const DEVICES_CHANGED: &str = "devices-changed";
     pub const NETWORK_STATUS_CHANGED: &str = "network-status-changed";
     pub const PAIRING_REQUEST_RECEIVED: &str = "pairing-request-received";
     pub const PAIRED_DEVICE_ADDED: &str = "paired-device-added";
     pub const PAIRED_DEVICE_REMOVED: &str = "paired-device-removed";
-    #[expect(dead_code)]
-    pub const NEARBY_DEVICES_CHANGED: &str = "nearby-devices-changed";
 }
 
 /// 启动事件循环，持续读取 NodeEvent 并分发到 DeviceManager + Tauri 事件
@@ -60,36 +56,49 @@ async fn handle_event(
     device_manager: &DeviceManager,
     pairing_manager: &PairingManager,
 ) {
+    // 统一更新设备状态
+    device_manager.handle_event(&event);
+
+    let emit_devices = || {
+        let devices = device_manager.get_devices(DeviceFilter::All);
+        let _ = app.emit(events::DEVICES_CHANGED, &devices);
+    };
+
     match event {
         // ── 设备发现与连接 ──
         NodeEvent::Listening { addr } => {
             info!("Listening on {addr}");
         }
-        NodeEvent::PeersDiscovered { peers } => {
+        NodeEvent::PeersDiscovered { ref peers } => {
             info!("Discovered {} peer(s)", peers.len());
-            device_manager.add_peers(peers);
+            emit_devices();
         }
-        NodeEvent::PeerConnected { peer_id } => {
-            handle_peer_connected(app, device_manager, peer_id).await;
+        NodeEvent::PeerConnected { ref peer_id } => {
+            info!("Peer connected: {peer_id}");
+            emit_devices();
+            #[cfg(desktop)]
+            update_tray_peer_count(app, device_manager).await;
         }
-        NodeEvent::PeerDisconnected { peer_id } => {
-            handle_peer_disconnected(app, device_manager, peer_id).await;
+        NodeEvent::PeerDisconnected { ref peer_id } => {
+            info!("Peer disconnected: {peer_id}");
+            emit_devices();
+            #[cfg(desktop)]
+            update_tray_peer_count(app, device_manager).await;
         }
         NodeEvent::IdentifyReceived {
-            peer_id,
-            agent_version,
+            ref peer_id,
+            ref agent_version,
             ..
         } => {
-            let is_swarmnote = device_manager.set_agent_version(&peer_id, &agent_version);
-            if is_swarmnote {
-                info!("Identified SwarmNote peer: {peer_id} ({agent_version})");
-                if let Some(peer_info) = device_manager.get_peer(&peer_id) {
-                    let _ = app.emit(events::PEER_CONNECTED, &peer_info);
-                }
-            }
+            info!("Identified peer: {peer_id} ({agent_version})");
+            emit_devices();
         }
-        NodeEvent::PingSuccess { peer_id, rtt_ms } => {
-            device_manager.update_rtt(&peer_id, rtt_ms);
+        NodeEvent::PingSuccess { .. } => {
+            emit_devices();
+        }
+        NodeEvent::HolePunchSucceeded { ref peer_id } => {
+            info!("Hole punch succeeded with {peer_id}");
+            emit_devices();
         }
 
         // ── 网络状态 ──
@@ -103,9 +112,6 @@ async fn handle_event(
                 "publicAddr": public_addr.map(|a| a.to_string()),
             });
             let _ = app.emit(events::NETWORK_STATUS_CHANGED, payload);
-        }
-        NodeEvent::HolePunchSucceeded { peer_id } => {
-            info!("Hole punch succeeded with {peer_id}");
         }
         NodeEvent::HolePunchFailed { peer_id, error } => {
             warn!("Hole punch failed with {peer_id}: {error}");
@@ -144,34 +150,12 @@ async fn handle_event(
     }
 }
 
-// ── 拆分的事件处理函数 ──
-
-async fn handle_peer_connected(app: &AppHandle, device_manager: &DeviceManager, peer_id: PeerId) {
-    info!("Peer connected: {peer_id}");
-    device_manager.set_connected(&peer_id);
-    if let Some(peer_info) = device_manager.get_peer(&peer_id) {
-        let _ = app.emit(events::PEER_CONNECTED, &peer_info);
-    }
-    #[cfg(desktop)]
-    update_tray_peer_count(app, device_manager).await;
-}
-
-async fn handle_peer_disconnected(
-    app: &AppHandle,
-    device_manager: &DeviceManager,
-    peer_id: PeerId,
-) {
-    info!("Peer disconnected: {peer_id}");
-    device_manager.set_disconnected(&peer_id);
-    let _ = app.emit(events::PEER_DISCONNECTED, peer_id.to_string());
-    #[cfg(desktop)]
-    update_tray_peer_count(app, device_manager).await;
-}
+// ── 入站请求处理 ──
 
 fn handle_inbound_request(
     app: &AppHandle,
     pairing_manager: &PairingManager,
-    peer_id: PeerId,
+    peer_id: swarm_p2p_core::libp2p::PeerId,
     pending_id: u64,
     request: AppRequest,
 ) {

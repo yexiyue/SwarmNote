@@ -13,6 +13,25 @@ pub struct OsInfo {
 }
 
 impl OsInfo {
+    /// SwarmNote 客户端 agent_version 前缀
+    pub const AGENT_PREFIX: &str = "swarmnote/";
+
+    /// 检查 agent_version 是否属于 SwarmNote 客户端
+    pub fn is_swarmnote_agent(agent_version: &str) -> bool {
+        agent_version.starts_with(Self::AGENT_PREFIX)
+    }
+
+    /// 无法解析 agent_version 时的回退值，用 PeerId 末尾 8 位作为 hostname
+    pub fn unknown_from_peer_id(peer_id: &swarm_p2p_core::libp2p::PeerId) -> Self {
+        let s = peer_id.to_string();
+        Self {
+            hostname: s[s.len().saturating_sub(8)..].to_string(),
+            os: "unknown".to_string(),
+            platform: "unknown".to_string(),
+            arch: "unknown".to_string(),
+        }
+    }
+
     /// 编码为 agent_version 格式：`swarmnote/{version}; os={os}; platform={platform}; arch={arch}; host={hostname}`
     pub fn to_agent_version(&self, version: &str) -> String {
         format!(

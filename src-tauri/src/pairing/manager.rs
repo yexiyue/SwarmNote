@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
@@ -65,8 +65,8 @@ pub struct PairingManager {
     client: AppNetClient,
     peer_id: PeerId,
     db: DatabaseConnection,
-    /// 运行时已配对设备缓存
-    paired_devices: DashMap<PeerId, PairedDeviceInfo>,
+    /// 运行时已配对设备缓存（与 DeviceManager 共享）
+    paired_devices: Arc<DashMap<PeerId, PairedDeviceInfo>>,
     /// 当前生效的配对码（同一时间只允许一个）
     active_code: Mutex<Option<PairingCodeInfo>>,
     /// 等待用户确认的入站配对请求
@@ -75,12 +75,17 @@ pub struct PairingManager {
 
 impl PairingManager {
     /// 构造新的 PairingManager。
-    pub fn new(client: AppNetClient, peer_id: PeerId, db: DatabaseConnection) -> Self {
+    pub fn new(
+        client: AppNetClient,
+        peer_id: PeerId,
+        db: DatabaseConnection,
+        paired_devices: Arc<DashMap<PeerId, PairedDeviceInfo>>,
+    ) -> Self {
         Self {
             client,
             peer_id,
             db,
-            paired_devices: DashMap::new(),
+            paired_devices,
             active_code: Mutex::new(None),
             pending_inbound: DashMap::new(),
         }
@@ -381,11 +386,6 @@ impl PairingManager {
             .iter()
             .map(|entry| entry.value().clone())
             .collect()
-    }
-
-    /// 检查指定 PeerId 是否已配对。
-    pub fn is_paired(&self, peer_id: &PeerId) -> bool {
-        self.paired_devices.contains_key(peer_id)
     }
 
     /// 返回所有已配对设备的 PeerId（供 `check_paired_online` 使用）。

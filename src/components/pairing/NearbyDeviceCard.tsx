@@ -1,11 +1,12 @@
-import type { PeerInfo } from "@/commands/pairing";
+import type { Device } from "@/commands/pairing";
 import { requestPairing } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { ConnectionBadge } from "./ConnectionBadge";
 import { DeviceInfoCard } from "./DeviceInfoCard";
 
 interface NearbyDeviceCardProps {
-  device: PeerInfo;
+  device: Device;
   onPaired?: () => void;
 }
 
@@ -14,7 +15,7 @@ export function NearbyDeviceCard({ device, onPaired }: NearbyDeviceCardProps) {
 
   async function handlePair() {
     await run(async () => {
-      const resp = await requestPairing(device.peer_id, { type: "Direct" });
+      const resp = await requestPairing(device.peerId, { type: "Direct" });
       if (resp.status === "Success") {
         onPaired?.();
       }
@@ -29,10 +30,7 @@ export function NearbyDeviceCard({ device, onPaired }: NearbyDeviceCardProps) {
         platform={device.platform}
         className="border-0 p-0"
       >
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {device.rtt_ms != null ? <span>{device.rtt_ms}ms</span> : null}
-          {device.connection_type ? <span>· {device.connection_type}</span> : null}
-        </div>
+        {device.connection && <ConnectionBadge type={device.connection} latency={device.latency} />}
       </DeviceInfoCard>
 
       <Button

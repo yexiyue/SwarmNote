@@ -29,6 +29,35 @@ export interface PeerInfo {
   connection_type: string | null;
 }
 
+// ── 统一设备类型（对齐后端 Device struct） ──
+
+export type DeviceStatus = "online" | "offline";
+export type ConnectionType = "lan" | "dcutr" | "relay";
+
+export interface Device {
+  peerId: string;
+  hostname: string;
+  os: string;
+  platform: string;
+  arch: string;
+  status: DeviceStatus;
+  connection?: ConnectionType;
+  latency?: number;
+  isPaired: boolean;
+  pairedAt?: string;
+}
+
+export interface DeviceListResult {
+  devices: Device[];
+  total: number;
+}
+
+export type DeviceFilter = "all" | "connected" | "paired";
+
+export async function listDevices(filter?: DeviceFilter): Promise<DeviceListResult> {
+  return invoke("list_devices", { filter });
+}
+
 export interface ShareCodeDeviceInfo {
   peerId: string;
   osInfo: {
@@ -73,6 +102,6 @@ export async function unpairDevice(peerId: string): Promise<void> {
   return invoke("unpair_device", { peerId });
 }
 
-export async function getNearbyDevices(): Promise<PeerInfo[]> {
+export async function getNearbyDevices(): Promise<Device[]> {
   return invoke("get_nearby_devices");
 }

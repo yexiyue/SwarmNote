@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
-use crate::device::PeerInfo;
+use crate::device::{Device, DeviceFilter, DeviceListResult};
 use crate::error::AppResult;
 use crate::network::event_loop::events;
 use crate::network::NetManagerState;
@@ -70,6 +70,11 @@ pub async fn respond_pairing_request(
         .await?;
     if let Some(info) = result {
         let _ = app.emit(events::PAIRED_DEVICE_ADDED, &info);
+        // 配对成功后 emit 完整设备列表，确保前端即时更新
+        if let Ok(dm) = net_state.devices().await {
+            let devices = dm.get_devices(DeviceFilter::All);
+            let _ = app.emit(events::DEVICES_CHANGED, &devices);
+        }
     }
     Ok(())
 }
@@ -92,26 +97,36 @@ pub async fn unpair_device(
 ) -> AppResult<()> {
     net_state.pairing().await?.unpair(&peer_id).await?;
     let _ = app.emit(events::PAIRED_DEVICE_REMOVED, &peer_id);
+    // 取消配对后 emit 完整设备列表
+    if let Ok(dm) = net_state.devices().await {
+        let devices = dm.get_devices(DeviceFilter::All);
+        let _ = app.emit(events::DEVICES_CHANGED, &devices);
+    }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn get_nearby_devices(net_state: State<'_, NetManagerState>) -> AppResult<Vec<PeerInfo>> {
-    let devices = match net_state.devices().await {
+pub async fn list_devices(
+    net_state: State<'_, NetManagerState>,
+    filter: Option<DeviceFilter>,
+) -> AppResult<DeviceListResult> {
+    let dm = net_state.devices().await?;
+    let devices = dm.get_devices(filter.unwrap_or_default());
+    let total = devices.len();
+    Ok(DeviceListResult { devices, total })
+}
+
+#[tauri::command]
+pub async fn get_nearby_devices(net_state: State<'_, NetManagerState>) -> AppResult<Vec<Device>> {
+    let dm = match net_state.devices().await {
         Ok(dm) => dm,
         Err(_) => return Ok(Vec::new()),
     };
-    let pairing = net_state.pairing().await?;
 
-    let nearby = devices
-        .get_connected_peers()
+    let nearby: Vec<Device> = dm
+        .get_devices(DeviceFilter::Connected)
         .into_iter()
-        .filter(|p| {
-            p.peer_id
-                .parse::<swarm_p2p_core::libp2p::PeerId>()
-                .map(|pid| !pairing.is_paired(&pid))
-                .unwrap_or(true)
-        })
+        .filter(|d| !d.is_paired)
         .collect();
     Ok(nearby)
 }

@@ -102,7 +102,7 @@ function DevicesPage() {
             {nearbyDevices.length > 0 ? (
               <div className="space-y-2">
                 {nearbyDevices.map((device) => (
-                  <NearbyDeviceCard key={device.peer_id} device={device} onPaired={refresh} />
+                  <NearbyDeviceCard key={device.peerId} device={device} onPaired={refresh} />
                 ))}
               </div>
             ) : (

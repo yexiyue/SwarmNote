@@ -107,7 +107,8 @@ function NetworkSettingsPage() {
   const status = useNetworkStore((s) => s.status);
   const error = useNetworkStore((s) => s.error);
   const loading = useNetworkStore((s) => s.loading);
-  const connectedPeers = useNetworkStore((s) => s.connectedPeers);
+  const devices = useNetworkStore((s) => s.devices);
+  const connectedPeers = devices.filter((d) => d.status === "online");
   const natStatus = useNetworkStore((s) => s.natStatus);
   const startNode = useNetworkStore((s) => s.startNode);
   const stopNode = useNetworkStore((s) => s.stopNode);
