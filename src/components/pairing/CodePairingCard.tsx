@@ -79,10 +79,11 @@ export function CodePairingCard() {
 
     await run(async () => {
       const deviceInfo = await getDeviceByCode(inputCode);
-      const resp = await requestPairing(deviceInfo.peerId, {
-        type: "Code",
-        code: inputCode,
-      });
+      const resp = await requestPairing(
+        deviceInfo.peerId,
+        { type: "Code", code: inputCode },
+        deviceInfo.osInfo,
+      );
       if (resp.status === "Success") {
         resetToIdle();
       } else {
