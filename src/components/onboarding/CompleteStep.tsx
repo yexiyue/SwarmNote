@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { CheckCircle, Fingerprint, Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -30,9 +31,11 @@ export function CompleteStep() {
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <h2 className="text-xl font-bold text-foreground">准备就绪!</h2>
+        <h2 className="text-xl font-bold text-foreground">
+          <Trans>准备就绪!</Trans>
+        </h2>
         <p className="text-center text-sm text-muted-foreground">
-          你的设备身份已建立，可以开始使用 SwarmNote 了。
+          <Trans>你的设备身份已建立，可以开始使用 SwarmNote 了。</Trans>
         </p>
       </div>
 
@@ -40,7 +43,9 @@ export function CompleteStep() {
         <div className="flex items-center gap-3">
           <Monitor className="h-4 w-4 text-muted-foreground" />
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">设备名称</span>
+            <span className="text-xs text-muted-foreground">
+              <Trans>设备名称</Trans>
+            </span>
             <span className="text-sm font-medium text-foreground">{deviceName}</span>
           </div>
         </div>
@@ -48,14 +53,16 @@ export function CompleteStep() {
         <div className="flex items-center gap-3">
           <Fingerprint className="h-4 w-4 text-muted-foreground" />
           <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">设备 ID</span>
+            <span className="text-xs text-muted-foreground">
+              <Trans>设备 ID</Trans>
+            </span>
             <span className="font-mono text-sm text-foreground">{peerId}</span>
           </div>
         </div>
       </div>
 
       <Button className="w-full" size="lg" onClick={handleFinish}>
-        进入 SwarmNote
+        <Trans>进入 SwarmNote</Trans>
       </Button>
     </>
   );

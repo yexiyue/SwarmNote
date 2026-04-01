@@ -8,6 +8,7 @@ import {
 import { zh as bnZh } from "@blocknote/core/locales";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
+import { useLingui } from "@lingui/react/macro";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -104,6 +105,7 @@ export function NoteEditor() {
  * initialized Y.Doc and TauriYjsProvider.
  */
 function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsProvider }) {
+  const { t } = useLingui();
   const resolvedTheme = useUIStore((s) => s.resolvedTheme);
   const locale = useUIStore((s) => s.locale);
   const markDirty = useEditorStore((s) => s.markDirty);
@@ -216,8 +218,8 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
       async (event) => {
         if (cancelled || event.payload.docUuid !== uuid) return;
         const confirmed = await confirm(
-          `"${event.payload.relPath}" 已被外部修改。是否重新加载？当前未保存的编辑将丢失。`,
-          { title: "文件已修改", kind: "warning" },
+          t`"${event.payload.relPath}" 已被外部修改。是否重新加载？当前未保存的编辑将丢失。`,
+          { title: t`文件已修改`, kind: "warning" },
         );
         if (confirmed && !cancelled) {
           await reloadYDocConfirmed(event.payload.docUuid);
@@ -229,7 +231,7 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
       cancelled = true;
       unlistenPromise.then((unlisten) => unlisten());
     };
-  }, [docUuid]);
+  }, [docUuid, t]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
