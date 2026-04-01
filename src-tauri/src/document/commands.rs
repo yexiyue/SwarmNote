@@ -1,4 +1,3 @@
-use chrono::Utc;
 use entity::workspace::{deletion_log, documents, folders};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Set};
 use tauri::State;
@@ -43,7 +42,6 @@ pub async fn db_upsert_document(
 ) -> AppResult<documents::Model> {
     let guard = db_state.workspace_db_for(window.label()).await?;
     let db = guard.conn();
-    let now = Utc::now().timestamp();
 
     if let Some(id) = input.id {
         if let Some(existing) = documents::Entity::find_by_id(id).one(db).await? {
@@ -54,7 +52,6 @@ pub async fn db_upsert_document(
             if let Some(hash) = input.file_hash {
                 model.file_hash = Set(Some(hash.into_bytes()));
             }
-            model.updated_at = Set(now);
             return Ok(model.update(db).await?);
         }
     }
@@ -70,8 +67,7 @@ pub async fn db_upsert_document(
         state_vector: Set(None),
         lamport_clock: Set(0),
         created_by: Set(identity.peer_id()?),
-        created_at: Set(now),
-        updated_at: Set(now),
+        ..Default::default()
     };
     Ok(model.insert(db).await?)
 }
@@ -100,7 +96,7 @@ pub async fn delete_document_by_rel_path(
     let tombstone = deletion_log::ActiveModel {
         doc_id: Set(doc_id),
         rel_path: Set(rel_path),
-        deleted_at: Set(Utc::now().timestamp()),
+        deleted_at: Set(chrono::Utc::now()),
         deleted_by: Set(identity.peer_id()?),
         lamport_clock: Set(doc.lamport_clock + 1),
     };
@@ -152,7 +148,6 @@ pub async fn rename_document(
     let mut model: documents::ActiveModel = doc.into();
     model.rel_path = Set(input.new_rel_path.clone());
     model.title = Set(input.new_title);
-    model.updated_at = Set(Utc::now().timestamp());
     model.update(db).await?;
 
     // Update in-memory YDocManager entry
@@ -181,7 +176,7 @@ pub async fn delete_documents_by_prefix(
         return Ok(0);
     }
 
-    let now = Utc::now().timestamp();
+    let now = chrono::Utc::now();
     let peer_id = identity.peer_id()?;
 
     for doc in docs {
@@ -243,7 +238,6 @@ pub async fn db_create_folder(
     identity: State<'_, IdentityState>,
 ) -> AppResult<folders::Model> {
     let guard = db_state.workspace_db_for(window.label()).await?;
-    let now = Utc::now().timestamp();
 
     let model = folders::ActiveModel {
         workspace_id: Set(input.workspace_id),
@@ -251,8 +245,6 @@ pub async fn db_create_folder(
         name: Set(input.name),
         rel_path: Set(input.rel_path),
         created_by: Set(identity.peer_id()?),
-        created_at: Set(now),
-        updated_at: Set(now),
         ..Default::default()
     };
     Ok(model.insert(guard.conn()).await?)

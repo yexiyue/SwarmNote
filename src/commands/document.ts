@@ -10,8 +10,8 @@ export interface DocumentModel {
   yjs_state: number[] | null;
   state_vector: number[] | null;
   created_by: string;
-  created_at: number;
-  updated_at: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UpsertDocumentInput {

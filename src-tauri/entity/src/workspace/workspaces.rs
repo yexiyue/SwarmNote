@@ -1,5 +1,4 @@
 use sea_orm::entity::prelude::*;
-use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
@@ -10,19 +9,12 @@ pub struct Model {
     pub id: Uuid,
     pub name: String,
     pub created_by: String,
-    pub created_at: i64,
-    pub updated_at: i64,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
     #[sea_orm(has_many)]
     pub folders: HasMany<super::folders::Entity>,
     #[sea_orm(has_many)]
     pub documents: HasMany<super::documents::Entity>,
 }
 
-impl ActiveModelBehavior for ActiveModel {
-    fn new() -> Self {
-        Self {
-            id: Set(Uuid::now_v7()),
-            ..ActiveModelTrait::default()
-        }
-    }
-}
+crate::impl_timestamped_behavior!(ActiveModel);

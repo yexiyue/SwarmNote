@@ -52,8 +52,8 @@ pub struct PairedDeviceInfo {
     pub os: String,
     pub platform: String,
     pub arch: String,
-    pub paired_at: i64,
-    pub last_seen: Option<i64>,
+    pub paired_at: chrono::DateTime<chrono::Utc>,
+    pub last_seen: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_online: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -405,7 +405,7 @@ impl PairingManager {
         use entity::devices::paired_devices;
 
         let peer_id_str = peer_id.to_string();
-        let now = chrono::Utc::now().timestamp();
+        let now = chrono::Utc::now();
 
         let info = PairedDeviceInfo {
             peer_id: peer_id_str.clone(),
@@ -419,9 +419,8 @@ impl PairingManager {
             rtt_ms: None,
         };
 
-        // 构建 Sea-ORM ActiveModel 并插入（先删除旧记录以避免主键冲突）
         let model = paired_devices::Model {
-            peer_id: peer_id_str.clone(),
+            peer_id: peer_id_str,
             hostname: os_info.hostname.clone(),
             os: Some(os_info.os.clone()),
             platform: Some(os_info.platform.clone()),
@@ -431,13 +430,11 @@ impl PairingManager {
         };
 
         // M-4: 先尝试删除已有记录（不存在时忽略错误）
-        let _ = paired_devices::Entity::delete_by_id(&peer_id_str)
+        let _ = paired_devices::Entity::delete_by_id(&info.peer_id)
             .exec(&self.db)
             .await;
 
         model.into_active_model().insert(&self.db).await?;
-
-        // 更新内存缓存
         self.paired_devices.insert(peer_id, info.clone());
 
         info!("Paired device persisted: {}", info.peer_id);

@@ -123,7 +123,6 @@ pub async fn reconcile_with_db(
     // INSERT missing files
     let missing: Vec<&String> = disk_paths.difference(&existing).collect();
     let count = missing.len();
-    let now = chrono::Utc::now().timestamp();
 
     for rel_path in &missing {
         let title = crate::document::title_from_rel_path(rel_path);
@@ -136,8 +135,6 @@ pub async fn reconcile_with_db(
             rel_path: Set((*rel_path).clone()),
             lamport_clock: Set(0),
             created_by: Set(peer_id.to_owned()),
-            created_at: Set(now),
-            updated_at: Set(now),
             ..Default::default()
         };
         // INSERT OR IGNORE: UNIQUE(workspace_id, rel_path) ensures idempotency

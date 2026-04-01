@@ -17,7 +17,7 @@ interface PairingRequestPayload {
   peerId: string;
   osInfo: { hostname: string; os: string; platform: string; arch: string };
   method: { type: "Direct" } | { type: "Code"; code: string };
-  expiresAt: number;
+  expiresAt: string;
 }
 
 interface PairingRequestDialogProps {
@@ -27,7 +27,7 @@ interface PairingRequestDialogProps {
 export function PairingRequestDialog({ data }: PairingRequestDialogProps) {
   const [responding, setResponding] = useState(false);
   const [remaining, setRemaining] = useState(() =>
-    Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000)),
+    Math.max(0, Math.ceil((new Date(data.expiresAt).getTime() - Date.now()) / 1000)),
   );
   const respondedRef = useRef(false);
 
@@ -70,7 +70,7 @@ export function PairingRequestDialog({ data }: PairingRequestDialogProps) {
   // Countdown timer
   useEffect(() => {
     const interval = setInterval(() => {
-      const left = Math.max(0, Math.ceil((data.expiresAt - Date.now()) / 1000));
+      const left = Math.max(0, Math.ceil((new Date(data.expiresAt).getTime() - Date.now()) / 1000));
       setRemaining(left);
       if (left <= 0) {
         clearInterval(interval);

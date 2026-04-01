@@ -180,7 +180,7 @@ fn handle_inbound_request(
             info!("Received pairing request from {peer_id} (pending_id={pending_id})");
             pairing_manager.cache_inbound_request(peer_id, pending_id, pairing_req);
 
-            let expires_at = chrono::Utc::now().timestamp_millis() + 90_000;
+            let expires_at = chrono::Utc::now() + chrono::Duration::seconds(90);
             let payload = serde_json::json!({
                 "pendingId": pending_id,
                 "peerId": peer_id.to_string(),

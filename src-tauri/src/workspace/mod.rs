@@ -108,7 +108,6 @@ async fn try_auto_restore_workspace(
     let ws = if ws.name != dir_name {
         let mut active: workspaces::ActiveModel = ws.into();
         active.name = Set(dir_name.clone());
-        active.updated_at = Set(chrono::Utc::now().timestamp());
         match active.update(&conn).await {
             Ok(updated) => updated,
             Err(e) => {

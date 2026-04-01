@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 export interface PairingCodeInfo {
   code: string;
-  createdAt: number;
-  expiresAt: number;
+  createdAt: string;
+  expiresAt: string;
 }
 
 export interface PairedDeviceInfo {
@@ -12,8 +12,8 @@ export interface PairedDeviceInfo {
   os: string;
   platform: string;
   arch: string;
-  pairedAt: number;
-  lastSeen: number | null;
+  pairedAt: string;
+  lastSeen: string | null;
   isOnline?: boolean;
   rttMs?: number;
 }

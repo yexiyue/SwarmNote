@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use entity::workspace::workspaces;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use serde::Serialize;
@@ -22,8 +22,8 @@ pub struct WorkspaceInfo {
     pub name: String,
     pub path: String,
     pub created_by: String,
-    pub created_at: i64,
-    pub updated_at: i64,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl WorkspaceInfo {
@@ -74,19 +74,16 @@ async fn ensure_workspace(
                 let mut active: workspaces::ActiveModel = ws.clone().into();
                 active.id = Set(ws_uuid);
                 active.name = Set(dir_name);
-                active.updated_at = Set(Utc::now().timestamp());
                 ws = active.update(&conn).await?;
             }
             ws
         }
         None => {
-            let now = Utc::now().timestamp();
             let model = workspaces::ActiveModel {
                 id: Set(ws_uuid),
                 name: Set(dir_name),
                 created_by: Set(identity.peer_id()?),
-                created_at: Set(now),
-                updated_at: Set(now),
+                ..Default::default()
             };
             model.insert(&conn).await?
         }

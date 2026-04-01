@@ -12,7 +12,7 @@ pub struct Model {
     pub peer_id: String,
     pub role: String,
     pub granted_by: String,
-    pub granted_at: i64,
+    pub granted_at: DateTimeUtc,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

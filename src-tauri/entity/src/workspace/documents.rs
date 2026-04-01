@@ -1,5 +1,4 @@
 use sea_orm::entity::prelude::*;
-use sea_orm::Set;
 use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
@@ -17,19 +16,12 @@ pub struct Model {
     pub state_vector: Option<Vec<u8>>,
     pub lamport_clock: i64,
     pub created_by: String,
-    pub created_at: i64,
-    pub updated_at: i64,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
     #[sea_orm(belongs_to, from = "workspace_id", to = "id")]
     pub workspace: HasOne<super::workspaces::Entity>,
     #[sea_orm(belongs_to, from = "folder_id", to = "id")]
     pub folder: HasOne<super::folders::Entity>,
 }
 
-impl ActiveModelBehavior for ActiveModel {
-    fn new() -> Self {
-        Self {
-            id: Set(Uuid::now_v7()),
-            ..ActiveModelTrait::default()
-        }
-    }
-}
+crate::impl_timestamped_behavior!(ActiveModel);

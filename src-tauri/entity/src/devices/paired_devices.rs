@@ -11,8 +11,8 @@ pub struct Model {
     pub os: Option<String>,
     pub platform: Option<String>,
     pub arch: Option<String>,
-    pub paired_at: i64,
-    pub last_seen: Option<i64>,
+    pub paired_at: DateTimeUtc,
+    pub last_seen: Option<DateTimeUtc>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

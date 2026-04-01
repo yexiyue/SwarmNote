@@ -74,8 +74,6 @@ async fn workspace_insert_and_find_by_id() {
         id: Set(ws_id),
         name: Set("Test Workspace".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     };
     let ws = ws.insert(&db).await.unwrap();
@@ -99,8 +97,6 @@ async fn document_insert_update_delete() {
         id: Set(ws_id),
         name: Set("Test".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -118,8 +114,6 @@ async fn document_insert_update_delete() {
         yjs_state: Set(None),
         state_vector: Set(None),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -136,12 +130,12 @@ async fn document_insert_update_delete() {
     assert_eq!(docs.len(), 1);
 
     // Update
+    let original_updated_at = doc.updated_at;
     let mut active: documents::ActiveModel = doc.into();
     active.title = Set("Updated Note".to_string());
-    active.updated_at = Set(2000);
     let updated = active.update(&db).await.unwrap();
     assert_eq!(updated.title, "Updated Note");
-    assert_eq!(updated.updated_at, 2000);
+    assert!(updated.updated_at >= original_updated_at);
 
     // Delete
     documents::Entity::delete_by_id(doc_id)
@@ -162,8 +156,6 @@ async fn folder_hierarchy_parent_child() {
         id: Set(ws_id),
         name: Set("Test".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -178,8 +170,6 @@ async fn folder_hierarchy_parent_child() {
         name: Set("Notes".to_string()),
         rel_path: Set("Notes".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -194,8 +184,6 @@ async fn folder_hierarchy_parent_child() {
         name: Set("Daily".to_string()),
         rel_path: Set("Notes/Daily".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)

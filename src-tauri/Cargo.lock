@@ -1802,6 +1802,8 @@ checksum = "b5320ae4c3782150d900b79807611a59a99fc9a1d61d686faafc24b93fc8d7ca"
 name = "entity"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "chrono",
  "sea-orm",
  "serde",
  "uuid",

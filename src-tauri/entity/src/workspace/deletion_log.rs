@@ -8,7 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub doc_id: Uuid,
     pub rel_path: String,
-    pub deleted_at: i64,
+    pub deleted_at: DateTimeUtc,
     pub deleted_by: String,
     pub lamport_clock: i64,
 }

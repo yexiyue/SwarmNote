@@ -1,7 +1,7 @@
-export function formatRelativeTime(input: string | number | null): string {
+export function formatRelativeTime(input: string | null): string {
   if (input == null) return "从未在线";
 
-  const timestamp = typeof input === "string" ? new Date(input).getTime() : input;
+  const timestamp = new Date(input).getTime();
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60_000);
 
@@ -15,8 +15,8 @@ export function formatRelativeTime(input: string | number | null): string {
   return new Date(timestamp).toLocaleDateString();
 }
 
-export function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString("zh-CN", {
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

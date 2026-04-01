@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::Duration;
 
-use chrono::Utc;
 use dashmap::DashMap;
 use entity::workspace::documents;
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
@@ -185,7 +184,6 @@ impl YDocManager {
         // Try inserting first — if another call already inserted, IGNORE silently.
         let new_id = Uuid::now_v7();
         let identity = app.state::<crate::identity::IdentityState>();
-        let now = chrono::Utc::now().timestamp();
         let title = crate::document::title_from_rel_path(rel_path);
 
         let insert_model = documents::ActiveModel {
@@ -196,8 +194,6 @@ impl YDocManager {
             rel_path: sea_orm::Set(rel_path.to_owned()),
             lamport_clock: sea_orm::Set(0),
             created_by: sea_orm::Set(identity.peer_id()?),
-            created_at: sea_orm::Set(now),
-            updated_at: sea_orm::Set(now),
             ..Default::default()
         };
         let _ = documents::Entity::insert(insert_model)
@@ -502,7 +498,6 @@ impl YDocManager {
         entry.set_file_hash(&file_hash);
         entry._last_write_ms.store(now_ms(), Ordering::Release);
 
-        let now = Utc::now().timestamp();
         let db_state = app.state::<DbState>();
         let guard = db_state.workspace_db_for(label).await?;
 
@@ -515,7 +510,6 @@ impl YDocManager {
             model.state_vector = Set(Some(snapshot.state_vector));
             model.file_hash = Set(Some(file_hash));
             model.rel_path = Set(entry.rel_path());
-            model.updated_at = Set(now);
             model.update(guard.conn()).await?;
         }
 

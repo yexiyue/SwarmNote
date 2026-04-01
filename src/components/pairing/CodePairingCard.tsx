@@ -38,7 +38,10 @@ export function CodePairingCard() {
     if (mode !== "generate" || !codeInfo) return;
 
     const updateRemaining = () => {
-      const left = Math.max(0, Math.floor((codeInfo.expiresAt - Date.now()) / 1000));
+      const left = Math.max(
+        0,
+        Math.floor((new Date(codeInfo.expiresAt).getTime() - Date.now()) / 1000),
+      );
       setRemaining(left);
       if (left <= 0) {
         resetToIdle();
