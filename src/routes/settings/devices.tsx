@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, RefreshCw } from "lucide-react";
-import { useEffect } from "react";
+import { Loader2, Monitor, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { type DeviceInfo, getDeviceInfo } from "@/commands/identity";
 import { CodePairingCard } from "@/components/pairing/CodePairingCard";
 import { NearbyDeviceCard } from "@/components/pairing/NearbyDeviceCard";
 import { PairedDeviceCard } from "@/components/pairing/PairedDeviceCard";
@@ -13,11 +14,18 @@ function DevicesPage() {
   const nearbyDevices = usePairingStore((s) => s.nearbyDevices);
   const isLoading = usePairingStore((s) => s.isLoading);
   const refresh = usePairingStore((s) => s.refresh);
+  const [myDevice, setMyDevice] = useState<DeviceInfo | null>(null);
 
   useEffect(() => {
     setupPairingListeners();
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    getDeviceInfo()
+      .then(setMyDevice)
+      .catch(() => null);
+  }, []);
 
   return (
     <div>
@@ -36,6 +44,27 @@ function DevicesPage() {
       </div>
 
       <div className="space-y-4">
+        {/* My Device Card */}
+        <div className="rounded-xl border bg-card">
+          <div className="flex items-center gap-4 px-5 py-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Monitor className="h-5.5 w-5.5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium text-foreground">
+                {myDevice?.device_name ?? "—"}
+              </div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {myDevice ? `${myDevice.os} · ${myDevice.platform}` : "—"}
+              </div>
+            </div>
+            {myDevice && (
+              <code className="shrink-0 rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                {myDevice.peer_id.slice(0, 20)}…
+              </code>
+            )}
+          </div>
+        </div>
         {/* Paired Devices */}
         <div className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 py-3">

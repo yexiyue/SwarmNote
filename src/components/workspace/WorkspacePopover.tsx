@@ -13,9 +13,10 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface WorkspacePopoverProps {
   children: React.ReactNode;
+  side?: "top" | "bottom" | "left" | "right";
 }
 
-export function WorkspacePopover({ children }: WorkspacePopoverProps) {
+export function WorkspacePopover({ children, side = "bottom" }: WorkspacePopoverProps) {
   const [open, setOpen] = useState(false);
   const [recents, setRecents] = useState<RecentWorkspace[]>([]);
   const workspace = useWorkspaceStore((s) => s.workspace);
@@ -40,7 +41,7 @@ export function WorkspacePopover({ children }: WorkspacePopoverProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-64 p-1" side="top" align="start">
+      <PopoverContent className="w-64 p-1" side={side} align="start">
         <div className="flex flex-col">
           {recents.map((ws) => {
             const isCurrent = workspace?.path === ws.path;

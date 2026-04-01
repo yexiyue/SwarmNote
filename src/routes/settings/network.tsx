@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fingerprint, Play, Power, Shield, Users, Zap } from "lucide-react";
+import { Fingerprint, Power, Shield, Users, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { getDeviceInfo } from "@/commands/identity";
@@ -7,17 +7,53 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { type NodeStatus, useNetworkStore } from "@/stores/networkStore";
 import { usePreferencesStore } from "@/stores/preferencesStore";
 
 const statusConfig: Record<
   NodeStatus,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+  {
+    label: string;
+    description: string;
+    variant: "default" | "secondary" | "destructive" | "outline";
+    indicatorClass: string;
+    iconClass: string;
+    cardClass: string;
+  }
 > = {
-  stopped: { label: "已停止", variant: "secondary" },
-  starting: { label: "启动中...", variant: "outline" },
-  running: { label: "运行中", variant: "default" },
-  error: { label: "错误", variant: "destructive" },
+  stopped: {
+    label: "已停止",
+    description: "P2P 节点未运行",
+    variant: "secondary",
+    indicatorClass: "bg-muted",
+    iconClass: "text-muted-foreground",
+    cardClass: "border-border",
+  },
+  starting: {
+    label: "启动中...",
+    description: "正在建立 P2P 连接",
+    variant: "outline",
+    indicatorClass: "bg-yellow-500 animate-pulse",
+    iconClass: "text-white",
+    cardClass: "border-yellow-500/30 bg-yellow-500/5",
+  },
+  running: {
+    label: "运行中",
+    description: "",
+    variant: "default",
+    indicatorClass: "bg-green-500",
+    iconClass: "text-white",
+    cardClass: "border-green-500/30 bg-green-500/5",
+  },
+  error: {
+    label: "错误",
+    description: "节点启动失败",
+    variant: "destructive",
+    indicatorClass: "bg-red-500",
+    iconClass: "text-white",
+    cardClass: "border-red-500/30 bg-red-500/5",
+  },
 };
 
 function SettingCard({
@@ -93,7 +129,8 @@ function NetworkSettingsPage() {
     getDeviceInfo().then((info) => setPeerId(info.peer_id));
   }, []);
 
-  const { label, variant } = statusConfig[status];
+  const { label, variant, description, indicatorClass, iconClass, cardClass } =
+    statusConfig[status];
 
   const handleStop = () => {
     setShowStopConfirm(true);
@@ -104,6 +141,15 @@ function NetworkSettingsPage() {
     await stopNode(true);
   };
 
+  const statusDescription =
+    status === "running"
+      ? connectedPeers.length > 0
+        ? `已连接 ${connectedPeers.length} 台设备`
+        : "已连接，暂无设备在线"
+      : status === "error"
+        ? error || description
+        : description;
+
   return (
     <div>
       <div className="mb-6">
@@ -112,20 +158,46 @@ function NetworkSettingsPage() {
       </div>
 
       <div className="space-y-4">
-        {/* Node Status Card */}
-        <SettingCard
-          title="节点状态"
-          description="当前 P2P 节点运行状态"
-          action={<Badge variant={variant}>{label}</Badge>}
-        >
-          <div className="space-y-1">
-            {/* Error message */}
-            {status === "error" && error && (
-              <div className="my-1 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {error}
+        {/* Network Power Control — prominent status + toggle */}
+        <div className={cn("rounded-xl border-2 px-5 py-4", cardClass)}>
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+                indicatorClass,
+              )}
+            >
+              <Power className={cn("h-5 w-5", iconClass)} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{label}</span>
+                <Badge variant={variant} className="text-[10px]">
+                  P2P
+                </Badge>
               </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">{statusDescription}</p>
+            </div>
+            {status === "running" ? (
+              <Button variant="outline" size="sm" onClick={handleStop} className="shrink-0">
+                停止节点
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={startNode}
+                disabled={status === "starting"}
+                className="shrink-0"
+              >
+                {status === "starting" ? "启动中..." : "启动节点"}
+              </Button>
             )}
+          </div>
+        </div>
 
+        {/* Node Status Card */}
+        <SettingCard title="节点信息" description="当前 P2P 节点详情">
+          <div className="space-y-1">
             {/* Peer ID */}
             {peerId && (
               <SettingRow icon={Fingerprint} label="Peer ID" description="本设备的 P2P 网络标识">
@@ -156,34 +228,20 @@ function NetworkSettingsPage() {
                 </SettingRow>
               </>
             )}
+
+            {!peerId && status === "stopped" && (
+              <p className="py-2 text-center text-xs text-muted-foreground">
+                启动节点后显示详细信息
+              </p>
+            )}
           </div>
         </SettingCard>
 
-        {/* Control Card */}
-        <SettingCard title="节点控制" description="启动或停止 P2P 节点">
-          <div className="space-y-1">
-            <SettingRow
-              icon={status === "running" ? Power : Play}
-              label={status === "running" ? "停止节点" : "启动节点"}
-              description={
-                status === "running" ? "停止后将断开所有 P2P 连接" : "启动 P2P 节点以同步笔记"
-              }
-            >
-              {status === "running" ? (
-                <Button variant="destructive" size="sm" onClick={handleStop}>
-                  停止
-                </Button>
-              ) : (
-                <Button size="sm" onClick={startNode} disabled={status === "starting"}>
-                  {status === "starting" ? "启动中..." : "启动"}
-                </Button>
-              )}
-            </SettingRow>
-            <Separator />
-            <SettingRow icon={Zap} label="自动启动" description="打开工作区时自动启动 P2P 节点">
-              <Switch checked={autoStartP2P} onCheckedChange={setAutoStartP2P} />
-            </SettingRow>
-          </div>
+        {/* Auto-start Setting */}
+        <SettingCard title="启动设置">
+          <SettingRow icon={Zap} label="自动启动" description="打开工作区时自动启动 P2P 节点">
+            <Switch checked={autoStartP2P} onCheckedChange={setAutoStartP2P} />
+          </SettingRow>
         </SettingCard>
       </div>
 
