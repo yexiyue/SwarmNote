@@ -64,6 +64,7 @@ pub fn run() {
             // P2P 网络
             network::commands::start_p2p_node,
             network::commands::stop_p2p_node,
+            network::commands::get_network_status,
             network::commands::get_connected_peers,
             // 配对管理
             pairing::commands::generate_pairing_code,
@@ -144,8 +145,7 @@ pub fn run() {
             app.manage(yjs::manager::YDocManager::new());
 
             // P2P 网络状态（初始为 None，由前端根据偏好触发启动）
-            let net_state: network::NetManagerState = tokio::sync::Mutex::new(None);
-            app.manage(net_state);
+            app.manage(network::NetManagerState::new());
 
             // 创建系统托盘（仅桌面端）
             #[cfg(desktop)]

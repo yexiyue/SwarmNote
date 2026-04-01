@@ -6,11 +6,11 @@ use tauri::{
 };
 use tracing::warn;
 
-// ── 枚举：用类型代替原始值 ──
+// ── 枚举 ──
 
-/// 节点状态，用于驱动托盘的图标和菜单更新
+/// 托盘内部状态：节点是否运行 + 连接设备数
 #[derive(Clone, Copy)]
-pub enum NodeStatus {
+pub enum TrayNodeStatus {
     Stopped,
     Running { peer_count: usize },
 }
@@ -72,7 +72,7 @@ impl MenuAction {
 pub struct TrayManager {
     tray: TrayIcon,
     app: AppHandle,
-    status: NodeStatus,
+    status: TrayNodeStatus,
     /// 最后一个被隐藏到托盘的工作区窗口 label
     last_hidden_label: String,
 }
@@ -80,7 +80,7 @@ pub struct TrayManager {
 impl TrayManager {
     /// 在 `setup` 中创建托盘并注册到 Tauri State
     pub fn init(app: &AppHandle) -> tauri::Result<()> {
-        let status = NodeStatus::Stopped;
+        let status = TrayNodeStatus::Stopped;
         let menu = Self::build_menu(app, status)?;
 
         let tray = TrayIconBuilder::with_id("main-tray")
@@ -108,7 +108,7 @@ impl TrayManager {
     }
 
     /// 更新节点状态 — 唯一的公开状态变更入口
-    pub fn set_status(&mut self, status: NodeStatus) {
+    pub fn set_status(&mut self, status: TrayNodeStatus) {
         self.status = status;
         self.refresh_icon();
         self.refresh_menu();
@@ -116,8 +116,8 @@ impl TrayManager {
 
     fn refresh_icon(&self) {
         let kind = match self.status {
-            NodeStatus::Running { .. } => IconKind::Normal,
-            NodeStatus::Stopped => IconKind::Gray,
+            TrayNodeStatus::Running { .. } => IconKind::Normal,
+            TrayNodeStatus::Stopped => IconKind::Gray,
         };
         let _ = self.tray.set_icon(Some(kind.load()));
     }
@@ -142,14 +142,14 @@ impl TrayManager {
         }
     }
 
-    fn build_menu(app: &AppHandle, status: NodeStatus) -> tauri::Result<Menu<tauri::Wry>> {
+    fn build_menu(app: &AppHandle, status: TrayNodeStatus) -> tauri::Result<Menu<tauri::Wry>> {
         let menu = Menu::new(app)?;
 
         // 状态行（不可点击）
         let status_text = match status {
-            NodeStatus::Running { peer_count: 0 } => "P2P 已连接".to_string(),
-            NodeStatus::Running { peer_count } => format!("P2P 已连接 · {peer_count} 台设备"),
-            NodeStatus::Stopped => "P2P 未连接".to_string(),
+            TrayNodeStatus::Running { peer_count: 0 } => "P2P 已连接".to_string(),
+            TrayNodeStatus::Running { peer_count } => format!("P2P 已连接 · {peer_count} 台设备"),
+            TrayNodeStatus::Stopped => "P2P 未连接".to_string(),
         };
         menu.append(&MenuItem::with_id(
             app,
@@ -170,8 +170,8 @@ impl TrayManager {
         )?)?;
 
         let toggle_text = match status {
-            NodeStatus::Running { .. } => "暂停同步",
-            NodeStatus::Stopped => "恢复同步",
+            TrayNodeStatus::Running { .. } => "暂停同步",
+            TrayNodeStatus::Stopped => "恢复同步",
         };
         menu.append(&MenuItem::with_id(
             app,
@@ -283,7 +283,7 @@ async fn toggle_sync(app: &AppHandle) {
         drop(guard); // 释放锁后再更新托盘
         let _ = app.emit("node-stopped", ());
         if let Some(state) = app.try_state::<TrayManagerState>() {
-            state.lock().await.set_status(NodeStatus::Stopped);
+            state.lock().await.set_status(TrayNodeStatus::Stopped);
         }
         tracing::info!("P2P node stopped via tray");
     } else {

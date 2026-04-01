@@ -91,7 +91,7 @@ pub async fn do_start_p2p_node(
     if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
         tray.lock()
             .await
-            .set_status(crate::tray::NodeStatus::Running { peer_count: 0 });
+            .set_status(crate::tray::TrayNodeStatus::Running { peer_count: 0 });
     }
 
     info!("P2P node started, PeerId: {peer_id}");
@@ -130,7 +130,7 @@ pub async fn stop_p2p_node(app: AppHandle, net_state: State<'_, NetManagerState>
         if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
             tray.lock()
                 .await
-                .set_status(crate::tray::NodeStatus::Stopped);
+                .set_status(crate::tray::TrayNodeStatus::Stopped);
         }
 
         info!("P2P node stopped");
@@ -138,14 +138,21 @@ pub async fn stop_p2p_node(app: AppHandle, net_state: State<'_, NetManagerState>
     Ok(())
 }
 
+/// 查询 P2P 节点当前运行状态
+#[tauri::command]
+pub async fn get_network_status(
+    net_state: State<'_, NetManagerState>,
+) -> AppResult<super::NodeStatus> {
+    Ok(net_state.status().await)
+}
+
 /// 获取已连接的 peers 列表
 #[tauri::command]
 pub async fn get_connected_peers(
     net_state: State<'_, NetManagerState>,
 ) -> AppResult<Vec<PeerInfo>> {
-    let guard = net_state.lock().await;
-    match guard.as_ref() {
-        Some(manager) => Ok(manager.device_manager.get_connected_peers()),
-        None => Ok(Vec::new()),
+    match net_state.devices().await {
+        Ok(dm) => Ok(dm.get_connected_peers()),
+        Err(_) => Ok(Vec::new()),
     }
 }

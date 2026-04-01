@@ -211,7 +211,7 @@ async fn update_tray_peer_count(app: &AppHandle, device_manager: &DeviceManager)
         let count = device_manager.connected_count();
         tray.lock()
             .await
-            .set_status(crate::tray::NodeStatus::Running { peer_count: count });
+            .set_status(crate::tray::TrayNodeStatus::Running { peer_count: count });
     }
 }
 

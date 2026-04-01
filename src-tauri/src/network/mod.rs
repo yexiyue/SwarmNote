@@ -9,6 +9,7 @@ pub mod online;
 use std::sync::Arc;
 
 use sea_orm::DatabaseConnection;
+use serde::Serialize;
 use swarm_p2p_core::libp2p::PeerId;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
@@ -17,6 +18,18 @@ use crate::device::DeviceManager;
 use crate::pairing::PairingManager;
 
 use self::online::{AppNetClient, OnlineAnnouncer};
+
+/// P2P 节点状态——Rust/前端共用的 single source of truth
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum NodeStatus {
+    Stopped,
+    Running,
+    #[expect(dead_code)]
+    Error {
+        message: String,
+    },
+}
 
 /// 网络管理器：持有 P2P 节点所有运行时状态
 pub struct NetManager {
@@ -59,5 +72,42 @@ impl NetManager {
     }
 }
 
-/// NetManager 的 Tauri State 类型
-pub type NetManagerState = tokio::sync::Mutex<Option<NetManager>>;
+/// NetManager 的 Tauri State 类型（newtype 以支持便捷方法）
+pub struct NetManagerState(tokio::sync::Mutex<Option<NetManager>>);
+
+impl NetManagerState {
+    pub fn new() -> Self {
+        Self(tokio::sync::Mutex::new(None))
+    }
+
+    pub async fn lock(&self) -> tokio::sync::MutexGuard<'_, Option<NetManager>> {
+        self.0.lock().await
+    }
+
+    /// 查询当前节点状态
+    pub async fn status(&self) -> NodeStatus {
+        if self.0.lock().await.is_some() {
+            NodeStatus::Running
+        } else {
+            NodeStatus::Stopped
+        }
+    }
+
+    /// 获取 PairingManager。节点未运行时返回错误。
+    pub async fn pairing(&self) -> crate::error::AppResult<Arc<crate::pairing::PairingManager>> {
+        let guard = self.0.lock().await;
+        let manager = guard.as_ref().ok_or(crate::error::AppError::Network(
+            "P2P node is not running".to_string(),
+        ))?;
+        Ok(manager.pairing_manager.clone())
+    }
+
+    /// 获取 DeviceManager。节点未运行时返回错误。
+    pub async fn devices(&self) -> crate::error::AppResult<Arc<DeviceManager>> {
+        let guard = self.0.lock().await;
+        let manager = guard.as_ref().ok_or(crate::error::AppError::Network(
+            "P2P node is not running".to_string(),
+        ))?;
+        Ok(manager.device_manager.clone())
+    }
+}

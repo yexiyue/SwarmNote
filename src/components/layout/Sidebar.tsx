@@ -22,6 +22,7 @@ export function Sidebar() {
   const createDir = useFileTreeStore((s) => s.createDir);
 
   const nodeStatus = useNetworkStore((s) => s.status);
+  const nodeLoading = useNetworkStore((s) => s.loading);
   const connectedPeers = useNetworkStore((s) => s.connectedPeers);
 
   // Rescan when workspace changes
@@ -136,22 +137,22 @@ export function Sidebar() {
           >
             <span
               className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-                nodeStatus === "running"
-                  ? "bg-green-500"
-                  : nodeStatus === "starting"
-                    ? "animate-pulse bg-yellow-500"
+                nodeLoading
+                  ? "animate-pulse bg-yellow-500"
+                  : nodeStatus === "running"
+                    ? "bg-green-500"
                     : nodeStatus === "error"
                       ? "bg-red-500"
                       : "bg-gray-400"
               }`}
             />
             <span className="truncate text-xs text-muted-foreground">
-              {nodeStatus === "running"
-                ? connectedPeers.length > 0
-                  ? `已连接 · ${connectedPeers.length} 台设备在线`
-                  : "已连接"
-                : nodeStatus === "starting"
-                  ? "连接中..."
+              {nodeLoading
+                ? "连接中..."
+                : nodeStatus === "running"
+                  ? connectedPeers.length > 0
+                    ? `已连接 · ${connectedPeers.length} 台设备在线`
+                    : "已连接"
                   : nodeStatus === "error"
                     ? "连接失败"
                     : "未连接"}

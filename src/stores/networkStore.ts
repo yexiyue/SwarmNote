@@ -20,7 +20,14 @@ interface NetworkStatus {
   publicAddr: string | null;
 }
 
-export type NodeStatus = "stopped" | "starting" | "running" | "error";
+/** Matches Rust `network::NodeStatus` — single source of truth */
+export type NodeStatus = "stopped" | "running" | "error";
+
+/** Rust serializes NodeStatus as `{ kind: "stopped" }` or `{ kind: "error", message: "..." }` */
+interface NodeStatusPayload {
+  kind: NodeStatus;
+  message?: string;
+}
 
 interface NetworkState {
   status: NodeStatus;
@@ -28,6 +35,8 @@ interface NetworkState {
   connectedPeers: PeerInfo[];
   natStatus: string | null;
   userManuallyStopped: boolean;
+  /** True while an async start/stop operation is in-flight */
+  loading: boolean;
 }
 
 interface NetworkActions {
@@ -44,25 +53,35 @@ export const useNetworkStore = create<NetworkState & NetworkActions>()((set, get
   connectedPeers: [],
   natStatus: null,
   userManuallyStopped: false,
+  loading: false,
 
   startNode: async () => {
-    const { status } = get();
-    if (status === "running" || status === "starting") return;
+    const { status, loading } = get();
+    if (status === "running" || loading) return;
 
-    set({ status: "starting", error: null, userManuallyStopped: false });
+    set({ loading: true, error: null, userManuallyStopped: false });
     try {
       await invoke("start_p2p_node");
-      // status will transition to "running" via node-started event
+      set({ status: "running", error: null });
     } catch (e) {
       set({ status: "error", error: String(e) });
+    } finally {
+      set({ loading: false });
     }
   },
 
   stopNode: async (manual = false) => {
-    await invoke("stop_p2p_node");
-    // status will transition to "stopped" via node-stopped event
-    if (manual) {
-      set({ userManuallyStopped: true });
+    set({ loading: true });
+    try {
+      await invoke("stop_p2p_node");
+      set({ status: "stopped", connectedPeers: [], natStatus: null });
+      if (manual) {
+        set({ userManuallyStopped: true });
+      }
+    } catch (e) {
+      set({ status: "error", error: String(e) });
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -77,7 +96,6 @@ export const useNetworkStore = create<NetworkState & NetworkActions>()((set, get
 let unlisteners: UnlistenFn[] = [];
 
 export async function setupNetworkListeners() {
-  // 避免重复监听
   await cleanupNetworkListeners();
 
   const u1 = await listen<PeerInfo>("peer-connected", (event) => {
@@ -103,15 +121,33 @@ export async function setupNetworkListeners() {
     useNetworkStore.setState({ natStatus: event.payload.natStatus });
   });
 
+  // Events from backend — used to sync other windows
   const u4 = await listen("node-started", () => {
-    useNetworkStore.setState({ status: "running", error: null });
+    useNetworkStore.setState({ status: "running", error: null, loading: false });
   });
 
   const u5 = await listen("node-stopped", () => {
-    useNetworkStore.setState({ status: "stopped", connectedPeers: [], natStatus: null });
+    useNetworkStore.setState({
+      status: "stopped",
+      connectedPeers: [],
+      natStatus: null,
+      loading: false,
+    });
   });
 
   unlisteners = [u1, u2, u3, u4, u5];
+
+  // Sync initial status from backend (handles page refresh / new window)
+  try {
+    const payload = await invoke<NodeStatusPayload>("get_network_status");
+    if (payload.kind === "running") {
+      useNetworkStore.setState({ status: "running", error: null });
+    } else if (payload.kind === "error") {
+      useNetworkStore.setState({ status: "error", error: payload.message ?? null });
+    }
+  } catch {
+    // Backend not ready yet — listeners will catch subsequent events
+  }
 }
 
 export async function cleanupNetworkListeners() {
@@ -120,3 +156,6 @@ export async function cleanupNetworkListeners() {
   }
   unlisteners = [];
 }
+
+// Auto-register listeners on module load
+setupNetworkListeners();

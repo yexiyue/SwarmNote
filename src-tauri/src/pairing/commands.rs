@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
 use crate::device::PeerInfo;
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::network::event_loop::events;
 use crate::network::NetManagerState;
 use crate::protocol::{OsInfo, PairingMethod};
@@ -23,14 +23,11 @@ pub async fn generate_pairing_code(
     net_state: State<'_, NetManagerState>,
     expires_in_secs: Option<u64>,
 ) -> AppResult<PairingCodeInfo> {
-    let pairing = {
-        let guard = net_state.lock().await;
-        let manager = guard
-            .as_ref()
-            .ok_or(AppError::Network("P2P node is not running".to_string()))?;
-        manager.pairing_manager.clone()
-    };
-    pairing.generate_code(expires_in_secs.unwrap_or(300)).await
+    net_state
+        .pairing()
+        .await?
+        .generate_code(expires_in_secs.unwrap_or(300))
+        .await
 }
 
 #[tauri::command]
@@ -38,14 +35,7 @@ pub async fn get_device_by_code(
     net_state: State<'_, NetManagerState>,
     code: String,
 ) -> AppResult<DeviceByCodeResult> {
-    let pairing = {
-        let guard = net_state.lock().await;
-        let manager = guard
-            .as_ref()
-            .ok_or(AppError::Network("P2P node is not running".to_string()))?;
-        manager.pairing_manager.clone()
-    };
-    let (peer_id, record) = pairing.get_device_by_code(&code).await?;
+    let (peer_id, record) = net_state.pairing().await?.get_device_by_code(&code).await?;
     Ok(DeviceByCodeResult {
         peer_id,
         os_info: record.os_info,
@@ -59,14 +49,9 @@ pub async fn request_pairing(
     method: PairingMethod,
     remote_os_info: Option<OsInfo>,
 ) -> AppResult<crate::protocol::PairingResponse> {
-    let pairing = {
-        let guard = net_state.lock().await;
-        let manager = guard
-            .as_ref()
-            .ok_or(AppError::Network("P2P node is not running".to_string()))?;
-        manager.pairing_manager.clone()
-    };
-    pairing
+    net_state
+        .pairing()
+        .await?
         .request_pairing(&peer_id, method, remote_os_info)
         .await
 }
@@ -78,14 +63,11 @@ pub async fn respond_pairing_request(
     pending_id: u64,
     accept: bool,
 ) -> AppResult<()> {
-    let pairing = {
-        let guard = net_state.lock().await;
-        let manager = guard
-            .as_ref()
-            .ok_or(AppError::Network("P2P node is not running".to_string()))?;
-        manager.pairing_manager.clone()
-    };
-    let result = pairing.handle_pairing_request(pending_id, accept).await?;
+    let result = net_state
+        .pairing()
+        .await?
+        .handle_pairing_request(pending_id, accept)
+        .await?;
     if let Some(info) = result {
         let _ = app.emit(events::PAIRED_DEVICE_ADDED, &info);
     }
@@ -96,14 +78,10 @@ pub async fn respond_pairing_request(
 pub async fn get_paired_devices(
     net_state: State<'_, NetManagerState>,
 ) -> AppResult<Vec<PairedDeviceInfo>> {
-    let pairing = {
-        let guard = net_state.lock().await;
-        match guard.as_ref() {
-            Some(manager) => manager.pairing_manager.clone(),
-            None => return Ok(Vec::new()),
-        }
-    };
-    Ok(pairing.get_paired_devices())
+    match net_state.pairing().await {
+        Ok(pairing) => Ok(pairing.get_paired_devices()),
+        Err(_) => Ok(Vec::new()),
+    }
 }
 
 #[tauri::command]
@@ -112,39 +90,27 @@ pub async fn unpair_device(
     net_state: State<'_, NetManagerState>,
     peer_id: String,
 ) -> AppResult<()> {
-    let pairing = {
-        let guard = net_state.lock().await;
-        let manager = guard
-            .as_ref()
-            .ok_or(AppError::Network("P2P node is not running".to_string()))?;
-        manager.pairing_manager.clone()
-    };
-    pairing.unpair(&peer_id).await?;
+    net_state.pairing().await?.unpair(&peer_id).await?;
     let _ = app.emit(events::PAIRED_DEVICE_REMOVED, &peer_id);
     Ok(())
 }
 
 #[tauri::command]
 pub async fn get_nearby_devices(net_state: State<'_, NetManagerState>) -> AppResult<Vec<PeerInfo>> {
-    let (device_manager, pairing) = {
-        let guard = net_state.lock().await;
-        match guard.as_ref() {
-            Some(manager) => (
-                manager.device_manager.clone(),
-                manager.pairing_manager.clone(),
-            ),
-            None => return Ok(Vec::new()),
-        }
+    let devices = match net_state.devices().await {
+        Ok(dm) => dm,
+        Err(_) => return Ok(Vec::new()),
     };
-    let all_peers = device_manager.get_connected_peers();
-    let nearby: Vec<_> = all_peers
+    let pairing = net_state.pairing().await?;
+
+    let nearby = devices
+        .get_connected_peers()
         .into_iter()
         .filter(|p| {
-            let peer_id: Result<swarm_p2p_core::libp2p::PeerId, _> = p.peer_id.parse();
-            match peer_id {
-                Ok(pid) => !pairing.is_paired(&pid),
-                Err(_) => true,
-            }
+            p.peer_id
+                .parse::<swarm_p2p_core::libp2p::PeerId>()
+                .map(|pid| !pairing.is_paired(&pid))
+                .unwrap_or(true)
         })
         .collect();
     Ok(nearby)

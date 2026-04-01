@@ -30,14 +30,6 @@ const statusConfig: Record<
     iconClass: "text-muted-foreground",
     cardClass: "border-border",
   },
-  starting: {
-    label: "启动中...",
-    description: "正在建立 P2P 连接",
-    variant: "outline",
-    indicatorClass: "bg-yellow-500 animate-pulse",
-    iconClass: "text-white",
-    cardClass: "border-yellow-500/30 bg-yellow-500/5",
-  },
   running: {
     label: "运行中",
     description: "",
@@ -114,6 +106,7 @@ function SettingRow({
 function NetworkSettingsPage() {
   const status = useNetworkStore((s) => s.status);
   const error = useNetworkStore((s) => s.error);
+  const loading = useNetworkStore((s) => s.loading);
   const connectedPeers = useNetworkStore((s) => s.connectedPeers);
   const natStatus = useNetworkStore((s) => s.natStatus);
   const startNode = useNetworkStore((s) => s.startNode);
@@ -179,17 +172,18 @@ function NetworkSettingsPage() {
               <p className="mt-0.5 text-xs text-muted-foreground">{statusDescription}</p>
             </div>
             {status === "running" ? (
-              <Button variant="outline" size="sm" onClick={handleStop} className="shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleStop}
+                disabled={loading}
+                className="shrink-0"
+              >
                 停止节点
               </Button>
             ) : (
-              <Button
-                size="sm"
-                onClick={startNode}
-                disabled={status === "starting"}
-                className="shrink-0"
-              >
-                {status === "starting" ? "启动中..." : "启动节点"}
+              <Button size="sm" onClick={startNode} loading={loading} className="shrink-0">
+                {loading ? "启动中..." : "启动节点"}
               </Button>
             )}
           </div>
