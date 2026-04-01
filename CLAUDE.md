@@ -9,7 +9,8 @@ SwarmNote is a decentralized, local-first, peer-to-peer note-taking app built wi
 ## Development Commands
 
 ```bash
-# Install dependencies (first time or after package.json changes)
+# First-time setup: init git submodule (libs/core) + install deps
+git submodule update --init --recursive
 pnpm install
 
 # Launch full Tauri desktop app (starts frontend + Rust backend)
@@ -43,6 +44,9 @@ cd src-tauri && cargo test
 # Run a single Rust test
 cd src-tauri && cargo test <test_name>
 
+# yrs-blocknote crate tests (independent of Tauri)
+cd crates/yrs-blocknote && cargo test
+
 # i18n: extract messages from source
 pnpm lingui extract
 
@@ -54,6 +58,10 @@ pnpm changelog:latest
 ```
 
 No test framework is configured for the frontend yet.
+
+**Linux 构建系统依赖**（Ubuntu/Debian）：`libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev`
+
+**工具版本**：Node 22+、pnpm 10+、Rust stable
 
 ## Code Quality Toolchain
 
