@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── OsInfo: 设备信息，通过 libp2p agent_version 交换 ──
 
@@ -88,12 +89,12 @@ pub enum AppResponse {
 pub enum SyncRequest {
     /// 发送本地 state vector，请求对方返回缺失的 updates
     StateVector {
-        doc_id: String,
+        doc_id: Uuid,
         #[serde(with = "serde_bytes")]
         sv: Vec<u8>,
     },
     /// 请求完整文档状态
-    FullSync { doc_id: String },
+    FullSync { doc_id: Uuid },
     /// 查询对方拥有的文档列表
     DocList,
 }
@@ -102,7 +103,7 @@ pub enum SyncRequest {
 pub enum SyncResponse {
     /// 返回请求方缺失的 yjs updates
     Updates {
-        doc_id: String,
+        doc_id: Uuid,
         #[serde(with = "serde_bytes")]
         updates: Vec<u8>,
     },
@@ -113,7 +114,7 @@ pub enum SyncResponse {
 /// 文档元数据，用于 DocList 交换
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocMeta {
-    pub doc_id: String,
+    pub doc_id: Uuid,
     pub rel_path: String,
     pub title: String,
     pub updated_at: i64,
@@ -122,7 +123,7 @@ pub struct DocMeta {
     /// Monotonic version clock for conflict ordering
     pub lamport_clock: i64,
     /// Workspace UUID for cross-device workspace matching
-    pub workspace_uuid: String,
+    pub workspace_uuid: Uuid,
 }
 
 // ── 配对子协议 ──
@@ -198,10 +199,10 @@ mod tests {
         let requests = vec![
             AppRequest::Sync(SyncRequest::DocList),
             AppRequest::Sync(SyncRequest::FullSync {
-                doc_id: "doc-123".to_string(),
+                doc_id: Uuid::now_v7(),
             }),
             AppRequest::Sync(SyncRequest::StateVector {
-                doc_id: "doc-456".to_string(),
+                doc_id: Uuid::now_v7(),
                 sv: vec![1, 2, 3, 4],
             }),
             AppRequest::Pairing(PairingRequest {
@@ -232,17 +233,17 @@ mod tests {
         let responses = vec![
             AppResponse::Sync(SyncResponse::DocList {
                 docs: vec![DocMeta {
-                    doc_id: "doc-1".to_string(),
+                    doc_id: Uuid::now_v7(),
                     rel_path: "notes/todo.md".to_string(),
                     title: "Test Note".to_string(),
                     updated_at: 1234567890,
                     deleted_at: None,
                     lamport_clock: 0,
-                    workspace_uuid: "ws-uuid-1".to_string(),
+                    workspace_uuid: Uuid::now_v7(),
                 }],
             }),
             AppResponse::Sync(SyncResponse::Updates {
-                doc_id: "doc-1".to_string(),
+                doc_id: Uuid::now_v7(),
                 updates: vec![10, 20, 30],
             }),
             AppResponse::Pairing(PairingResponse::Success),

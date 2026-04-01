@@ -177,44 +177,57 @@ impl YDocManager {
             });
         }
 
-        // Look up document by rel_path → get stable UUID.
-        // If no DB record exists, INSERT one immediately (upsert).
+        // Concurrency-safe upsert: INSERT OR IGNORE (UNIQUE constraint deduplicates),
+        // then SELECT to get the winning row's UUID.
         let guard = db_state.workspace_db_for(label).await?;
+        let db = guard.conn();
+
+        // Try inserting first — if another call already inserted, IGNORE silently.
+        let new_id = Uuid::now_v7();
+        let identity = app.state::<crate::identity::IdentityState>();
+        let now = chrono::Utc::now().timestamp();
+        let title = crate::document::title_from_rel_path(rel_path);
+
+        let insert_model = documents::ActiveModel {
+            id: sea_orm::Set(new_id),
+            workspace_id: sea_orm::Set(workspace_id),
+            folder_id: sea_orm::Set(None),
+            title: sea_orm::Set(title),
+            rel_path: sea_orm::Set(rel_path.to_owned()),
+            lamport_clock: sea_orm::Set(0),
+            created_by: sea_orm::Set(identity.peer_id()?),
+            created_at: sea_orm::Set(now),
+            updated_at: sea_orm::Set(now),
+            ..Default::default()
+        };
+        let _ = documents::Entity::insert(insert_model)
+            .on_conflict(
+                sea_orm::sea_query::OnConflict::columns([
+                    documents::Column::WorkspaceId,
+                    documents::Column::RelPath,
+                ])
+                .do_nothing()
+                .to_owned(),
+            )
+            .exec(db)
+            .await;
+
+        // SELECT the definitive row (ours or the one that won the race).
         let db_doc = documents::Entity::find()
             .filter(documents::Column::RelPath.eq(rel_path))
-            .one(guard.conn())
+            .filter(documents::Column::WorkspaceId.eq(workspace_id))
+            .one(db)
             .await?;
 
-        let doc_uuid = match &db_doc {
-            Some(model) => model.id,
-            None => {
-                let new_id = Uuid::now_v7();
-                let identity = app.state::<crate::identity::IdentityState>();
-                let now = chrono::Utc::now().timestamp();
-                let title = rel_path
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or(rel_path)
-                    .trim_end_matches(".md")
-                    .to_owned();
-
-                let model = documents::ActiveModel {
-                    id: sea_orm::Set(new_id),
-                    workspace_id: sea_orm::Set(workspace_id),
-                    folder_id: sea_orm::Set(None),
-                    title: sea_orm::Set(title),
-                    rel_path: sea_orm::Set(rel_path.to_owned()),
-                    lamport_clock: sea_orm::Set(0),
-                    created_by: sea_orm::Set(identity.peer_id()?),
-                    created_at: sea_orm::Set(now),
-                    updated_at: sea_orm::Set(now),
-                    ..Default::default()
-                };
-                model.insert(guard.conn()).await?;
-                tracing::info!("Auto-created DB record for {rel_path} → {new_id}");
-                new_id
-            }
-        };
+        let doc_model = db_doc.ok_or_else(|| {
+            AppError::Yjs(format!(
+                "Document record missing after upsert for {rel_path}"
+            ))
+        })?;
+        let doc_uuid = doc_model.id;
+        if doc_uuid == new_id {
+            tracing::info!("Auto-created DB record for {rel_path} → {new_id}");
+        }
         drop(guard);
 
         // Use Utf16 offset kind to match frontend JS yjs — Bytes (yrs default) causes
@@ -226,9 +239,9 @@ impl YDocManager {
         // Pre-register the fragment name so it exists even after applying updates
         doc.get_or_insert_xml_fragment(FRAGMENT_NAME);
 
-        let has_yjs_state = db_doc
+        let has_yjs_state = doc_model
+            .yjs_state
             .as_ref()
-            .and_then(|m| m.yjs_state.as_ref())
             .map(|yjs_state| apply_binary_update(&doc, yjs_state))
             .transpose()?
             .is_some();
@@ -256,10 +269,7 @@ impl YDocManager {
             .transact()
             .encode_state_as_update_v1(&StateVector::default());
 
-        let init_hash = db_doc
-            .as_ref()
-            .and_then(|m| m.file_hash.clone())
-            .unwrap_or_default();
+        let init_hash = doc_model.file_hash.unwrap_or_default();
 
         let entry = Arc::new(DocEntry {
             doc: tokio::sync::Mutex::new(doc),

@@ -77,19 +77,6 @@ pub async fn db_upsert_document(
 }
 
 #[tauri::command]
-pub async fn db_delete_document(
-    window: tauri::Window,
-    id: Uuid,
-    db_state: State<'_, DbState>,
-) -> AppResult<()> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
-    documents::Entity::delete_by_id(id)
-        .exec(guard.conn())
-        .await?;
-    Ok(())
-}
-
-#[tauri::command]
 pub async fn delete_document_by_rel_path(
     window: tauri::Window,
     rel_path: String,
@@ -172,6 +159,57 @@ pub async fn rename_document(
     ydoc_mgr.rename_doc(window.label(), doc_uuid, &input.new_rel_path);
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_documents_by_prefix(
+    window: tauri::Window,
+    prefix: String,
+    db_state: State<'_, DbState>,
+    identity: State<'_, IdentityState>,
+) -> AppResult<u64> {
+    let guard = db_state.workspace_db_for(window.label()).await?;
+    let db = guard.conn();
+
+    let docs = documents::Entity::find()
+        .filter(documents::Column::RelPath.starts_with(&prefix))
+        .all(db)
+        .await?;
+
+    let count = docs.len() as u64;
+    if count == 0 {
+        return Ok(0);
+    }
+
+    let now = Utc::now().timestamp();
+    let peer_id = identity.peer_id()?;
+
+    for doc in docs {
+        let tombstone = deletion_log::ActiveModel {
+            doc_id: Set(doc.id),
+            rel_path: Set(doc.rel_path),
+            deleted_at: Set(now),
+            deleted_by: Set(peer_id.clone()),
+            lamport_clock: Set(doc.lamport_clock + 1),
+        };
+        deletion_log::Entity::insert(tombstone)
+            .on_conflict(
+                sea_orm::sea_query::OnConflict::column(deletion_log::Column::DocId)
+                    .update_columns([
+                        deletion_log::Column::DeletedAt,
+                        deletion_log::Column::DeletedBy,
+                        deletion_log::Column::LamportClock,
+                    ])
+                    .to_owned(),
+            )
+            .exec(db)
+            .await?;
+
+        documents::Entity::delete_by_id(doc.id).exec(db).await?;
+    }
+
+    tracing::info!("Cascade-deleted {count} documents under prefix '{prefix}'");
+    Ok(count)
 }
 
 // ── Folder ──

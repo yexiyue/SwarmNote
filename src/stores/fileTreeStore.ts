@@ -1,6 +1,11 @@
 import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
-import { deleteDocumentByRelPath, renameDocument, upsertDocument } from "@/commands/document";
+import {
+  deleteDocumentByRelPath,
+  deleteDocumentsByPrefix,
+  renameDocument,
+  upsertDocument,
+} from "@/commands/document";
 import {
   type FileTreeNode,
   fsCreateDir,
@@ -93,6 +98,7 @@ export const useFileTreeStore = create<FileTreeState & FileTreeActions>()((set, 
   },
 
   deleteDir: async (relPath) => {
+    await deleteDocumentsByPrefix(`${relPath}/`);
     await fsDeleteDir(relPath);
     await get().rescan();
   },

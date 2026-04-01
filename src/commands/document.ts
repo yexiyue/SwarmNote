@@ -31,12 +31,12 @@ export async function upsertDocument(input: UpsertDocumentInput): Promise<Docume
   return invoke<DocumentModel>("db_upsert_document", { input });
 }
 
-export async function deleteDocument(id: string): Promise<void> {
-  return invoke("db_delete_document", { id });
-}
-
 export async function deleteDocumentByRelPath(relPath: string): Promise<void> {
   return invoke("delete_document_by_rel_path", { relPath });
+}
+
+export async function deleteDocumentsByPrefix(prefix: string): Promise<number> {
+  return invoke<number>("delete_documents_by_prefix", { prefix });
 }
 
 export async function renameDocument(

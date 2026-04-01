@@ -64,7 +64,8 @@ async fn ensure_workspace(
     // Resolve workspace UUID from workspace.json (source of truth).
     // Falls back to existing DB UUID for upgrades, or generates new.
     let ws_uuid =
-        super::identity::ensure_identity(ws_path, existing_ws.as_ref().map(|ws| ws.id), &dir_name)?;
+        super::identity::ensure_identity(ws_path, existing_ws.as_ref().map(|ws| ws.id), &dir_name)
+            .await?;
 
     let workspace = match existing_ws {
         Some(mut ws) => {

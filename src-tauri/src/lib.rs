@@ -45,8 +45,8 @@ pub fn run() {
             // 文档 & 文件夹
             document::commands::db_get_documents,
             document::commands::db_upsert_document,
-            document::commands::db_delete_document,
             document::commands::delete_document_by_rel_path,
+            document::commands::delete_documents_by_prefix,
             document::commands::rename_document,
             document::commands::db_get_folders,
             document::commands::db_create_folder,

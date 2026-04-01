@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use entity::workspace::documents;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use uuid::Uuid;
 
 use super::FileTreeNode;
@@ -126,12 +126,7 @@ pub async fn reconcile_with_db(
     let now = chrono::Utc::now().timestamp();
 
     for rel_path in &missing {
-        let title = rel_path
-            .rsplit('/')
-            .next()
-            .unwrap_or(rel_path)
-            .trim_end_matches(".md")
-            .to_owned();
+        let title = crate::document::title_from_rel_path(rel_path);
 
         let model = documents::ActiveModel {
             id: Set(Uuid::now_v7()),
@@ -145,7 +140,19 @@ pub async fn reconcile_with_db(
             updated_at: Set(now),
             ..Default::default()
         };
-        model.insert(db).await?;
+        // INSERT OR IGNORE: UNIQUE(workspace_id, rel_path) ensures idempotency
+        // if another call has already inserted a record for this path.
+        let _ = documents::Entity::insert(model)
+            .on_conflict(
+                sea_orm::sea_query::OnConflict::columns([
+                    documents::Column::WorkspaceId,
+                    documents::Column::RelPath,
+                ])
+                .do_nothing()
+                .to_owned(),
+            )
+            .exec(db)
+            .await;
     }
 
     if count > 0 {

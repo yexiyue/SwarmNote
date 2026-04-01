@@ -20,9 +20,9 @@ pub struct WorkspaceIdentity {
 
 /// Read workspace identity from `.swarmnote/workspace.json`.
 /// Returns `None` if the file does not exist.
-pub fn read_identity(workspace_path: &Path) -> AppResult<Option<WorkspaceIdentity>> {
+pub async fn read_identity(workspace_path: &Path) -> AppResult<Option<WorkspaceIdentity>> {
     let path = workspace_path.join(".swarmnote").join(IDENTITY_FILE);
-    match std::fs::read_to_string(&path) {
+    match tokio::fs::read_to_string(&path).await {
         Ok(content) => {
             let identity: WorkspaceIdentity =
                 serde_json::from_str(&content).map_err(|e| AppError::Config(e.to_string()))?;
@@ -35,13 +35,13 @@ pub fn read_identity(workspace_path: &Path) -> AppResult<Option<WorkspaceIdentit
 
 /// Write workspace identity to `.swarmnote/workspace.json`.
 /// Creates the `.swarmnote/` directory if needed.
-pub fn write_identity(workspace_path: &Path, identity: &WorkspaceIdentity) -> AppResult<()> {
+pub async fn write_identity(workspace_path: &Path, identity: &WorkspaceIdentity) -> AppResult<()> {
     let dir = workspace_path.join(".swarmnote");
-    std::fs::create_dir_all(&dir)?;
+    tokio::fs::create_dir_all(&dir).await?;
     let path = dir.join(IDENTITY_FILE);
     let content =
         serde_json::to_string_pretty(identity).map_err(|e| AppError::Config(e.to_string()))?;
-    std::fs::write(&path, content)?;
+    tokio::fs::write(&path, content).await?;
     Ok(())
 }
 
@@ -51,13 +51,13 @@ pub fn write_identity(workspace_path: &Path, identity: &WorkspaceIdentity) -> Ap
 /// 1. Read from workspace.json (if exists)
 /// 2. Fall back to the UUID from the DB workspaces table (for existing workspaces upgrading)
 /// 3. Generate a new UUID (for brand new workspaces)
-pub fn ensure_identity(
+pub async fn ensure_identity(
     workspace_path: &Path,
     db_uuid: Option<Uuid>,
     workspace_name: &str,
 ) -> AppResult<Uuid> {
     // Try reading existing identity file
-    if let Some(identity) = read_identity(workspace_path)? {
+    if let Some(identity) = read_identity(workspace_path).await? {
         return Ok(identity.uuid);
     }
 
@@ -69,7 +69,7 @@ pub fn ensure_identity(
         name: workspace_name.to_owned(),
         created_at: chrono::Utc::now().to_rfc3339(),
     };
-    write_identity(workspace_path, &identity)?;
+    write_identity(workspace_path, &identity).await?;
 
     tracing::info!(
         "Created workspace identity: {} → {}",
