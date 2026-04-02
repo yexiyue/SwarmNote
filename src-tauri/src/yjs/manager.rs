@@ -178,7 +178,7 @@ impl YDocManager {
 
         // Concurrency-safe upsert: INSERT OR IGNORE (UNIQUE constraint deduplicates),
         // then SELECT to get the winning row's UUID.
-        let guard = db_state.workspace_db_for(label).await?;
+        let guard = db_state.workspace_db_by_label(label).await?;
         let db = guard.conn();
 
         // Try inserting first — if another call already inserted, IGNORE silently.
@@ -499,7 +499,7 @@ impl YDocManager {
         entry._last_write_ms.store(now_ms(), Ordering::Release);
 
         let db_state = app.state::<DbState>();
-        let guard = db_state.workspace_db_for(label).await?;
+        let guard = db_state.workspace_db_by_label(label).await?;
 
         if let Some(existing) = documents::Entity::find_by_id(entry.doc_db_id)
             .one(guard.conn())

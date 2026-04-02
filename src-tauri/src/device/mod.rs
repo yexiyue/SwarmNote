@@ -20,7 +20,7 @@ pub enum ConnectionType {
 }
 
 /// 设备状态
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DeviceStatus {
     Online,

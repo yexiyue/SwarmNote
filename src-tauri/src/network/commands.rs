@@ -48,6 +48,7 @@ pub async fn do_start_p2p_node(
     spawn_event_loop(
         receiver,
         app.clone(),
+        net_manager.client.clone(),
         net_manager.device_manager.clone(),
         net_manager.pairing_manager.clone(),
         cancel_token.clone(),

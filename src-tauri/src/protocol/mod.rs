@@ -92,6 +92,7 @@ impl Default for OsInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AppRequest {
     Pairing(PairingRequest),
+    Workspace(WorkspaceRequest),
     Sync(SyncRequest),
 }
 
@@ -99,7 +100,32 @@ pub enum AppRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AppResponse {
     Pairing(PairingResponse),
+    Workspace(WorkspaceResponse),
     Sync(SyncResponse),
+}
+
+// ── 工作区子协议 ──
+
+/// 工作区请求：资源发现阶段。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WorkspaceRequest {
+    /// 查询对方当前已打开的工作区列表
+    ListWorkspaces,
+}
+
+/// 工作区响应。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WorkspaceResponse {
+    WorkspaceList { workspaces: Vec<WorkspaceMeta> },
+}
+
+/// 工作区元数据，用于列表交换。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceMeta {
+    pub uuid: Uuid,
+    pub name: String,
+    pub doc_count: u32,
+    pub updated_at: i64,
 }
 
 // ── 同步子协议 ──
@@ -236,6 +262,7 @@ mod tests {
                 timestamp: 1234567890,
                 method: PairingMethod::Direct,
             }),
+            AppRequest::Workspace(WorkspaceRequest::ListWorkspaces),
         ];
 
         for req in requests {
@@ -268,6 +295,14 @@ mod tests {
             AppResponse::Pairing(PairingResponse::Success),
             AppResponse::Pairing(PairingResponse::Refused {
                 reason: PairingRefuseReason::CodeExpired,
+            }),
+            AppResponse::Workspace(WorkspaceResponse::WorkspaceList {
+                workspaces: vec![WorkspaceMeta {
+                    uuid: Uuid::now_v7(),
+                    name: "Test Workspace".to_string(),
+                    doc_count: 42,
+                    updated_at: 1234567890,
+                }],
             }),
         ];
 

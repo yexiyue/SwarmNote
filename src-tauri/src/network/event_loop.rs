@@ -2,15 +2,21 @@
 
 use std::sync::Arc;
 
+use sea_orm::{EntityTrait, PaginatorTrait};
 use swarm_p2p_core::event::NodeEvent;
+use swarm_p2p_core::libp2p::PeerId;
 use swarm_p2p_core::EventReceiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::device::{DeviceFilter, DeviceManager};
+use crate::network::online::AppNetClient;
 use crate::pairing::PairingManager;
-use crate::protocol::AppRequest;
+use crate::protocol::{
+    AppRequest, AppResponse, WorkspaceMeta, WorkspaceRequest, WorkspaceResponse,
+};
+use crate::workspace::state::{DbState, WorkspaceState};
 
 /// Tauri 事件名常量
 pub mod events {
@@ -25,6 +31,7 @@ pub mod events {
 pub fn spawn_event_loop(
     mut receiver: EventReceiver<AppRequest>,
     app: AppHandle,
+    client: AppNetClient,
     device_manager: Arc<DeviceManager>,
     pairing_manager: Arc<PairingManager>,
     cancel_token: CancellationToken,
@@ -38,7 +45,7 @@ pub fn spawn_event_loop(
                 }
                 event = receiver.recv() => {
                     match event {
-                        Some(event) => handle_event(event, &app, &device_manager, &pairing_manager).await,
+                        Some(event) => handle_event(event, &app, &client, &device_manager, &pairing_manager).await,
                         None => {
                             info!("Event receiver closed, exiting event loop");
                             break;
@@ -53,6 +60,7 @@ pub fn spawn_event_loop(
 async fn handle_event(
     event: NodeEvent<AppRequest>,
     app: &AppHandle,
+    client: &AppNetClient,
     device_manager: &DeviceManager,
     pairing_manager: &PairingManager,
 ) {
@@ -132,7 +140,8 @@ async fn handle_event(
             pending_id,
             request,
         } => {
-            handle_inbound_request(app, pairing_manager, peer_id, pending_id, request);
+            handle_inbound_request(app, client, pairing_manager, peer_id, pending_id, request)
+                .await;
         }
 
         // ── GossipSub（未实现） ──
@@ -152,10 +161,11 @@ async fn handle_event(
 
 // ── 入站请求处理 ──
 
-fn handle_inbound_request(
+async fn handle_inbound_request(
     app: &AppHandle,
+    client: &AppNetClient,
     pairing_manager: &PairingManager,
-    peer_id: swarm_p2p_core::libp2p::PeerId,
+    peer_id: PeerId,
     pending_id: u64,
     request: AppRequest,
 ) {
@@ -180,10 +190,59 @@ fn handle_inbound_request(
                 &format!("{} 请求与您配对", pairing_req.os_info.hostname),
             );
         }
+
+        AppRequest::Workspace(WorkspaceRequest::ListWorkspaces) => {
+            info!("Received ListWorkspaces request from {peer_id}");
+            let response = build_workspace_list(app).await;
+            if let Err(e) = client
+                .send_response(pending_id, AppResponse::Workspace(response))
+                .await
+            {
+                warn!("Failed to send WorkspaceList response to {peer_id}: {e}");
+            }
+        }
+
         AppRequest::Sync(_) => {
             warn!("Received sync request from {peer_id} (pending_id={pending_id}), but sync handler not yet implemented");
         }
     }
+}
+
+/// 从 Tauri managed state 构建当前已打开工作区的元数据列表。
+async fn build_workspace_list(app: &AppHandle) -> WorkspaceResponse {
+    let empty = || WorkspaceResponse::WorkspaceList { workspaces: vec![] };
+
+    let Some(ws_state) = app.try_state::<WorkspaceState>() else {
+        return empty();
+    };
+    let Some(db_state) = app.try_state::<DbState>() else {
+        return empty();
+    };
+
+    let all_workspaces = ws_state.list_all().await;
+    let mut metas = Vec::with_capacity(all_workspaces.len());
+
+    for ws_info in &all_workspaces {
+        let doc_count = match db_state.workspace_db(&ws_info.id).await {
+            Ok(guard) => {
+                use entity::workspace::documents;
+                documents::Entity::find()
+                    .count(guard.conn())
+                    .await
+                    .unwrap_or(0) as u32
+            }
+            Err(_) => 0,
+        };
+
+        metas.push(WorkspaceMeta {
+            uuid: ws_info.id,
+            name: ws_info.name.clone(),
+            doc_count,
+            updated_at: ws_info.updated_at.timestamp_millis(),
+        });
+    }
+
+    WorkspaceResponse::WorkspaceList { workspaces: metas }
 }
 
 // ── 辅助函数 ──
