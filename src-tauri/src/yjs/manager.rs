@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use entity::workspace::documents;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -196,7 +196,10 @@ impl YDocManager {
             created_by: sea_orm::Set(identity.peer_id()?),
             ..Default::default()
         };
-        let _ = documents::Entity::insert(insert_model)
+        // Entity::insert() bypasses ActiveModelBehavior::before_save,
+        // so invoke it manually to fill created_at / updated_at.
+        let insert_model = insert_model.before_save(db, true).await?;
+        match documents::Entity::insert(insert_model)
             .on_conflict(
                 sea_orm::sea_query::OnConflict::columns([
                     documents::Column::WorkspaceId,
@@ -206,7 +209,14 @@ impl YDocManager {
                 .to_owned(),
             )
             .exec(db)
-            .await;
+            .await
+        {
+            Ok(_) | Err(sea_orm::DbErr::RecordNotInserted) => {}
+            Err(e) => {
+                tracing::error!("Failed to upsert document record for {rel_path}: {e}");
+                return Err(AppError::Database(e));
+            }
+        }
 
         // SELECT the definitive row (ours or the one that won the race).
         let db_doc = documents::Entity::find()
