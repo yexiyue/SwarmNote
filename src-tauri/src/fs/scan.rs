@@ -59,6 +59,10 @@ fn scan_dir(root: &Path, dir: &Path) -> Result<Vec<FileTreeNode>, AppError> {
             .replace('\\', "/");
 
         if meta.is_dir() {
+            // Skip .assets resource directories
+            if name_str.ends_with(".assets") {
+                continue;
+            }
             let children = scan_dir(root, &entry.path())?;
             dirs.push(FileTreeNode {
                 id: rel_path,

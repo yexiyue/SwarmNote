@@ -211,6 +211,8 @@ sequenceDiagram
 
 "重复交换"的代价极小：StateVector 交换后，如果双方已同步，diff 为空（0 字节）。CRDT merge 是幂等的——同一个 update apply 两次效果相同。用零复杂度换零冗余是个好交易。
 
+**多设备同时上线场景**：3 台设备同时上线会产生 6 次全量同步（3×2，A→B 和 B→A 是独立 task）。`active_syncs` 的 `(PeerId, Uuid)` key 不合并方向——这是有意为之。每次同步 SV diff 为空时只是一个轻量 DocList 往返，代价可忽略。保持对称设计的简洁性优先于消除冗余。
+
 ### 4.4 全量同步 async 流程
 
 ```rust
@@ -634,15 +636,24 @@ NodeEvent::GossipMessage { source, topic, data } => {
 
 // sync_manager 中
 async fn handle_gossip_update(&self, source: Option<PeerId>, doc_uuid: Uuid, data: Vec<u8>) {
+    // 1. 应用文本 update（文档必定已打开，否则不会 subscribe）
     let ydoc_mgr = self.app.state::<YDocManager>();
-    // 文档必定已打开（否则不会 subscribe 这个 topic）
     if let Some(result) = ydoc_mgr.apply_sync_update(&self.app, &doc_uuid, &data).await {
         if let Err(e) = result {
             tracing::warn!("Failed to apply gossip update for {doc_uuid}: {e}");
+            return;
         }
+    }
+
+    // 2. 触发资源检查：debounce 2s 后复用 sync_doc_assets（AssetManifest diff + 分块拉取）
+    //    source=None 时跳过，等 60s SV 补偿或全量同步兜底
+    if let Some(peer) = source {
+        self.schedule_asset_check(peer, doc_uuid, Duration::from_secs(2));
     }
 }
 ```
+
+`schedule_asset_check` 通过 debounce 合并快速连续编辑产生的多次 update，避免频繁请求 AssetManifest。debounce 结束后调用 `sync_doc_assets`——与全量同步中 per-doc 资源同步是同一个函数。
 
 ### 8.5 丢失补偿
 
@@ -821,18 +832,51 @@ active_syncs: DashMap<(PeerId, Uuid), CancellationToken>
 ```
 场景：A 和 B 独立创建了 notes/todo.md，各自分配了不同的 UUID
 
-A 的 DocList: { doc_id: uuid-1, rel_path: "notes/todo.md" }
-B 的 DocList: { doc_id: uuid-2, rel_path: "notes/todo.md" }
+A 的 DocList: { doc_id: uuid-1, rel_path: "notes/todo.md", clock: 3 }
+B 的 DocList: { doc_id: uuid-2, rel_path: "notes/todo.md", clock: 1 }
 
 B 收到 A 的 DocList → uuid-1 本地不存在 → FullSync 拉取
 → 本地已有 notes/todo.md (uuid-2) → 文件系统冲突
-
-处理：
-  创建时附加后缀：notes/todo (1).md
-  或跳过，保留本地版本，后续版本处理冲突
 ```
 
-**v0.2.0 策略**：检测到 rel_path 冲突时，为新拉取的文档自动重命名（追加数字后缀）。
+**v0.2.0 策略：Lamport clock 裁决**
+
+两个文档同 `rel_path` 不同 `uuid` 时，**clock 大的保留原名（winner），clock 小的被重命名（loser）**。clock 相同时用 uuid 字典序破平。
+
+```rust
+fn resolve_path_conflict(local: &DocMeta, remote: &DocMeta) -> (/*winner*/&DocMeta, /*loser*/&DocMeta) {
+    if local.lamport_clock > remote.lamport_clock {
+        (local, remote)
+    } else if remote.lamport_clock > local.lamport_clock {
+        (remote, local)
+    } else {
+        // clock 相同时用 uuid 字典序破平
+        if local.doc_id < remote.doc_id { (local, remote) } else { (remote, local) }
+    }
+}
+```
+
+#### 为什么不简单地"重命名新拉取的"？
+
+```
+如果只重命名新拉取的：
+  A 上：todo.md (uuid-1)  +  todo (1).md (uuid-2)
+  B 上：todo.md (uuid-2)  +  todo (1).md (uuid-1)
+  ✗ 两边"谁是原名"不一致 → 不是最终一致
+
+Lamport clock 裁决：
+  假设 uuid-1.clock=3 > uuid-2.clock=1
+  A 上：todo.md (uuid-1, winner)  +  todo (1).md (uuid-2, loser)
+  B 上：todo.md (uuid-1, winner)  +  todo (1).md (uuid-2, loser)
+  ✓ 两边完全一致，无需协商
+```
+
+**实现要点**：
+
+- 在 `diff_doc_lists` 中检测 rel_path 冲突（remote 活跃文档的 rel_path 已被本地不同 uuid 占用）
+- 裁决后，loser 被重命名为 `todo (1).md`，复用 `fs/crud.rs` 已有的 rename 逻辑（改文件名 + 资源目录 + 更新 DB rel_path）
+- 如果 loser 是本地文档，需要先重命名本地文件再拉取远程文档
+- 两台设备独立计算裁决结果，因为 clock 和 uuid 是全局信息，结果必定一致
 
 ### 10.8 协议版本不兼容
 

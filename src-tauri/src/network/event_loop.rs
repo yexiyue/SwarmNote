@@ -16,6 +16,7 @@ use crate::pairing::PairingManager;
 use crate::protocol::{
     AppRequest, AppResponse, WorkspaceMeta, WorkspaceRequest, WorkspaceResponse,
 };
+use crate::sync::{parse_sync_topic, SyncManager};
 use crate::workspace::state::{DbState, WorkspaceState};
 
 /// Tauri 事件名常量
@@ -34,6 +35,7 @@ pub fn spawn_event_loop(
     client: AppNetClient,
     device_manager: Arc<DeviceManager>,
     pairing_manager: Arc<PairingManager>,
+    sync_manager: Arc<SyncManager>,
     cancel_token: CancellationToken,
 ) {
     tokio::spawn(async move {
@@ -45,7 +47,7 @@ pub fn spawn_event_loop(
                 }
                 event = receiver.recv() => {
                     match event {
-                        Some(event) => handle_event(event, &app, &client, &device_manager, &pairing_manager).await,
+                        Some(event) => handle_event(event, &app, &client, &device_manager, &pairing_manager, &sync_manager).await,
                         None => {
                             info!("Event receiver closed, exiting event loop");
                             break;
@@ -63,6 +65,7 @@ async fn handle_event(
     client: &AppNetClient,
     device_manager: &DeviceManager,
     pairing_manager: &PairingManager,
+    sync_manager: &Arc<SyncManager>,
 ) {
     // 统一更新设备状态
     device_manager.handle_event(&event);
@@ -100,6 +103,11 @@ async fn handle_event(
         } => {
             info!("Identified peer: {peer_id} ({agent_version})");
             emit_devices();
+
+            // If the identified peer is a paired device, trigger full sync
+            if device_manager.is_paired(peer_id) {
+                sync_manager.on_paired_peer_connected(*peer_id).await;
+            }
         }
         NodeEvent::PingSuccess { .. } => {
             emit_devices();
@@ -140,15 +148,31 @@ async fn handle_event(
             pending_id,
             request,
         } => {
-            handle_inbound_request(app, client, pairing_manager, peer_id, pending_id, request)
-                .await;
+            handle_inbound_request(
+                app,
+                client,
+                pairing_manager,
+                sync_manager,
+                peer_id,
+                pending_id,
+                request,
+            )
+            .await;
         }
 
-        // ── GossipSub（未实现） ──
-        NodeEvent::GossipMessage { source, topic, .. } => {
-            info!(
-                "GossipSub message from {source:?} on topic {topic} (handler not yet implemented)"
-            );
+        // ── GossipSub ──
+        NodeEvent::GossipMessage {
+            source,
+            topic,
+            data,
+        } => {
+            if let Some(doc_uuid) = parse_sync_topic(&topic) {
+                sync_manager
+                    .handle_gossip_update(source, doc_uuid, data)
+                    .await;
+            } else {
+                info!("GossipSub message on unknown topic: {topic}");
+            }
         }
         NodeEvent::GossipSubscribed { peer_id, topic } => {
             info!("Peer {peer_id} subscribed to topic {topic}");
@@ -165,6 +189,7 @@ async fn handle_inbound_request(
     app: &AppHandle,
     client: &AppNetClient,
     pairing_manager: &PairingManager,
+    sync_manager: &SyncManager,
     peer_id: PeerId,
     pending_id: u64,
     request: AppRequest,
@@ -202,8 +227,10 @@ async fn handle_inbound_request(
             }
         }
 
-        AppRequest::Sync(_) => {
-            warn!("Received sync request from {peer_id} (pending_id={pending_id}), but sync handler not yet implemented");
+        AppRequest::Sync(sync_req) => {
+            sync_manager
+                .handle_inbound_request(peer_id, pending_id, sync_req.clone())
+                .await;
         }
     }
 }

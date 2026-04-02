@@ -443,6 +443,9 @@ Phase 3: 增量同步
 | 资源传输 | 分块 256KB + 4 并发 | 参考 SwarmDrop，避免大文件超时 |
 | 资源同步时机 | 紧跟文档 Y.Doc 同步 | 打开文档时图片就绪 |
 | 增量资源同步 | GossipSub 文本 + Req-Resp 补发资源 | GossipSub 有 64KB 限制 |
+| 增量资源检测 | Rust 端 debounce 2s 后向 source peer 请求 AssetManifest diff | 完全复用全量同步的 sync_doc_assets，无需解析 Y.Doc 内容；source=None 时跳过，等全量补偿 |
+| 同名文档冲突 | Lamport clock 裁决：clock 大者保留原名，小者重命名 (1)，相同时 uuid 字典序破平 | 两设备独立计算结果一致，保证最终一致性；复用 fs/crud.rs rename 流程 |
+| 对称同步冗余 | 接受冗余，不做去重优化 | CRDT 幂等保证正确性，SV diff 为空时开销极小；保持对称设计简洁性 |
 | Y.Doc URL 策略 | 存储相对路径，渲染时转换 | 设备无关，天然可同步 |
 | 进度 UI | v0.2.0 预留接口不做 UI | 先跑通后端和事件 |
 | 时间戳格式 | DB: ISO8601 TEXT / 协议: i64 毫秒 | DB 可读性 + 协议紧凑性 |

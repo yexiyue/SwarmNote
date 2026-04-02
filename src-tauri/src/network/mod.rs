@@ -11,11 +11,13 @@ use std::sync::Arc;
 use sea_orm::DatabaseConnection;
 use serde::Serialize;
 use swarm_p2p_core::libp2p::PeerId;
+use tauri::AppHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 use crate::device::DeviceManager;
 use crate::pairing::PairingManager;
+use crate::sync::SyncManager;
 
 use self::online::{AppNetClient, OnlineAnnouncer};
 
@@ -37,11 +39,17 @@ pub struct NetManager {
     pub device_manager: Arc<DeviceManager>,
     pub online_announcer: Arc<OnlineAnnouncer>,
     pub pairing_manager: Arc<PairingManager>,
+    pub sync_manager: Arc<SyncManager>,
     cancel_token: CancellationToken,
 }
 
 impl NetManager {
-    pub fn new(client: AppNetClient, peer_id: PeerId, db: DatabaseConnection) -> Self {
+    pub fn new(
+        app: AppHandle,
+        client: AppNetClient,
+        peer_id: PeerId,
+        db: DatabaseConnection,
+    ) -> Self {
         let paired_devices = Arc::new(dashmap::DashMap::new());
         let device_manager = Arc::new(DeviceManager::new(paired_devices.clone()));
         let online_announcer = Arc::new(OnlineAnnouncer::new(client.clone(), peer_id));
@@ -51,6 +59,7 @@ impl NetManager {
             db,
             paired_devices,
         ));
+        let sync_manager = Arc::new(SyncManager::new(app, client.clone()));
         let cancel_token = CancellationToken::new();
 
         Self {
@@ -58,6 +67,7 @@ impl NetManager {
             device_manager,
             online_announcer,
             pairing_manager,
+            sync_manager,
             cancel_token,
         }
     }
@@ -122,5 +132,14 @@ impl NetManagerState {
             .as_ref()
             .ok_or_else(crate::error::AppError::node_not_running)?;
         Ok(manager.device_manager.clone())
+    }
+
+    /// 获取 SyncManager。节点未运行时返回错误。
+    pub async fn sync(&self) -> crate::error::AppResult<Arc<SyncManager>> {
+        let guard = self.0.lock().await;
+        let manager = guard
+            .as_ref()
+            .ok_or_else(crate::error::AppError::node_not_running)?;
+        Ok(manager.sync_manager.clone())
     }
 }

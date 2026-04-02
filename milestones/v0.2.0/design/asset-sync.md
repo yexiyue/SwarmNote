@@ -270,19 +270,42 @@ sequenceDiagram
 
     A->>B: GossipSub publish（yrs update）
     Note over B: apply update → 文档中出现图片引用
-    Note over B: 检测到 photo.png 本地不存在
 
+    Note over B: SyncManager debounce 2s 后<br/>向 source peer 请求 AssetManifest
     B->>A: SyncRequest::AssetManifest { doc_id }
     A-->>B: SyncResponse::AssetManifest { assets }
-    Note over B: diff → photo.png 缺失
+    Note over B: diff → photo-c3d4e5f6.png 缺失
 
     loop 分块拉取
-        B->>A: SyncRequest::AssetChunk { name: photo.png, chunk }
+        B->>A: SyncRequest::AssetChunk { name: photo-c3d4e5f6.png, chunk }
         A-->>B: SyncResponse::AssetChunk { data }
     end
 
-    Note over B: 图片就绪 → 刷新编辑器
+    Note over B: 图片就绪 → emit 事件 → 前端刷新
 ```
+
+### 资源检测机制
+
+Rust 端主动检测，**完全复用全量同步的 `sync_doc_assets` 流程**，无需解析 Y.Doc 内容：
+
+```rust
+// SyncManager 中
+async fn handle_gossip_update(&self, source: Option<PeerId>, doc_uuid: Uuid, data: Vec<u8>) {
+    // 1. 无论如何都应用文本 update
+    let ydoc_mgr = self.app.state::<YDocManager>();
+    ydoc_mgr.apply_sync_update(&self.app, &doc_uuid, &data).await;
+
+    // 2. 只有知道 source 时才触发资源检查（debounce 2s）
+    if let Some(peer) = source {
+        self.schedule_asset_check(peer, doc_uuid, Duration::from_secs(2));
+    }
+    // source=None: 跳过，等 60s SV 补偿或全量同步兜底
+}
+```
+
+`schedule_asset_check` 内部 debounce 后调用 `sync_doc_assets`——与全量同步中 per-doc 资源同步是同一个函数。
+
+GossipSub `source` 字段为 `Option<PeerId>`，启用签名验证时几乎不会为 `None`。极少数 `None` 情况下跳过资源检查，由 60s SV 定期补偿或下次全量同步自动覆盖。
 
 ### 前端占位符
 

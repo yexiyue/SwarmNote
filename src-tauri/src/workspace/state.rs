@@ -49,6 +49,11 @@ impl DbState {
         self.workspace_db(&uuid).await
     }
 
+    /// 列出所有已打开的工作区 UUID（同步层用）。
+    pub async fn list_workspace_uuids(&self) -> Vec<Uuid> {
+        self.workspace_dbs.read().await.keys().copied().collect()
+    }
+
     /// 注册工作区数据库连接。
     pub async fn insert_workspace_db(&self, label: &str, uuid: Uuid, conn: DatabaseConnection) {
         self.workspace_dbs.write().await.insert(uuid, conn);
@@ -59,11 +64,20 @@ impl DbState {
     }
 
     /// 移除工作区数据库连接。
+    /// 只在没有其他窗口引用同一 workspace UUID 时才真正移除 DB 连接。
     pub async fn remove_workspace_db(&self, label: &str) -> bool {
-        let Some(uuid) = self.label_to_uuid.write().await.remove(label) else {
+        let mut labels = self.label_to_uuid.write().await;
+        let Some(uuid) = labels.remove(label) else {
             return false;
         };
-        self.workspace_dbs.write().await.remove(&uuid).is_some()
+        // Check if any other window still references the same workspace UUID
+        let still_referenced = labels.values().any(|v| *v == uuid);
+        drop(labels);
+        if !still_referenced {
+            self.workspace_dbs.write().await.remove(&uuid).is_some()
+        } else {
+            true
+        }
     }
 
     async fn resolve_uuid(&self, label: &str) -> Result<Uuid, AppError> {
@@ -115,18 +129,30 @@ impl WorkspaceState {
         self.bindings.write().await.insert(label.to_owned(), uuid);
     }
 
-    /// 解绑窗口
+    /// 解绑窗口。只在没有其他窗口绑定同一 UUID 时才移除 WorkspaceInfo。
     pub async fn unbind_by_label(&self, label: &str) -> bool {
-        let Some(uuid) = self.bindings.write().await.remove(label) else {
+        let mut bindings = self.bindings.write().await;
+        let Some(uuid) = bindings.remove(label) else {
             return false;
         };
-        self.workspaces.write().await.remove(&uuid).is_some()
+        let still_referenced = bindings.values().any(|v| *v == uuid);
+        drop(bindings);
+        if !still_referenced {
+            self.workspaces.write().await.remove(&uuid).is_some()
+        } else {
+            true
+        }
     }
 
     /// 通过 label 获取工作区信息（Tauri 命令用）
     pub async fn get_by_label(&self, label: &str) -> Option<WorkspaceInfo> {
         let uuid = self.bindings.read().await.get(label).copied()?;
         self.workspaces.read().await.get(&uuid).cloned()
+    }
+
+    /// 按 UUID 获取工作区信息（同步层用）
+    pub async fn get(&self, uuid: &Uuid) -> Option<WorkspaceInfo> {
+        self.workspaces.read().await.get(uuid).cloned()
     }
 
     /// 获取所有已打开的工作区信息（同步层用）

@@ -138,6 +138,31 @@ impl DeviceManager {
         }
     }
 
+    /// Check whether a peer is in the paired devices list.
+    pub fn is_paired(&self, peer_id: &PeerId) -> bool {
+        self.paired_devices.contains_key(peer_id)
+    }
+
+    /// Get PeerIds of all connected and paired devices (for SV compensation).
+    pub fn connected_paired_peers(&self) -> Vec<PeerId> {
+        self.paired_devices
+            .iter()
+            .filter_map(|entry| {
+                let peer_id = *entry.key();
+                let is_connected = self
+                    .peers
+                    .get(&peer_id)
+                    .map(|p| p.is_connected)
+                    .unwrap_or(false);
+                if is_connected {
+                    Some(peer_id)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     /// 统一查询设备列表
     pub fn get_devices(&self, filter: DeviceFilter) -> Vec<Device> {
         match filter {
