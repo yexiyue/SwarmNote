@@ -33,8 +33,6 @@ pub enum NodeStatus {
 
 /// 网络管理器：持有 P2P 节点所有运行时状态
 pub struct NetManager {
-    /// 供 sync 协议使用
-    #[expect(dead_code)]
     pub client: AppNetClient,
     pub device_manager: Arc<DeviceManager>,
     pub online_announcer: Arc<OnlineAnnouncer>,
@@ -102,18 +100,27 @@ impl NetManagerState {
     /// 获取 PairingManager。节点未运行时返回错误。
     pub async fn pairing(&self) -> crate::error::AppResult<Arc<crate::pairing::PairingManager>> {
         let guard = self.0.lock().await;
-        let manager = guard.as_ref().ok_or(crate::error::AppError::Network(
-            "P2P node is not running".to_string(),
-        ))?;
+        let manager = guard
+            .as_ref()
+            .ok_or_else(crate::error::AppError::node_not_running)?;
         Ok(manager.pairing_manager.clone())
+    }
+
+    /// 获取 NetClient。节点未运行时返回错误。
+    pub async fn client(&self) -> crate::error::AppResult<online::AppNetClient> {
+        let guard = self.0.lock().await;
+        let manager = guard
+            .as_ref()
+            .ok_or_else(crate::error::AppError::node_not_running)?;
+        Ok(manager.client.clone())
     }
 
     /// 获取 DeviceManager。节点未运行时返回错误。
     pub async fn devices(&self) -> crate::error::AppResult<Arc<DeviceManager>> {
         let guard = self.0.lock().await;
-        let manager = guard.as_ref().ok_or(crate::error::AppError::Network(
-            "P2P node is not running".to_string(),
-        ))?;
+        let manager = guard
+            .as_ref()
+            .ok_or_else(crate::error::AppError::node_not_running)?;
         Ok(manager.device_manager.clone())
     }
 }

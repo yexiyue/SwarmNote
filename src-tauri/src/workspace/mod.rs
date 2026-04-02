@@ -5,7 +5,6 @@ pub mod db;
 pub mod identity;
 pub mod state;
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use entity::workspace::workspaces;
@@ -24,18 +23,18 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
     });
     let devices_db = devices_result?;
 
-    let mut workspace_dbs = HashMap::new();
-    let mut workspace_infos = HashMap::new();
+    let db_state = DbState::new(devices_db);
+    let ws_state = WorkspaceState::new();
 
-    if let Some(conn) = workspace_db {
-        workspace_dbs.insert("main".to_owned(), conn);
-    }
-    if let Some(info) = workspace_info {
-        workspace_infos.insert("main".to_owned(), info);
+    if let (Some(conn), Some(info)) = (workspace_db, workspace_info) {
+        tauri::async_runtime::block_on(async {
+            db_state.insert_workspace_db("main", info.id, conn).await;
+            ws_state.bind("main", info).await;
+        });
     }
 
-    app.manage(DbState::new(devices_db, workspace_dbs));
-    app.manage(WorkspaceState::new(workspace_infos));
+    app.manage(db_state);
+    app.manage(ws_state);
 
     Ok(())
 }
@@ -54,7 +53,7 @@ pub async fn cleanup_window(
 
     crate::fs::watcher::stop_watching(label, watcher_state);
 
-    if ws_state.remove(label).await {
+    if ws_state.unbind_by_label(label).await {
         tracing::info!("Cleaned up WorkspaceInfo for window '{label}'");
     }
     if db_state.remove_workspace_db(label).await {

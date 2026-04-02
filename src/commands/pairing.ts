@@ -55,6 +55,22 @@ export interface DeviceListResult {
 
 export type DeviceFilter = "all" | "connected" | "paired";
 
+// ── 工作区列表交换 ──
+
+export interface RemoteWorkspaceInfo {
+  uuid: string;
+  name: string;
+  docCount: number;
+  updatedAt: number;
+  peerId: string;
+  peerName: string;
+  isLocal: boolean;
+}
+
+export async function getRemoteWorkspaces(): Promise<RemoteWorkspaceInfo[]> {
+  return invoke("get_remote_workspaces");
+}
+
 export async function listDevices(filter?: DeviceFilter): Promise<DeviceListResult> {
   return invoke("list_devices", { filter });
 }
