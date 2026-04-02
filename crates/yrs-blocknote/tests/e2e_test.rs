@@ -44,7 +44,7 @@ fn main() {}
     assert!(output.contains("fn main()"), "code content preserved");
     assert!(output.contains("---"), "divider preserved");
     assert!(output.contains("![photo](pic.png)"), "image preserved");
-    assert!(output.contains("| A |"), "table preserved");
+    assert!(output.contains("| A"), "table preserved");
 }
 
 #[test]

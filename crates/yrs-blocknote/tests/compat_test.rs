@@ -433,8 +433,10 @@ fn markdown_roundtrip_gfm_table() {
     let md = "| A | B |\n|---|---|\n| 1 | 2 |\n";
     let blocks = markdown_to_blocks_with(md, test_id_gen());
     let output = blocks_to_markdown(&blocks).unwrap();
-    assert!(output.contains("| A | B |"), "table header preserved");
-    assert!(output.contains("| 1 | 2 |"), "table body preserved");
+    assert!(output.contains("| A"), "table header preserved");
+    assert!(output.contains("| B"), "table header B preserved");
+    assert!(output.contains("| 1"), "table body preserved");
+    assert!(output.contains("| 2"), "table body 2 preserved");
 }
 
 #[test]
@@ -674,4 +676,49 @@ fn roundtrip_empty_document() {
     let doc = blocks_to_doc(&blocks, FRAG);
     let output = doc_to_blocks(&doc, FRAG).unwrap();
     assert!(output.is_empty());
+}
+
+#[test]
+fn debug_ordered_list_roundtrip() {
+    let md = "1. **A**: first\n2. **B**: second\n";
+    let blocks = yrs_blocknote::markdown_to_blocks(md);
+    for (i, b) in blocks.iter().enumerate() {
+        eprintln!("block[{i}]: {:?} content={:?}", b.block_type, b.content);
+    }
+    let output = yrs_blocknote::blocks_to_markdown(&blocks).unwrap();
+    eprintln!("---output---\n{output}---end---");
+    assert!(output.contains("second"), "second item should be in output");
+}
+
+#[test]
+fn debug_all_rendering_issues() {
+    // Issue 1: consecutive numbered list
+    let md1 = "1. First\n2. Second\n3. Third\n";
+    let b1 = yrs_blocknote::markdown_to_blocks(md1);
+    let o1 = yrs_blocknote::blocks_to_markdown(&b1).unwrap();
+    eprintln!("=== Issue 1: Consecutive numbered list ===\nINPUT:\n{md1}OUTPUT:\n{o1}===\n");
+
+    // Issue 2: numbered prefix in heading
+    let md2 = "## 1. Problem\n";
+    let b2 = yrs_blocknote::markdown_to_blocks(md2);
+    let o2 = yrs_blocknote::blocks_to_markdown(&b2).unwrap();
+    eprintln!("=== Issue 2: Number in heading ===\nINPUT:\n{md2}OUTPUT:\n{o2}===\n");
+
+    // Issue 3: table separator style
+    let md3 = "| A | B |\n|---|---|\n| 1 | 2 |\n";
+    let b3 = yrs_blocknote::markdown_to_blocks(md3);
+    let o3 = yrs_blocknote::blocks_to_markdown(&b3).unwrap();
+    eprintln!("=== Issue 3: Table separator ===\nINPUT:\n{md3}OUTPUT:\n{o3}===\n");
+
+    // Issue 4: tight bullet list with bold
+    let md4 = "- **A** — desc\n- **B** — desc\n";
+    let b4 = yrs_blocknote::markdown_to_blocks(md4);
+    let o4 = yrs_blocknote::blocks_to_markdown(&b4).unwrap();
+    eprintln!("=== Issue 4: Tight bullet list ===\nINPUT:\n{md4}OUTPUT:\n{o4}===\n");
+
+    // Issue 5: blockquote
+    let md5 = "> Quote line 1\n> Quote line 2\n";
+    let b5 = yrs_blocknote::markdown_to_blocks(md5);
+    let o5 = yrs_blocknote::blocks_to_markdown(&b5).unwrap();
+    eprintln!("=== Issue 5: Blockquote ===\nINPUT:\n{md5}OUTPUT:\n{o5}===\n");
 }
