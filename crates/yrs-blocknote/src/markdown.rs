@@ -4,7 +4,10 @@ use comrak::nodes::{
 };
 use comrak::{Arena, Options, format_commonmark};
 
-use crate::blocks::{Block, InlineContent, Styles};
+use crate::blocks::{
+    Block, BlockContent, InlineContent, Styles, TableCell, TableCellProps, TableCellType,
+    TableContent, TableRow,
+};
 use crate::schema::BlockType;
 
 // ── Shared comrak options ─────────────────────────────────────
@@ -114,6 +117,10 @@ fn node_to_block<'a>(
             drop(data);
             Some(table_node_to_block(node, id_gen))
         }
+        NodeValue::BlockQuote => {
+            drop(data);
+            Some(blockquote_node_to_block(node, id_gen))
+        }
         _ => None,
     }
 }
@@ -190,34 +197,93 @@ fn table_node_to_block<'a>(
     node: &'a comrak::nodes::AstNode<'a>,
     id_gen: &mut impl FnMut() -> String,
 ) -> Block {
-    let mut table_children = Vec::new();
+    let mut rows = Vec::new();
 
     for row_node in node.children() {
         let row_data = row_node.data.borrow();
         if let NodeValue::TableRow(is_header) = &row_data.value {
             let is_header = *is_header;
             drop(row_data);
-            let mut row_cells = Vec::new();
+            let mut cells = Vec::new();
             for cell_node in row_node.children() {
                 let cell_data = cell_node.data.borrow();
                 if matches!(&cell_data.value, NodeValue::TableCell) {
                     let cell_type = if is_header {
-                        BlockType::TableHeader
+                        TableCellType::TableHeader
                     } else {
-                        BlockType::TableCell
+                        TableCellType::TableCell
                     };
                     drop(cell_data);
-                    row_cells.push(
-                        Block::new(cell_type, id_gen())
-                            .with_content(collect_inline_content(cell_node)),
-                    );
+                    cells.push(TableCell {
+                        cell_type,
+                        props: TableCellProps::default(),
+                        content: collect_inline_content(cell_node),
+                    });
                 }
             }
-            table_children.push(Block::new(BlockType::TableRow, id_gen()).with_children(row_cells));
+            rows.push(TableRow { cells });
         }
     }
 
-    Block::new(BlockType::Table, id_gen()).with_children(table_children)
+    // Determine column count from first row
+    let num_columns = rows.first().map_or(0, |r| r.cells.len());
+    let column_widths = vec![None; num_columns];
+
+    let header_rows = rows
+        .iter()
+        .take_while(|row| {
+            row.cells
+                .first()
+                .is_some_and(|c| c.cell_type == TableCellType::TableHeader)
+        })
+        .count();
+
+    let table_content = TableContent {
+        column_widths,
+        header_rows: if header_rows > 0 {
+            Some(header_rows)
+        } else {
+            None
+        },
+        header_cols: None,
+        rows,
+    };
+
+    Block::new(BlockType::Table, id_gen()).with_table_content(table_content)
+}
+
+fn blockquote_node_to_block<'a>(
+    node: &'a comrak::nodes::AstNode<'a>,
+    id_gen: &mut impl FnMut() -> String,
+) -> Block {
+    // A blockquote may contain multiple children (paragraphs, lists, etc.)
+    // We take the first paragraph's inline content as the Quote block content,
+    // and any remaining children become Block children.
+    let mut inline_content = Vec::new();
+    let mut children = Vec::new();
+    let mut first_para = true;
+
+    for child in node.children() {
+        let child_data = child.data.borrow();
+        match &child_data.value {
+            NodeValue::Paragraph if first_para => {
+                drop(child_data);
+                inline_content = collect_inline_content(child);
+                first_para = false;
+            }
+            _ => {
+                drop(child_data);
+                // Convert remaining children as nested blocks
+                if let Some(block) = node_to_block(child, id_gen) {
+                    children.push(block);
+                }
+            }
+        }
+    }
+
+    Block::new(BlockType::Quote, id_gen())
+        .with_content(inline_content)
+        .with_children(children)
 }
 
 // ── Inline content extraction ─────────────────────────────────
@@ -276,7 +342,13 @@ fn collect_inlines_recursive<'a>(
             NodeValue::Link(link) => {
                 let url = link.url.clone();
                 drop(data);
-                collect_inlines_recursive(child, &parent_styles.clone().with_link(url), result);
+                // Collect link's inner content with parent styles (no link in styles anymore)
+                let mut link_content = Vec::new();
+                collect_inlines_recursive(child, parent_styles, &mut link_content);
+                result.push(InlineContent::Link {
+                    href: url,
+                    content: link_content,
+                });
             }
             _ => {
                 drop(data);
@@ -353,6 +425,8 @@ fn build_comrak_node<'a>(
     parent: &'a comrak::nodes::AstNode<'a>,
     arena: &'a Arena<'a>,
 ) {
+    let inline_content = block.content.as_inline();
+
     match block.block_type {
         BlockType::Heading => {
             let level = block.props.level.unwrap_or(1);
@@ -364,7 +438,7 @@ fn build_comrak_node<'a>(
                 })
                 .into(),
             );
-            append_inline_content(&block.content, h, arena);
+            append_inline_content(inline_content, h, arena);
             parent.append(h);
         }
         BlockType::BulletListItem => {
@@ -400,7 +474,7 @@ fn build_comrak_node<'a>(
                 .into(),
             );
             let p = arena.alloc(NodeValue::Paragraph.into());
-            append_inline_content(&block.content, p, arena);
+            append_inline_content(inline_content, p, arena);
             item.append(p);
             list.append(item);
             parent.append(list);
@@ -412,7 +486,7 @@ fn build_comrak_node<'a>(
                 .as_deref()
                 .unwrap_or_default()
                 .to_string();
-            let literal = block.content.first().map_or_else(
+            let literal = inline_content.first().map_or_else(
                 || "\n".into(),
                 |c| match c {
                     InlineContent::Text { text, .. } => {
@@ -422,7 +496,7 @@ fn build_comrak_node<'a>(
                         }
                         s
                     }
-                    InlineContent::HardBreak => "\n".into(),
+                    _ => "\n".into(),
                 },
             );
             let cb = arena.alloc(
@@ -469,6 +543,21 @@ fn build_comrak_node<'a>(
         BlockType::Table => {
             build_table_node(block, parent, arena);
         }
+        BlockType::Quote => {
+            let bq = arena.alloc(NodeValue::BlockQuote.into());
+            let p = arena.alloc(NodeValue::Paragraph.into());
+            append_inline_content(inline_content, p, arena);
+            bq.append(p);
+            // Append children as nested blocks inside the blockquote
+            for child in &block.children {
+                build_comrak_node(child, bq, arena);
+            }
+            parent.append(bq);
+        }
+        BlockType::ToggleListItem => {
+            // Degrade to bullet list item in Markdown
+            build_list_item_node(block, parent, arena, ListType::Bullet, 1);
+        }
         // Paragraph + structural/unknown types render as paragraph
         BlockType::Paragraph
         | BlockType::TableRow
@@ -477,7 +566,7 @@ fn build_comrak_node<'a>(
         | BlockType::TableParagraph
         | BlockType::HardBreak => {
             let p = arena.alloc(NodeValue::Paragraph.into());
-            append_inline_content(&block.content, p, arena);
+            append_inline_content(inline_content, p, arena);
             parent.append(p);
         }
     }
@@ -490,6 +579,7 @@ fn build_list_item_node<'a>(
     list_type: ListType,
     start: usize,
 ) {
+    let inline_content = block.content.as_inline();
     let (bullet_char, padding) = match list_type {
         ListType::Bullet => (b'-', 2),
         ListType::Ordered => (b'.', 3),
@@ -519,7 +609,7 @@ fn build_list_item_node<'a>(
         .into(),
     );
     let p = arena.alloc(NodeValue::Paragraph.into());
-    append_inline_content(&block.content, p, arena);
+    append_inline_content(inline_content, p, arena);
     item.append(p);
     for child in &block.children {
         build_comrak_node(child, item, arena);
@@ -549,6 +639,18 @@ fn append_inline_content<'a>(
                     let text_node = arena.alloc(NodeValue::Text(text.clone().into()).into());
                     wrap_with_marks(text_node, styles, parent, arena);
                 }
+            }
+            InlineContent::Link { href, content } => {
+                let link_node = arena.alloc(
+                    NodeValue::Link(Box::new(NodeLink {
+                        url: href.clone(),
+                        title: String::new(),
+                    }))
+                    .into(),
+                );
+                // Append link's inner content
+                append_inline_content(content, link_node, arena);
+                parent.append(link_node);
             }
             InlineContent::HardBreak => {
                 let lb = arena.alloc(NodeValue::LineBreak.into());
@@ -580,17 +682,7 @@ fn wrap_with_marks<'a>(
         w.append(current);
         current = w;
     }
-    if let Some(url) = &styles.link {
-        let w = arena.alloc(
-            NodeValue::Link(Box::new(NodeLink {
-                url: url.clone(),
-                title: String::new(),
-            }))
-            .into(),
-        );
-        w.append(current);
-        current = w;
-    }
+    // Link is now handled as InlineContent::Link, not a style
     parent.append(current);
 }
 
@@ -599,30 +691,37 @@ fn build_table_node<'a>(
     parent: &'a comrak::nodes::AstNode<'a>,
     arena: &'a Arena<'a>,
 ) {
-    let num_columns = block.children.first().map_or(0, |row| row.children.len());
+    let BlockContent::Table(table_content) = &block.content else {
+        return;
+    };
+
+    let num_columns = table_content
+        .rows
+        .first()
+        .map_or(0, |r| r.cells.len());
     let alignments = vec![TableAlignment::None; num_columns];
 
     let table = arena.alloc(
         NodeValue::Table(Box::new(comrak::nodes::NodeTable {
             alignments,
             num_columns,
-            num_rows: block.children.len(),
+            num_rows: table_content.rows.len(),
             num_nonempty_cells: 0,
         }))
         .into(),
     );
 
-    for (i, row_block) in block.children.iter().enumerate() {
+    for (i, table_row) in table_content.rows.iter().enumerate() {
         let is_header = i == 0
-            && row_block
-                .children
+            && table_row
+                .cells
                 .first()
-                .is_some_and(|c| c.block_type == BlockType::TableHeader);
+                .is_some_and(|c| c.cell_type == TableCellType::TableHeader);
         let row = arena.alloc(NodeValue::TableRow(is_header).into());
-        for cell_block in &row_block.children {
-            let cell = arena.alloc(NodeValue::TableCell.into());
-            append_inline_content(&cell_block.content, cell, arena);
-            row.append(cell);
+        for cell in &table_row.cells {
+            let cell_node = arena.alloc(NodeValue::TableCell.into());
+            append_inline_content(&cell.content, cell_node, arena);
+            row.append(cell_node);
         }
         table.append(row);
     }

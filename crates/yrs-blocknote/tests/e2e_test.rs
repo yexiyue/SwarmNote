@@ -44,8 +44,7 @@ fn main() {}
     assert!(output.contains("fn main()"), "code content preserved");
     assert!(output.contains("---"), "divider preserved");
     assert!(output.contains("![photo](pic.png)"), "image preserved");
-    // TODO: table yrs roundtrip requires specialized encoding (not blockContainer-wrapped)
-    // assert!(output.contains("| A |"), "table preserved");
+    assert!(output.contains("| A |"), "table preserved");
 }
 
 #[test]
@@ -96,4 +95,12 @@ fn doc_to_blocks_returns_invalid_schema_for_wrong_root() {
         result.unwrap_err().to_string().contains("blockGroup"),
         "error should mention expected root element"
     );
+}
+
+#[test]
+fn blockquote_roundtrip_through_doc() {
+    let md = "> This is a quote\n";
+    let doc = markdown_to_doc(md, "document-store");
+    let output = doc_to_markdown(&doc, "document-store").unwrap();
+    assert!(output.contains("> This is a quote"), "blockquote preserved through Y.Doc roundtrip");
 }

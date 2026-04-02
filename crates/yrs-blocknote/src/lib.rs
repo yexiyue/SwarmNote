@@ -30,7 +30,10 @@ mod props;
 pub mod schema;
 mod yrs_codec;
 
-pub use blocks::{Block, InlineContent, Styles};
+pub use blocks::{
+    Block, BlockContent, InlineContent, Styles, TableCell, TableCellProps, TableCellType,
+    TableContent, TableRow,
+};
 pub use error::{ConvertError, ConvertResult};
 pub use props::Props;
 pub use schema::BlockType;
@@ -46,17 +49,14 @@ pub fn markdown_to_blocks(md: &str) -> Vec<Block> {
 /// Parse GFM Markdown into Blocks with a custom ID generator.
 #[must_use]
 pub fn markdown_to_blocks_with(md: &str, mut id_gen: impl FnMut() -> String) -> Vec<Block> {
-    let arena = comrak::Arena::new();
-    let opts = markdown::comrak_options();
-    let root = comrak::parse_document(&arena, md, &opts);
-    markdown::convert_children_to_blocks_toplevel(root, &mut id_gen)
+    markdown::parse_markdown(md, &mut id_gen)
 }
 
 /// Render Blocks to GFM Markdown string.
 ///
 /// # Errors
 ///
-/// Returns [`ConvertError::MarkdownRender`] if comrak formatting fails.
+/// Returns [`ConvertError::MarkdownRender`] if markdown rendering fails.
 pub fn blocks_to_markdown(blocks: &[Block]) -> ConvertResult<String> {
     markdown::blocks_to_markdown(blocks)
 }

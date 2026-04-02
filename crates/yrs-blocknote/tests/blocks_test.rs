@@ -1,4 +1,4 @@
-use yrs_blocknote::{Block, BlockType, InlineContent, Props, Styles};
+use yrs_blocknote::{Block, BlockContent, BlockType, InlineContent, Props, Styles};
 
 #[test]
 fn block_serializes_to_blocknote_json() {
@@ -27,13 +27,6 @@ fn styles_omits_false_and_none_fields() {
 }
 
 #[test]
-fn styles_includes_link() {
-    let styles = Styles::default().with_link("https://example.com".into());
-    let json = serde_json::to_value(&styles).unwrap();
-    assert_eq!(json, serde_json::json!({"link": "https://example.com"}));
-}
-
-#[test]
 fn empty_styles_serialize_to_empty_object() {
     let styles = Styles::default();
     let json = serde_json::to_value(&styles).unwrap();
@@ -52,11 +45,12 @@ fn block_roundtrip_serde() {
     let block = Block::new(BlockType::Paragraph, "xyz".into()).with_content(vec![
         InlineContent::styled("Hello ", Styles::default().with_bold()),
         InlineContent::HardBreak,
-        InlineContent::styled(
-            "world",
-            Styles::default()
-                .with_italic()
-                .with_link("https://example.com".into()),
+        InlineContent::link(
+            "https://example.com",
+            vec![InlineContent::styled(
+                "world",
+                Styles::default().with_italic(),
+            )],
         ),
     ]);
 
@@ -114,4 +108,39 @@ fn props_json_correct_types() {
     // isToggleable should be a boolean
     assert!(json["props"]["isToggleable"].is_boolean());
     assert_eq!(json["props"]["isToggleable"], false);
+}
+
+#[test]
+fn link_serializes_correctly() {
+    let link = InlineContent::link(
+        "https://example.com",
+        vec![InlineContent::plain("click here")],
+    );
+    let json = serde_json::to_value(&link).unwrap();
+    assert_eq!(json["type"], "link");
+    assert_eq!(json["href"], "https://example.com");
+    assert_eq!(json["content"][0]["type"], "text");
+    assert_eq!(json["content"][0]["text"], "click here");
+}
+
+#[test]
+fn strikethrough_serializes_as_strike() {
+    let styles = Styles::default().with_strikethrough();
+    let json = serde_json::to_value(&styles).unwrap();
+    assert_eq!(json, serde_json::json!({"strike": true}));
+}
+
+#[test]
+fn block_content_none_serializes_as_null() {
+    let content = BlockContent::None;
+    let json = serde_json::to_value(&content).unwrap();
+    assert!(json.is_null());
+}
+
+#[test]
+fn block_content_inline_serializes_as_array() {
+    let content = BlockContent::Inline(vec![InlineContent::plain("hello")]);
+    let json = serde_json::to_value(&content).unwrap();
+    assert!(json.is_array());
+    assert_eq!(json[0]["text"], "hello");
 }
