@@ -7189,6 +7189,7 @@ dependencies = [
  "migration",
  "notify",
  "notify-debouncer-mini",
+ "pathdiff",
  "rand 0.9.2",
  "regex-lite",
  "sea-orm",

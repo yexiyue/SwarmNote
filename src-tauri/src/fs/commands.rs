@@ -72,39 +72,34 @@ pub async fn save_media(
     let ws_path = std::path::PathBuf::from(&path);
     tokio::task::spawn_blocking(move || {
         super::crud::validate_rel_path(&ws_path, &rel_path)?;
-        // Resource dir: "notes/my-note.md" → "notes/my-note/"
+        // Resource dir: "notes/my-note.md" → "notes/my-note.assets/"
         let rel = std::path::Path::new(&rel_path);
-        let resource_dir = ws_path.join(rel.with_extension(""));
+        let resource_dir = ws_path.join(format!("{}.assets", rel.with_extension("").display()));
         std::fs::create_dir_all(&resource_dir)?;
 
-        // Resolve filename conflicts using existing resolve_conflict pattern
-        let target = resource_dir.join(&file_name);
-        let actual_path = if target.exists() {
-            let stem = std::path::Path::new(&file_name)
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
-            let ext = std::path::Path::new(&file_name)
-                .extension()
-                .map(|e| format!(".{}", e.to_string_lossy()))
-                .unwrap_or_default();
-            let mut n = 1u32;
-            loop {
-                let candidate = resource_dir.join(format!("{stem} {n}{ext}"));
-                if !candidate.exists() {
-                    break candidate;
-                }
-                n += 1;
-            }
-        } else {
-            target
-        };
+        // Hash-based filename: "screenshot.png" → "screenshot-af3b9e2c.png"
+        let hash = blake3::hash(&data);
+        let short_hash = &hash.to_hex()[..8];
+        let stem = std::path::Path::new(&file_name)
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let ext = std::path::Path::new(&file_name)
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy()))
+            .unwrap_or_default();
+        let unique_name = format!("{stem}-{short_hash}{ext}");
+        let actual_path = resource_dir.join(&unique_name);
 
-        std::fs::write(&actual_path, &data)?;
+        // Content-addressed: same hash = same file, skip if exists
+        if !actual_path.exists() {
+            std::fs::write(&actual_path, &data)?;
+        }
 
-        // Return absolute path (frontend will use convertFileSrc)
-        Ok(actual_path.to_string_lossy().replace('\\', "/"))
+        // Return workspace-relative path (not absolute)
+        let ws_relative =
+            pathdiff::diff_paths(&actual_path, &ws_path).unwrap_or_else(|| actual_path.clone());
+        Ok(ws_relative.to_string_lossy().replace('\\', "/"))
     })
     .await
     .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?

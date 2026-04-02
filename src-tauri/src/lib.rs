@@ -7,6 +7,7 @@ mod identity;
 mod network;
 mod pairing;
 mod protocol;
+mod sync;
 #[cfg(desktop)]
 pub mod tray;
 mod workspace;

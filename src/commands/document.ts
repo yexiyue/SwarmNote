@@ -64,12 +64,8 @@ export interface OpenDocResult {
   yjs_state: number[];
 }
 
-export async function openYDoc(
-  relPath: string,
-  workspaceId: string,
-  assetUrlPrefix: string,
-): Promise<OpenDocResult> {
-  return invoke<OpenDocResult>("open_ydoc", { relPath, workspaceId, assetUrlPrefix });
+export async function openYDoc(relPath: string, workspaceId: string): Promise<OpenDocResult> {
+  return invoke<OpenDocResult>("open_ydoc", { relPath, workspaceId });
 }
 
 export async function applyYDocUpdate(docUuid: string, update: number[]): Promise<void> {
