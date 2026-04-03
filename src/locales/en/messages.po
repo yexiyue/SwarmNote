@@ -38,7 +38,7 @@ msgstr "P2P network status and workspace sync"
 msgid "P2P 节点未运行"
 msgstr "P2P node not running"
 
-#: src/routes/settings/about.tsx:54
+#: src/routes/settings/about.tsx:82
 msgid "SwarmNote 版本与设备信息"
 msgstr "SwarmNote version and device info"
 
@@ -49,6 +49,12 @@ msgstr "Back"
 #: src/components/onboarding/DeviceNameStep.tsx:61
 msgid "下一步"
 msgstr "Next"
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:90
+#: src/components/upgrade/PromptUpdateDialog.tsx:96
+#: src/routes/settings/about.tsx:252
+msgid "下载中..."
+msgstr "Downloading..."
 
 #: src/components/pairing/ConnectionBadge.tsx:40
 msgid "中继"
@@ -71,7 +77,7 @@ msgid "使用配对码与远程设备配对"
 msgstr "Pair with remote devices using a pairing code"
 
 #: src/routes/settings.tsx:20
-#: src/routes/settings/about.tsx:51
+#: src/routes/settings/about.tsx:79
 msgid "关于"
 msgstr "About"
 
@@ -112,13 +118,17 @@ msgstr "Delete"
 msgid "刷新码"
 msgstr "Refresh Code"
 
-#: src/routes/settings/about.tsx:68
+#: src/routes/settings/about.tsx:216
 msgid "去中心化 P2P 笔记应用"
 msgstr "Decentralized P2P note-taking app"
 
 #: src/components/onboarding/WelcomeStep.tsx:18
 msgid "去中心化、本地优先的笔记应用，通过 P2P 网络在设备间安全同步。"
 msgstr "A decentralized, local-first note-taking app that syncs securely between devices via P2P."
+
+#: src/components/upgrade/PromptUpdateDialog.tsx:47
+msgid "发现新版本"
+msgstr "Update Available"
 
 #: src/components/filetree/FileTree.tsx:72
 #: src/components/pairing/CodePairingCard.tsx:161
@@ -209,6 +219,14 @@ msgstr "Saved"
 msgid "已停止"
 msgstr "Stopped"
 
+#: src/routes/settings/about.tsx:259
+msgid "已是最新"
+msgstr "Up to Date"
+
+#: src/routes/settings/about.tsx:212
+msgid "已是最新版本"
+msgstr "Already up to date"
+
 #: src/components/layout/Sidebar.tsx:156
 msgid "已连接"
 msgstr "Connected"
@@ -238,11 +256,15 @@ msgstr "Get Started"
 msgid "开机自动启动网络"
 msgstr "Auto-start network on launch"
 
-#: src/routes/settings/about.tsx:132
+#: src/routes/settings/about.tsx:189
 msgid "开源仓库"
 msgstr "Open Source Repository"
 
-#: src/routes/settings/about.tsx:93
+#: src/components/upgrade/ForceUpdateDialog.tsx:51
+msgid "当前版本 {currentVersion} 已不再支持，请更新到 {latestVersion}"
+msgstr "Version {currentVersion} is no longer supported. Please update to {latestVersion}"
+
+#: src/routes/settings/about.tsx:150
 msgid "当前运行设备的详细信息"
 msgstr "Detailed info about the current device"
 
@@ -286,7 +308,7 @@ msgstr "Search..."
 msgid "操作"
 msgstr "Actions"
 
-#: src/routes/settings/about.tsx:105
+#: src/routes/settings/about.tsx:162
 msgid "操作系统"
 msgstr "Operating System"
 
@@ -318,6 +340,10 @@ msgstr "New Folder"
 msgid "新建笔记"
 msgstr "New Note"
 
+#: src/components/upgrade/PromptUpdateDialog.tsx:50
+msgid "新版本 {latestVersion} 可用，当前版本 {currentVersion}"
+msgstr "Version {latestVersion} is available. Current version: {currentVersion}"
+
 #: src/routes/settings/devices.tsx:14
 msgid "无"
 msgstr "None"
@@ -330,9 +356,22 @@ msgstr "None"
 msgid "暂无工作区"
 msgstr "No workspaces"
 
-#: src/routes/settings/about.tsx:117
+#: src/routes/settings/about.tsx:174
 msgid "更多"
 msgstr "More"
+
+#: src/components/upgrade/PromptUpdateDialog.tsx:59
+msgid "更新内容"
+msgstr "What's New"
+
+#. placeholder {0}: latestVersion ?? "?"
+#: src/routes/settings/about.tsx:243
+msgid "更新到 v{0}"
+msgstr "Update to v{0}"
+
+#: src/routes/settings/about.tsx:206
+msgid "有新版本可用"
+msgstr "Update Available"
 
 #: src/components/layout/StatusBar.tsx:33
 msgid "未保存"
@@ -342,9 +381,39 @@ msgstr "Unsaved"
 msgid "未连接"
 msgstr "Not Connected"
 
-#: src/routes/settings/about.tsx:79
+#: src/routes/settings/about.tsx:236
+msgid "检查中..."
+msgstr "Checking..."
+
+#: src/routes/settings/about.tsx:266
 msgid "检查更新"
 msgstr "Check for Updates"
+
+#: src/routes/settings/about.tsx:204
+msgid "检查更新中..."
+msgstr "Checking for updates..."
+
+#: src/routes/settings/about.tsx:214
+msgid "检查更新失败"
+msgstr "Update check failed"
+
+#. placeholder {0}: latestVersion ?? "?"
+#: src/routes/settings/about.tsx:121
+msgid "正在下载 v{0}"
+msgstr "Downloading v{0}"
+
+#: src/routes/settings/about.tsx:210
+msgid "正在更新..."
+msgstr "Updating..."
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:86
+#: src/components/upgrade/PromptUpdateDialog.tsx:99
+msgid "正在重启..."
+msgstr "Restarting..."
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:66
+msgid "此版本为必须更新，将自动下载并安装。"
+msgstr "This is a mandatory update and will be downloaded and installed automatically."
 
 #: src/components/layout/CommandPalette.tsx:44
 msgid "没有找到匹配的命令"
@@ -392,6 +461,14 @@ msgstr "Confirm closing network?"
 msgid "确认删除"
 msgstr "Confirm Delete"
 
+#: src/components/upgrade/PromptUpdateDialog.tsx:90
+msgid "稍后提醒"
+msgstr "Remind Me Later"
+
+#: src/components/upgrade/PromptUpdateDialog.tsx:101
+msgid "立即更新"
+msgstr "Update Now"
+
 #: src/components/layout/TitleBar.tsx:37
 #~ msgid "笔记"
 #~ msgstr "Notes"
@@ -428,14 +505,14 @@ msgstr "Device"
 msgid "设备 ID"
 msgstr "Device ID"
 
-#: src/routes/settings/about.tsx:90
+#: src/routes/settings/about.tsx:147
 msgid "设备信息"
 msgstr "Device Info"
 
 #: src/components/onboarding/CompleteStep.tsx:47
 #: src/components/onboarding/DeviceNameStep.tsx:38
 #: src/components/settings/DeviceSettings.tsx:11
-#: src/routes/settings/about.tsx:99
+#: src/routes/settings/about.tsx:156
 msgid "设备名称"
 msgstr "Device Name"
 
@@ -532,6 +609,14 @@ msgstr "Error"
 #: src/routes/settings/devices.tsx:107
 msgid "附近设备"
 msgstr "Nearby Devices"
+
+#: src/routes/settings/about.tsx:208
+msgid "需要强制更新"
+msgstr "Mandatory Update Required"
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:48
+msgid "需要更新"
+msgstr "Update Required"
 
 #: src/components/layout/Sidebar.tsx:129
 #~ msgid "项目笔记"

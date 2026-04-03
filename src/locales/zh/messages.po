@@ -43,7 +43,7 @@ msgstr "P2P 网络状态与工作区同步"
 msgid "P2P 节点未运行"
 msgstr "P2P 节点未运行"
 
-#: src/routes/settings/about.tsx:54
+#: src/routes/settings/about.tsx:82
 msgid "SwarmNote 版本与设备信息"
 msgstr "SwarmNote 版本与设备信息"
 
@@ -54,6 +54,12 @@ msgstr "上一步"
 #: src/components/onboarding/DeviceNameStep.tsx:61
 msgid "下一步"
 msgstr "下一步"
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:90
+#: src/components/upgrade/PromptUpdateDialog.tsx:96
+#: src/routes/settings/about.tsx:252
+msgid "下载中..."
+msgstr "下载中..."
 
 #: src/components/pairing/ConnectionBadge.tsx:40
 msgid "中继"
@@ -76,7 +82,7 @@ msgid "使用配对码与远程设备配对"
 msgstr "使用配对码与远程设备配对"
 
 #: src/routes/settings.tsx:20
-#: src/routes/settings/about.tsx:51
+#: src/routes/settings/about.tsx:79
 msgid "关于"
 msgstr "关于"
 
@@ -117,13 +123,17 @@ msgstr "删除"
 msgid "刷新码"
 msgstr "刷新码"
 
-#: src/routes/settings/about.tsx:68
+#: src/routes/settings/about.tsx:216
 msgid "去中心化 P2P 笔记应用"
 msgstr "去中心化 P2P 笔记应用"
 
 #: src/components/onboarding/WelcomeStep.tsx:18
 msgid "去中心化、本地优先的笔记应用，通过 P2P 网络在设备间安全同步。"
 msgstr "去中心化、本地优先的笔记应用，通过 P2P 网络在设备间安全同步。"
+
+#: src/components/upgrade/PromptUpdateDialog.tsx:47
+msgid "发现新版本"
+msgstr "发现新版本"
 
 #: src/components/filetree/FileTree.tsx:72
 #: src/components/pairing/CodePairingCard.tsx:161
@@ -214,6 +224,14 @@ msgstr "已保存"
 msgid "已停止"
 msgstr "已停止"
 
+#: src/routes/settings/about.tsx:259
+msgid "已是最新"
+msgstr "已是最新"
+
+#: src/routes/settings/about.tsx:212
+msgid "已是最新版本"
+msgstr "已是最新版本"
+
 #: src/components/layout/Sidebar.tsx:156
 msgid "已连接"
 msgstr "已连接"
@@ -243,11 +261,15 @@ msgstr "开始使用"
 msgid "开机自动启动网络"
 msgstr "开机自动启动网络"
 
-#: src/routes/settings/about.tsx:132
+#: src/routes/settings/about.tsx:189
 msgid "开源仓库"
 msgstr "开源仓库"
 
-#: src/routes/settings/about.tsx:93
+#: src/components/upgrade/ForceUpdateDialog.tsx:51
+msgid "当前版本 {currentVersion} 已不再支持，请更新到 {latestVersion}"
+msgstr "当前版本 {currentVersion} 已不再支持，请更新到 {latestVersion}"
+
+#: src/routes/settings/about.tsx:150
 msgid "当前运行设备的详细信息"
 msgstr "当前运行设备的详细信息"
 
@@ -291,7 +313,7 @@ msgstr "搜索..."
 msgid "操作"
 msgstr "操作"
 
-#: src/routes/settings/about.tsx:105
+#: src/routes/settings/about.tsx:162
 msgid "操作系统"
 msgstr "操作系统"
 
@@ -323,6 +345,10 @@ msgstr "新建文件夹"
 msgid "新建笔记"
 msgstr "新建笔记"
 
+#: src/components/upgrade/PromptUpdateDialog.tsx:50
+msgid "新版本 {latestVersion} 可用，当前版本 {currentVersion}"
+msgstr "新版本 {latestVersion} 可用，当前版本 {currentVersion}"
+
 #: src/routes/settings/devices.tsx:14
 msgid "无"
 msgstr "无"
@@ -335,9 +361,22 @@ msgstr "无"
 msgid "暂无工作区"
 msgstr "暂无工作区"
 
-#: src/routes/settings/about.tsx:117
+#: src/routes/settings/about.tsx:174
 msgid "更多"
 msgstr "更多"
+
+#: src/components/upgrade/PromptUpdateDialog.tsx:59
+msgid "更新内容"
+msgstr "更新内容"
+
+#. placeholder {0}: latestVersion ?? "?"
+#: src/routes/settings/about.tsx:243
+msgid "更新到 v{0}"
+msgstr "更新到 v{0}"
+
+#: src/routes/settings/about.tsx:206
+msgid "有新版本可用"
+msgstr "有新版本可用"
 
 #: src/components/layout/StatusBar.tsx:33
 msgid "未保存"
@@ -347,9 +386,39 @@ msgstr "未保存"
 msgid "未连接"
 msgstr "未连接"
 
-#: src/routes/settings/about.tsx:79
+#: src/routes/settings/about.tsx:236
+msgid "检查中..."
+msgstr "检查中..."
+
+#: src/routes/settings/about.tsx:266
 msgid "检查更新"
 msgstr "检查更新"
+
+#: src/routes/settings/about.tsx:204
+msgid "检查更新中..."
+msgstr "检查更新中..."
+
+#: src/routes/settings/about.tsx:214
+msgid "检查更新失败"
+msgstr "检查更新失败"
+
+#. placeholder {0}: latestVersion ?? "?"
+#: src/routes/settings/about.tsx:121
+msgid "正在下载 v{0}"
+msgstr "正在下载 v{0}"
+
+#: src/routes/settings/about.tsx:210
+msgid "正在更新..."
+msgstr "正在更新..."
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:86
+#: src/components/upgrade/PromptUpdateDialog.tsx:99
+msgid "正在重启..."
+msgstr "正在重启..."
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:66
+msgid "此版本为必须更新，将自动下载并安装。"
+msgstr "此版本为必须更新，将自动下载并安装。"
 
 #: src/components/layout/CommandPalette.tsx:44
 msgid "没有找到匹配的命令"
@@ -397,6 +466,14 @@ msgstr "确认关闭网络？"
 msgid "确认删除"
 msgstr "确认删除"
 
+#: src/components/upgrade/PromptUpdateDialog.tsx:90
+msgid "稍后提醒"
+msgstr "稍后提醒"
+
+#: src/components/upgrade/PromptUpdateDialog.tsx:101
+msgid "立即更新"
+msgstr "立即更新"
+
 #: src/components/layout/TitleBar.tsx:37
 #~ msgid "笔记"
 #~ msgstr "笔记"
@@ -433,14 +510,14 @@ msgstr "设备"
 msgid "设备 ID"
 msgstr "设备 ID"
 
-#: src/routes/settings/about.tsx:90
+#: src/routes/settings/about.tsx:147
 msgid "设备信息"
 msgstr "设备信息"
 
 #: src/components/onboarding/CompleteStep.tsx:47
 #: src/components/onboarding/DeviceNameStep.tsx:38
 #: src/components/settings/DeviceSettings.tsx:11
-#: src/routes/settings/about.tsx:99
+#: src/routes/settings/about.tsx:156
 msgid "设备名称"
 msgstr "设备名称"
 
@@ -537,6 +614,14 @@ msgstr "错误"
 #: src/routes/settings/devices.tsx:107
 msgid "附近设备"
 msgstr "附近设备"
+
+#: src/routes/settings/about.tsx:208
+msgid "需要强制更新"
+msgstr "需要强制更新"
+
+#: src/components/upgrade/ForceUpdateDialog.tsx:48
+msgid "需要更新"
+msgstr "需要更新"
 
 #: src/components/layout/Sidebar.tsx:129
 #~ msgid "项目笔记"
