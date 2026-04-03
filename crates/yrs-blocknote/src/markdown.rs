@@ -63,21 +63,37 @@ fn expand_list_items(
     for item_node in children {
         if let Node::ListItem(item) = item_node {
             if item.checked.is_some() {
-                blocks.push(task_item_to_block(item_node, item, id_gen));
+                let mut block = task_item_to_block(item_node, item, id_gen);
+                if list.spread {
+                    block.props.other.insert("listSpread".to_string(), "true".to_string());
+                }
+                blocks.push(block);
             } else if list.ordered {
-                blocks.extend(list_item_to_block(
+                let mut items = list_item_to_block(
                     item_node,
                     BlockType::NumberedListItem,
                     start,
                     id_gen,
-                ));
+                );
+                if list.spread {
+                    for b in &mut items {
+                        b.props.other.insert("listSpread".to_string(), "true".to_string());
+                    }
+                }
+                blocks.extend(items);
             } else {
-                blocks.extend(list_item_to_block(
+                let mut items = list_item_to_block(
                     item_node,
                     BlockType::BulletListItem,
                     1,
                     id_gen,
-                ));
+                );
+                if list.spread {
+                    for b in &mut items {
+                        b.props.other.insert("listSpread".to_string(), "true".to_string());
+                    }
+                }
+                blocks.extend(items);
             }
         }
     }
@@ -435,10 +451,14 @@ fn blocks_to_mdast_children(blocks: &[Block]) -> Vec<Node> {
 fn group_bullet_list(blocks: &[Block]) -> (Node, usize) {
     let mut items = Vec::new();
     let mut count = 0;
+    let mut spread = false;
 
     for block in blocks {
         if block.block_type != BlockType::BulletListItem {
             break;
+        }
+        if block.props.other.get("listSpread").is_some_and(|v| v == "true") {
+            spread = true;
         }
         items.push(block_to_list_item(block));
         count += 1;
@@ -447,7 +467,7 @@ fn group_bullet_list(blocks: &[Block]) -> (Node, usize) {
     let list = Node::List(markdown::mdast::List {
         ordered: false,
         start: None,
-        spread: false,
+        spread,
         children: items,
         position: None,
     });
@@ -458,6 +478,7 @@ fn group_bullet_list(blocks: &[Block]) -> (Node, usize) {
 fn group_numbered_list(blocks: &[Block]) -> (Node, usize) {
     let mut items = Vec::new();
     let mut count = 0;
+    let mut spread = false;
     let start = blocks
         .first()
         .and_then(|b| b.props.start)
@@ -467,6 +488,9 @@ fn group_numbered_list(blocks: &[Block]) -> (Node, usize) {
         if block.block_type != BlockType::NumberedListItem {
             break;
         }
+        if block.props.other.get("listSpread").is_some_and(|v| v == "true") {
+            spread = true;
+        }
         items.push(block_to_list_item(block));
         count += 1;
     }
@@ -474,7 +498,7 @@ fn group_numbered_list(blocks: &[Block]) -> (Node, usize) {
     let list = Node::List(markdown::mdast::List {
         ordered: true,
         start: Some(start as u32),
-        spread: false,
+        spread,
         children: items,
         position: None,
     });
@@ -485,10 +509,14 @@ fn group_numbered_list(blocks: &[Block]) -> (Node, usize) {
 fn group_check_list(blocks: &[Block]) -> (Node, usize) {
     let mut items = Vec::new();
     let mut count = 0;
+    let mut spread = false;
 
     for block in blocks {
         if block.block_type != BlockType::CheckListItem {
             break;
+        }
+        if block.props.other.get("listSpread").is_some_and(|v| v == "true") {
+            spread = true;
         }
         let checked = block.props.checked.unwrap_or(false);
         items.push(block_to_check_list_item(block, checked));
@@ -498,7 +526,7 @@ fn group_check_list(blocks: &[Block]) -> (Node, usize) {
     let list = Node::List(markdown::mdast::List {
         ordered: false,
         start: None,
-        spread: false,
+        spread,
         children: items,
         position: None,
     });
