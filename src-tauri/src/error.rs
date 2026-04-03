@@ -40,6 +40,12 @@ pub enum AppError {
     DocNotOpen(String),
 }
 
+impl AppError {
+    pub fn node_not_running() -> Self {
+        Self::Network("P2P node is not running".to_string())
+    }
+}
+
 /// 结构化序列化：为前端提供 `{ kind: "...", message: "..." }` 格式。
 /// 使用 `Cow` 避免对 String 变体的冗余 clone。
 impl Serialize for AppError {

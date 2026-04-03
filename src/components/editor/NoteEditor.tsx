@@ -55,12 +55,10 @@ export function NoteEditor() {
     if (!workspace || !docId) return;
     let cancelled = false;
 
-    const wsPath = workspace.path;
     const wsId = workspace.id;
 
     async function init() {
-      const assetUrlPrefix = convertFileSrc(`${wsPath}/`);
-      const result = await openYDoc(relPath, wsId, assetUrlPrefix);
+      const result = await openYDoc(relPath, wsId);
 
       if (cancelled) return;
 
@@ -118,13 +116,31 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
   const setCharCountRef = useRef(setCharCount);
   setCharCountRef.current = setCharCount;
 
+  const wsPath = useWorkspaceStore.getState().workspace?.path ?? "";
+
   const uploadFile = useCallback(async (file: File): Promise<string> => {
     const relPath = useEditorStore.getState().relPath;
     const buffer = await file.arrayBuffer();
     const data = Array.from(new Uint8Array(buffer));
-    const absPath = await saveMedia(relPath, file.name, data);
-    return convertFileSrc(absPath);
+    // Returns workspace-relative path (e.g., "notes/my-note.assets/screenshot-af3b.png")
+    return saveMedia(relPath, file.name, data);
   }, []);
+
+  const resolveFileUrl = useCallback(
+    async (url: string): Promise<string> => {
+      if (
+        url.startsWith("http://") ||
+        url.startsWith("https://") ||
+        url.startsWith("data:") ||
+        url.startsWith("blob:")
+      ) {
+        return url;
+      }
+      // Convert workspace-relative path to tauri asset URL at render time
+      return convertFileSrc(`${wsPath}/${url}`);
+    },
+    [wsPath],
+  );
 
   const dictionary = bnDictMap[locale];
   const editor = useCreateBlockNote(
@@ -132,6 +148,7 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
       schema,
       dictionary,
       uploadFile,
+      resolveFileUrl,
       collaboration: {
         provider,
         fragment: ydoc.getXmlFragment("document-store"),

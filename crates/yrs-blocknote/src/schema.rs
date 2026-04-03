@@ -37,6 +37,8 @@ pub enum BlockType {
     TableParagraph,
     Divider,
     HardBreak,
+    Quote,
+    ToggleListItem,
 }
 
 impl BlockType {
@@ -50,6 +52,8 @@ impl BlockType {
                 | Self::NumberedListItem
                 | Self::CheckListItem
                 | Self::CodeBlock
+                | Self::Quote
+                | Self::ToggleListItem
         )
     }
 
@@ -62,6 +66,8 @@ impl BlockType {
                 | Self::BulletListItem
                 | Self::NumberedListItem
                 | Self::CheckListItem
+                | Self::Quote
+                | Self::ToggleListItem
         )
     }
 

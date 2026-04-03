@@ -26,7 +26,7 @@ pub async fn db_get_documents(
     workspace_id: Uuid,
     db_state: State<'_, DbState>,
 ) -> AppResult<Vec<documents::Model>> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
     Ok(documents::Entity::find()
         .filter(documents::Column::WorkspaceId.eq(workspace_id))
         .all(guard.conn())
@@ -40,7 +40,7 @@ pub async fn db_upsert_document(
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
 ) -> AppResult<documents::Model> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
     let db = guard.conn();
 
     if let Some(id) = input.id {
@@ -79,7 +79,7 @@ pub async fn delete_document_by_rel_path(
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
 ) -> AppResult<()> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
     let db = guard.conn();
 
     let Some(doc) = documents::Entity::find()
@@ -133,7 +133,7 @@ pub async fn rename_document(
     db_state: State<'_, DbState>,
     ydoc_mgr: State<'_, YDocManager>,
 ) -> AppResult<()> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
     let db = guard.conn();
 
     let Some(doc) = documents::Entity::find()
@@ -163,7 +163,7 @@ pub async fn delete_documents_by_prefix(
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
 ) -> AppResult<u64> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
     let db = guard.conn();
 
     let docs = documents::Entity::find()
@@ -223,7 +223,7 @@ pub async fn db_get_folders(
     workspace_id: Uuid,
     db_state: State<'_, DbState>,
 ) -> AppResult<Vec<folders::Model>> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
     Ok(folders::Entity::find()
         .filter(folders::Column::WorkspaceId.eq(workspace_id))
         .all(guard.conn())
@@ -237,7 +237,7 @@ pub async fn db_create_folder(
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
 ) -> AppResult<folders::Model> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
 
     let model = folders::ActiveModel {
         workspace_id: Set(input.workspace_id),
@@ -256,7 +256,7 @@ pub async fn db_delete_folder(
     id: Uuid,
     db_state: State<'_, DbState>,
 ) -> AppResult<()> {
-    let guard = db_state.workspace_db_for(window.label()).await?;
+    let guard = db_state.workspace_db_by_label(window.label()).await?;
     let db = guard.conn();
 
     let child_folders = folders::Entity::find()

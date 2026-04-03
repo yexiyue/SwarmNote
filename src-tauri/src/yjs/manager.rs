@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use dashmap::DashMap;
 use entity::workspace::documents;
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -19,11 +19,6 @@ use crate::workspace::state::{DbState, WorkspaceState};
 const FRAGMENT_NAME: &str = "document-store";
 const DEBOUNCE_MS: u64 = 1500;
 const POLL_INTERVAL_MS: u64 = 500;
-
-static MD_IMG_RE: LazyLock<regex_lite::Regex> =
-    LazyLock::new(|| regex_lite::Regex::new(r"(!\[[^\]]*]\()([^)]+)(\))").unwrap());
-static HTML_SRC_RE: LazyLock<regex_lite::Regex> =
-    LazyLock::new(|| regex_lite::Regex::new(r#"(src=")([^"]+)(")"#).unwrap());
 
 // ── Return type for open_ydoc ─────────────────────────────────
 
@@ -53,7 +48,6 @@ struct DocEntry {
     doc: tokio::sync::Mutex<Doc>,
     rel_path: RwLock<String>,
     workspace_path: String,
-    asset_url_prefix: String,
     doc_db_id: Uuid,
     dirty: AtomicBool,
     last_update_ms: AtomicU64,
@@ -161,7 +155,6 @@ impl YDocManager {
         label: &str,
         rel_path: &str,
         workspace_id: Uuid,
-        asset_url_prefix: &str,
     ) -> AppResult<OpenDocResult> {
         let ws_state = app.state::<WorkspaceState>();
         let ws_path = ws_state.workspace_path_for(label).await?;
@@ -178,7 +171,7 @@ impl YDocManager {
 
         // Concurrency-safe upsert: INSERT OR IGNORE (UNIQUE constraint deduplicates),
         // then SELECT to get the winning row's UUID.
-        let guard = db_state.workspace_db_for(label).await?;
+        let guard = db_state.workspace_db_by_label(label).await?;
         let db = guard.conn();
 
         // Try inserting first — if another call already inserted, IGNORE silently.
@@ -196,7 +189,10 @@ impl YDocManager {
             created_by: sea_orm::Set(identity.peer_id()?),
             ..Default::default()
         };
-        let _ = documents::Entity::insert(insert_model)
+        // Entity::insert() bypasses ActiveModelBehavior::before_save,
+        // so invoke it manually to fill created_at / updated_at.
+        let insert_model = insert_model.before_save(db, true).await?;
+        match documents::Entity::insert(insert_model)
             .on_conflict(
                 sea_orm::sea_query::OnConflict::columns([
                     documents::Column::WorkspaceId,
@@ -206,7 +202,14 @@ impl YDocManager {
                 .to_owned(),
             )
             .exec(db)
-            .await;
+            .await
+        {
+            Ok(_) | Err(sea_orm::DbErr::RecordNotInserted) => {}
+            Err(e) => {
+                tracing::error!("Failed to upsert document record for {rel_path}: {e}");
+                return Err(AppError::Database(e));
+            }
+        }
 
         // SELECT the definitive row (ours or the one that won the race).
         let db_doc = documents::Entity::find()
@@ -235,9 +238,15 @@ impl YDocManager {
         // Pre-register the fragment name so it exists even after applying updates
         doc.get_or_insert_xml_fragment(FRAGMENT_NAME);
 
-        let has_yjs_state = doc_model
-            .yjs_state
-            .as_ref()
+        // Migration: clear yjs_state if it contains old absolute asset URLs
+        // (pre-sync era stored tauri:// or asset:// URLs in Y.Doc)
+        let yjs_state = doc_model.yjs_state.as_ref().filter(|state| {
+            !state
+                .windows(8)
+                .any(|w| w.starts_with(b"tauri://") || w.starts_with(b"asset://"))
+        });
+
+        let has_yjs_state = yjs_state
             .map(|yjs_state| apply_binary_update(&doc, yjs_state))
             .transpose()?
             .is_some();
@@ -253,7 +262,6 @@ impl YDocManager {
                 .await
                 .map_err(|e| AppError::Yjs(e.to_string()))??;
 
-            let md = relative_to_asset_url(&md, asset_url_prefix);
             let init_doc = yrs_blocknote::markdown_to_doc(&md, FRAGMENT_NAME);
             let init_state = init_doc
                 .transact()
@@ -271,7 +279,6 @@ impl YDocManager {
             doc: tokio::sync::Mutex::new(doc),
             rel_path: RwLock::new(rel_path.to_owned()),
             workspace_path: ws_path,
-            asset_url_prefix: asset_url_prefix.to_owned(),
             doc_db_id: doc_uuid,
             dirty: AtomicBool::new(false),
             last_update_ms: AtomicU64::new(now_ms()),
@@ -333,6 +340,112 @@ impl YDocManager {
     pub fn rename_doc(&self, label: &str, doc_uuid: Uuid, new_rel_path: &str) {
         let key = (label.to_owned(), doc_uuid);
         if let Some(entry) = self.docs.get(&key) {
+            entry.set_rel_path(new_rel_path);
+        }
+    }
+
+    // ── Sync layer methods ──
+
+    /// Try to apply a sync update to an open document (by doc_uuid, ignoring label).
+    /// Returns `None` if the document is not currently open in any window.
+    pub async fn apply_sync_update(
+        &self,
+        app: &AppHandle,
+        doc_uuid: &Uuid,
+        update: &[u8],
+    ) -> Option<AppResult<()>> {
+        // Find the entry by doc_uuid across all windows
+        let entry = self
+            .docs
+            .iter()
+            .find(|e| e.key().1 == *doc_uuid)
+            .map(|e| (e.key().0.clone(), Arc::clone(e.value())))?;
+
+        let (label, doc_entry) = entry;
+        let result = doc_entry.apply_update(update).await;
+        if result.is_ok() {
+            doc_entry.mark_dirty();
+            // Notify frontend to refresh editor
+            let _ = app.emit_to(
+                &label,
+                "yjs:external-update",
+                serde_json::json!({
+                    "docUuid": doc_uuid.to_string(),
+                }),
+            );
+        }
+        Some(result)
+    }
+
+    /// Get the state vector for an open document (by doc_uuid).
+    /// Returns `None` if not open.
+    pub async fn get_state_vector(&self, doc_uuid: &Uuid) -> Option<Vec<u8>> {
+        let entry = self
+            .docs
+            .iter()
+            .find(|e| e.key().1 == *doc_uuid)
+            .map(|e| Arc::clone(e.value()))?;
+
+        let doc = entry.doc.lock().await;
+        let txn = doc.transact();
+        Some(txn.state_vector().encode_v1())
+    }
+
+    /// Encode the diff that a peer with the given state vector is missing.
+    /// Returns `None` if the document is not open.
+    pub async fn encode_diff_for_sv(
+        &self,
+        doc_uuid: &Uuid,
+        remote_sv: &StateVector,
+    ) -> Option<Vec<u8>> {
+        let entry = self
+            .docs
+            .iter()
+            .find(|e| e.key().1 == *doc_uuid)
+            .map(|e| Arc::clone(e.value()))?;
+
+        let doc = entry.doc.lock().await;
+        let txn = doc.transact();
+        Some(txn.encode_state_as_update_v1(remote_sv))
+    }
+
+    /// Encode the full state of an open document.
+    /// Returns `None` if not open.
+    pub async fn encode_full_state(&self, doc_uuid: &Uuid) -> Option<Vec<u8>> {
+        let entry = self
+            .docs
+            .iter()
+            .find(|e| e.key().1 == *doc_uuid)
+            .map(|e| Arc::clone(e.value()))?;
+
+        let doc = entry.doc.lock().await;
+        let txn = doc.transact();
+        Some(txn.encode_state_as_update_v1(&StateVector::default()))
+    }
+
+    /// Check if a document is currently open in any window.
+    pub fn is_doc_open(&self, doc_uuid: &Uuid) -> bool {
+        self.docs.iter().any(|e| e.key().1 == *doc_uuid)
+    }
+
+    /// List all currently open document UUIDs (for SV compensation).
+    pub fn list_open_doc_uuids(&self) -> Vec<Uuid> {
+        self.docs
+            .iter()
+            .map(|e| e.key().1)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect()
+    }
+
+    /// Rename a document by UUID (sync layer, no window label needed).
+    pub fn rename_doc_by_uuid(&self, doc_uuid: &Uuid, new_rel_path: &str) {
+        if let Some(entry) = self
+            .docs
+            .iter()
+            .find(|e| e.key().1 == *doc_uuid)
+            .map(|e| Arc::clone(e.value()))
+        {
             entry.set_rel_path(new_rel_path);
         }
     }
@@ -449,8 +562,7 @@ impl YDocManager {
     ) -> AppResult<()> {
         let _guard = entry.reload_lock.lock().await;
 
-        let md = relative_to_asset_url(raw_md, &entry.asset_url_prefix);
-        let diff = entry.replace_content_from_md(&md).await;
+        let diff = entry.replace_content_from_md(raw_md).await;
 
         // Persist the new state
         let snapshot = entry.snapshot().await?;
@@ -481,7 +593,7 @@ impl YDocManager {
         entry: &DocEntry,
         snapshot: DocSnapshot,
     ) -> AppResult<()> {
-        let md = asset_url_to_relative(&snapshot.markdown, &entry.asset_url_prefix);
+        let md = snapshot.markdown;
         let rel = entry.rel_path();
 
         let ws_path = PathBuf::from(&entry.workspace_path);
@@ -499,7 +611,7 @@ impl YDocManager {
         entry._last_write_ms.store(now_ms(), Ordering::Release);
 
         let db_state = app.state::<DbState>();
-        let guard = db_state.workspace_db_for(label).await?;
+        let guard = db_state.workspace_db_by_label(label).await?;
 
         if let Some(existing) = documents::Entity::find_by_id(entry.doc_db_id)
             .one(guard.conn())
@@ -579,50 +691,6 @@ fn spawn_writeback_task(
             );
         }
     })
-}
-
-fn relative_to_asset_url(md: &str, asset_url_prefix: &str) -> String {
-    if md.is_empty() || asset_url_prefix.is_empty() {
-        return md.to_owned();
-    }
-    let prefix = normalize_prefix(asset_url_prefix);
-    let result = prefix_relative_urls(md, &MD_IMG_RE, &prefix);
-    prefix_relative_urls(&result, &HTML_SRC_RE, &prefix)
-}
-
-fn prefix_relative_urls(text: &str, re: &regex_lite::Regex, prefix: &str) -> String {
-    re.replace_all(text, |caps: &regex_lite::Captures| {
-        let url = &caps[2];
-        if is_absolute_or_special_url(url) {
-            return caps[0].to_string();
-        }
-        format!("{}{prefix}{url}{}", &caps[1], &caps[3])
-    })
-    .into_owned()
-}
-
-fn asset_url_to_relative(md: &str, asset_url_prefix: &str) -> String {
-    if md.is_empty() || asset_url_prefix.is_empty() {
-        return md.to_owned();
-    }
-    let prefix = normalize_prefix(asset_url_prefix);
-    md.replace(&prefix, "")
-}
-
-fn normalize_prefix(prefix: &str) -> String {
-    if prefix.ends_with('/') {
-        prefix.to_owned()
-    } else {
-        format!("{prefix}/")
-    }
-}
-
-fn is_absolute_or_special_url(url: &str) -> bool {
-    url.starts_with("http://")
-        || url.starts_with("https://")
-        || url.starts_with("data:")
-        || url.starts_with("blob:")
-        || url.starts_with('/')
 }
 
 fn now_ms() -> u64 {

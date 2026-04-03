@@ -119,10 +119,12 @@ async fn bind_workspace_to_window(
         }
     }
 
-    db_state.insert_workspace_db(label, conn).await;
+    db_state
+        .insert_workspace_db(label, workspace.id, conn)
+        .await;
 
     let info = WorkspaceInfo::from_model(workspace, path);
-    ws_state.insert(label, info.clone()).await;
+    ws_state.bind(label, info.clone()).await;
 
     let dir_name = workspace_name_from_path(ws_path);
     {
@@ -206,7 +208,7 @@ pub async fn get_workspace_info(
     window: tauri::Window,
     ws_state: State<'_, WorkspaceState>,
 ) -> AppResult<Option<WorkspaceInfo>> {
-    Ok(ws_state.get(window.label()).await)
+    Ok(ws_state.get_by_label(window.label()).await)
 }
 
 #[tauri::command]

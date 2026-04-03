@@ -121,9 +121,9 @@ pub fn delete_file(workspace: &Path, rel_path: &str) -> Result<(), AppError> {
         Err(e) => return Err(e.into()),
     }
 
-    // Best-effort: delete resource directory for .md files (e.g. "note.md" → "note/")
+    // Best-effort: delete resource directory for .md files (e.g. "note.md" → "note.assets/")
     if full.extension().and_then(|e| e.to_str()) == Some("md") {
-        let resource_dir = full.with_extension("");
+        let resource_dir = full.with_extension("assets");
         if resource_dir.is_dir() {
             let _ = std::fs::remove_dir_all(resource_dir);
         }
@@ -166,11 +166,11 @@ pub fn rename(workspace: &Path, rel_path: &str, new_name: &str) -> Result<String
         return Err(AppError::NameConflict(target_name));
     }
 
-    // Best-effort: rename resource directory for .md files (e.g. "note/" → "diary/")
+    // Best-effort: rename resource directory for .md files (e.g. "note.assets/" → "diary.assets/")
     if full.is_file() && full.extension().and_then(|e| e.to_str()) == Some("md") {
-        let old_resource_dir = full.with_extension("");
+        let old_resource_dir = full.with_extension("assets");
         if old_resource_dir.is_dir() {
-            let new_resource_dir = new_path.with_extension("");
+            let new_resource_dir = new_path.with_extension("assets");
             let _ = std::fs::rename(&old_resource_dir, &new_resource_dir);
         }
     }

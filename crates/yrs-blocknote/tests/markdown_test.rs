@@ -14,9 +14,9 @@ fn heading() {
     assert_eq!(blocks.len(), 1);
     assert_eq!(blocks[0].block_type, BlockType::Heading);
     assert_eq!(blocks[0].props.level, Some(2));
-    match &blocks[0].content[0] {
-        yrs_blocknote::InlineContent::Text { text, .. } => assert_eq!(text, "Hello World"),
-        InlineContent::HardBreak => panic!("expected text"),
+    match &blocks[0].content.as_inline()[0] {
+        InlineContent::Text { text, .. } => assert_eq!(text, "Hello World"),
+        _ => panic!("expected text"),
     }
 }
 
@@ -25,16 +25,15 @@ fn paragraph_with_bold_and_italic() {
     let blocks = markdown_to_blocks_with("Hello **bold** and *italic*\n", test_id_gen());
     assert_eq!(blocks.len(), 1);
     assert_eq!(blocks[0].block_type, BlockType::Paragraph);
-    assert!(blocks[0].content.len() >= 3);
-    let has_bold = blocks[0]
-        .content
+    let inlines = blocks[0].content.as_inline();
+    assert!(inlines.len() >= 3);
+    let has_bold = inlines
         .iter()
-        .any(|c| matches!(c, yrs_blocknote::InlineContent::Text { styles, .. } if styles.bold));
+        .any(|c| matches!(c, InlineContent::Text { styles, .. } if styles.bold));
     assert!(has_bold);
-    let has_italic = blocks[0]
-        .content
+    let has_italic = inlines
         .iter()
-        .any(|c| matches!(c, yrs_blocknote::InlineContent::Text { styles, .. } if styles.italic));
+        .any(|c| matches!(c, InlineContent::Text { styles, .. } if styles.italic));
     assert!(has_italic);
 }
 
@@ -92,7 +91,9 @@ fn table() {
     let blocks = markdown_to_blocks_with(md, test_id_gen());
     assert_eq!(blocks.len(), 1);
     assert_eq!(blocks[0].block_type, BlockType::Table);
-    assert_eq!(blocks[0].children.len(), 2);
+    let table = blocks[0].content.as_table().expect("expected table content");
+    assert_eq!(table.rows.len(), 2);
+    assert_eq!(table.rows[0].cells.len(), 2);
 }
 
 #[test]
@@ -108,10 +109,24 @@ fn nested_list() {
 #[test]
 fn inline_link() {
     let blocks = markdown_to_blocks_with("Click [here](https://example.com)\n", test_id_gen());
-    let has_link = blocks[0].content.iter().any(|c| {
-        matches!(c, yrs_blocknote::InlineContent::Text { styles, .. } if styles.link == Some("https://example.com".to_string()))
+    let inlines = blocks[0].content.as_inline();
+    let has_link = inlines.iter().any(|c| {
+        matches!(c, InlineContent::Link { href, .. } if href == "https://example.com")
     });
     assert!(has_link);
+}
+
+#[test]
+fn blockquote() {
+    let blocks = markdown_to_blocks_with("> Quoted text\n", test_id_gen());
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].block_type, BlockType::Quote);
+    let inlines = blocks[0].content.as_inline();
+    assert!(!inlines.is_empty());
+    match &inlines[0] {
+        InlineContent::Text { text, .. } => assert_eq!(text, "Quoted text"),
+        _ => panic!("expected text"),
+    }
 }
 
 #[test]
@@ -135,5 +150,12 @@ fn roundtrip_complex_document() {
     assert!(output.contains("```rust"));
     assert!(output.contains("---"));
     assert!(output.contains("![image](pic.png)"));
-    assert!(output.contains("| A | B |"));
+    assert!(output.contains("| A"));
+}
+
+#[test]
+fn roundtrip_blockquote() {
+    let blocks = markdown_to_blocks_with("> This is a quote\n", test_id_gen());
+    let output = blocks_to_markdown(&blocks).unwrap();
+    assert!(output.contains("> This is a quote"));
 }

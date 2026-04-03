@@ -92,6 +92,7 @@ impl Default for OsInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AppRequest {
     Pairing(PairingRequest),
+    Workspace(WorkspaceRequest),
     Sync(SyncRequest),
 }
 
@@ -99,13 +100,40 @@ pub enum AppRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AppResponse {
     Pairing(PairingResponse),
+    Workspace(WorkspaceResponse),
     Sync(SyncResponse),
+}
+
+// ── 工作区子协议 ──
+
+/// 工作区请求：资源发现阶段。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WorkspaceRequest {
+    /// 查询对方当前已打开的工作区列表
+    ListWorkspaces,
+}
+
+/// 工作区响应。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WorkspaceResponse {
+    WorkspaceList { workspaces: Vec<WorkspaceMeta> },
+}
+
+/// 工作区元数据，用于列表交换。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceMeta {
+    pub uuid: Uuid,
+    pub name: String,
+    pub doc_count: u32,
+    pub updated_at: i64,
 }
 
 // ── 同步子协议 ──
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncRequest {
+    /// 查询指定工作区的文档列表
+    DocList { workspace_uuid: Uuid },
     /// 发送本地 state vector，请求对方返回缺失的 updates
     StateVector {
         doc_id: Uuid,
@@ -114,20 +142,49 @@ pub enum SyncRequest {
     },
     /// 请求完整文档状态
     FullSync { doc_id: Uuid },
-    /// 查询对方拥有的文档列表
-    DocList,
+    /// 请求文档的资源文件清单
+    AssetManifest { doc_id: Uuid },
+    /// 分块请求资源文件
+    AssetChunk {
+        doc_id: Uuid,
+        name: String,
+        chunk_index: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncResponse {
+    /// 返回文档元数据列表
+    DocList { docs: Vec<DocMeta> },
     /// 返回请求方缺失的 yjs updates
     Updates {
         doc_id: Uuid,
         #[serde(with = "serde_bytes")]
         updates: Vec<u8>,
     },
-    /// 返回文档元数据列表
-    DocList { docs: Vec<DocMeta> },
+    /// 返回文档的资源文件清单
+    AssetManifest {
+        doc_id: Uuid,
+        assets: Vec<AssetMeta>,
+    },
+    /// 返回资源文件块数据
+    AssetChunk {
+        doc_id: Uuid,
+        name: String,
+        chunk_index: u32,
+        #[serde(with = "serde_bytes")]
+        data: Vec<u8>,
+        is_last: bool,
+    },
+}
+
+/// 资源文件元数据
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetMeta {
+    pub name: String,
+    #[serde(with = "serde_bytes")]
+    pub hash: Vec<u8>,
+    pub size: u64,
 }
 
 /// 文档元数据，用于 DocList 交换
@@ -216,7 +273,9 @@ mod tests {
     #[test]
     fn app_request_cbor_roundtrip() {
         let requests = vec![
-            AppRequest::Sync(SyncRequest::DocList),
+            AppRequest::Sync(SyncRequest::DocList {
+                workspace_uuid: Uuid::now_v7(),
+            }),
             AppRequest::Sync(SyncRequest::FullSync {
                 doc_id: Uuid::now_v7(),
             }),
@@ -236,6 +295,15 @@ mod tests {
                 timestamp: 1234567890,
                 method: PairingMethod::Direct,
             }),
+            AppRequest::Sync(SyncRequest::AssetManifest {
+                doc_id: Uuid::now_v7(),
+            }),
+            AppRequest::Sync(SyncRequest::AssetChunk {
+                doc_id: Uuid::now_v7(),
+                name: "screenshot-af3b9e2c.png".to_string(),
+                chunk_index: 0,
+            }),
+            AppRequest::Workspace(WorkspaceRequest::ListWorkspaces),
         ];
 
         for req in requests {
@@ -265,9 +333,32 @@ mod tests {
                 doc_id: Uuid::now_v7(),
                 updates: vec![10, 20, 30],
             }),
+            AppResponse::Sync(SyncResponse::AssetManifest {
+                doc_id: Uuid::now_v7(),
+                assets: vec![AssetMeta {
+                    name: "screenshot-af3b9e2c.png".to_string(),
+                    hash: vec![1, 2, 3, 4],
+                    size: 256000,
+                }],
+            }),
+            AppResponse::Sync(SyncResponse::AssetChunk {
+                doc_id: Uuid::now_v7(),
+                name: "screenshot-af3b9e2c.png".to_string(),
+                chunk_index: 0,
+                data: vec![0u8; 128],
+                is_last: true,
+            }),
             AppResponse::Pairing(PairingResponse::Success),
             AppResponse::Pairing(PairingResponse::Refused {
                 reason: PairingRefuseReason::CodeExpired,
+            }),
+            AppResponse::Workspace(WorkspaceResponse::WorkspaceList {
+                workspaces: vec![WorkspaceMeta {
+                    uuid: Uuid::now_v7(),
+                    name: "Test Workspace".to_string(),
+                    doc_count: 42,
+                    updated_at: 1234567890,
+                }],
             }),
         ];
 

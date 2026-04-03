@@ -7,6 +7,7 @@ mod identity;
 mod network;
 mod pairing;
 mod protocol;
+mod sync;
 #[cfg(desktop)]
 pub mod tray;
 mod workspace;
@@ -75,6 +76,7 @@ pub fn run() {
             pairing::commands::unpair_device,
             pairing::commands::get_nearby_devices,
             pairing::commands::list_devices,
+            pairing::commands::get_remote_workspaces,
             workspace::commands::open_settings_window,
             // Y.Doc 管理
             yjs::commands::open_ydoc,
@@ -132,7 +134,7 @@ pub fn run() {
             {
                 let ws_state = app.state::<workspace::state::WorkspaceState>();
                 let watcher_state = app.state::<fs::watcher::FsWatcherState>();
-                if let Some(info) = tauri::async_runtime::block_on(ws_state.get("main")) {
+                if let Some(info) = tauri::async_runtime::block_on(ws_state.get_by_label("main")) {
                     let ws_path = std::path::PathBuf::from(&info.path);
                     if let Err(e) =
                         fs::watcher::start_watching(app.handle(), "main", &ws_path, &watcher_state)

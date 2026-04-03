@@ -16,9 +16,9 @@ fn roundtrip_paragraph() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].block_type, BlockType::Paragraph);
     assert_eq!(result[0].id, "p1");
-    match &result[0].content[0] {
+    match &result[0].content.as_inline()[0] {
         InlineContent::Text { text, .. } => assert_eq!(text, "Hello world"),
-        InlineContent::HardBreak => panic!("expected text"),
+        _ => panic!("expected text"),
     }
 }
 
@@ -50,40 +50,46 @@ fn roundtrip_bold_text() {
     let doc = blocks_to_doc(&blocks, "document-store");
     let result = doc_to_blocks(&doc, "document-store").unwrap();
 
-    assert_eq!(result[0].content.len(), 2);
-    match &result[0].content[0] {
+    let inlines = result[0].content.as_inline();
+    assert_eq!(inlines.len(), 2);
+    match &inlines[0] {
         InlineContent::Text { text, styles } => {
             assert_eq!(text, "Hello ");
             assert!(styles.bold);
         }
-        InlineContent::HardBreak => panic!("expected text"),
+        _ => panic!("expected text"),
     }
-    match &result[0].content[1] {
+    match &inlines[1] {
         InlineContent::Text { text, styles } => {
             assert_eq!(text, "world");
             assert!(!styles.bold);
         }
-        InlineContent::HardBreak => panic!("expected text"),
+        _ => panic!("expected text"),
     }
 }
 
 #[test]
 fn roundtrip_link() {
     let blocks = vec![
-        Block::new(BlockType::Paragraph, "p1".into()).with_content(vec![InlineContent::styled(
-            "click here",
-            Styles::default().with_link("https://example.com".into()),
+        Block::new(BlockType::Paragraph, "p1".into()).with_content(vec![InlineContent::link(
+            "https://example.com",
+            vec![InlineContent::plain("click here")],
         )]),
     ];
 
     let doc = blocks_to_doc(&blocks, "document-store");
     let result = doc_to_blocks(&doc, "document-store").unwrap();
 
-    match &result[0].content[0] {
-        InlineContent::Text { styles, .. } => {
-            assert_eq!(styles.link, Some("https://example.com".to_string()));
+    let inlines = result[0].content.as_inline();
+    match &inlines[0] {
+        InlineContent::Link { href, content } => {
+            assert_eq!(href, "https://example.com");
+            match &content[0] {
+                InlineContent::Text { text, .. } => assert_eq!(text, "click here"),
+                _ => panic!("expected text inside link"),
+            }
         }
-        InlineContent::HardBreak => panic!("expected text"),
+        _ => panic!("expected link"),
     }
 }
 
@@ -151,9 +157,9 @@ fn replace_content_replaces_all_blocks() {
     let result = doc_to_blocks(&doc, FRAG).unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].block_type, BlockType::Heading);
-    match &result[0].content[0] {
+    match &result[0].content.as_inline()[0] {
         InlineContent::Text { text, .. } => assert_eq!(text, "New Heading"),
-        InlineContent::HardBreak => panic!("expected text"),
+        _ => panic!("expected text"),
     }
 }
 
@@ -174,7 +180,7 @@ fn replace_content_markdown_roundtrip() {
     let original_md = "## Title\n\nSome paragraph\n\n- item 1\n- item 2\n";
     let doc = markdown_to_doc(original_md, FRAG);
 
-    let new_md = "New paragraph\n\n> blockquote is not supported so becomes paragraph\n";
+    let new_md = "New paragraph\n\n> this is a quote\n";
     replace_doc_content(&doc, new_md, FRAG);
 
     let output = doc_to_markdown(&doc, FRAG).unwrap();
@@ -191,8 +197,8 @@ fn replace_content_multiple_times() {
 
     let result = doc_to_blocks(&doc, FRAG).unwrap();
     assert_eq!(result.len(), 1);
-    match &result[0].content[0] {
+    match &result[0].content.as_inline()[0] {
         InlineContent::Text { text, .. } => assert_eq!(text, "third"),
-        InlineContent::HardBreak => panic!("expected text"),
+        _ => panic!("expected text"),
     }
 }

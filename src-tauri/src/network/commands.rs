@@ -41,17 +41,24 @@ pub async fn do_start_p2p_node(
             .map_err(|e| AppError::Network(format!("Failed to start P2P: {e}")))?;
 
     // 创建 NetManager（传入 devices_db 供 PairingManager 使用）
-    let net_manager = NetManager::new(client.clone(), peer_id, db);
+    let net_manager = NetManager::new(app.clone(), client.clone(), peer_id, db);
     let cancel_token = net_manager.cancel_token();
 
     // 启动事件循环
     spawn_event_loop(
         receiver,
         app.clone(),
+        net_manager.client.clone(),
         net_manager.device_manager.clone(),
         net_manager.pairing_manager.clone(),
+        net_manager.sync_manager.clone(),
         cancel_token.clone(),
     );
+
+    // Start periodic SV compensation (60s interval, cancelled on node shutdown)
+    net_manager
+        .sync_manager
+        .start_sv_compensation(cancel_token.clone());
 
     // 在线宣告 + DHT bootstrap + 已配对设备重连（后台任务）
     let announcer = net_manager.online_announcer.clone();

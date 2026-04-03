@@ -2,7 +2,9 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use entity::workspace::documents;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ActiveModelBehavior, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
+};
 use uuid::Uuid;
 
 use super::FileTreeNode;
@@ -59,6 +61,10 @@ fn scan_dir(root: &Path, dir: &Path) -> Result<Vec<FileTreeNode>, AppError> {
             .replace('\\', "/");
 
         if meta.is_dir() {
+            // Skip .assets resource directories
+            if name_str.ends_with(".assets") {
+                continue;
+            }
             let children = scan_dir(root, &entry.path())?;
             dirs.push(FileTreeNode {
                 id: rel_path,
@@ -137,9 +143,12 @@ pub async fn reconcile_with_db(
             created_by: Set(peer_id.to_owned()),
             ..Default::default()
         };
+        // Entity::insert() bypasses ActiveModelBehavior::before_save,
+        // so invoke it manually to fill created_at / updated_at.
+        let model = model.before_save(db, true).await?;
         // INSERT OR IGNORE: UNIQUE(workspace_id, rel_path) ensures idempotency
         // if another call has already inserted a record for this path.
-        let _ = documents::Entity::insert(model)
+        match documents::Entity::insert(model)
             .on_conflict(
                 sea_orm::sea_query::OnConflict::columns([
                     documents::Column::WorkspaceId,
@@ -149,7 +158,13 @@ pub async fn reconcile_with_db(
                 .to_owned(),
             )
             .exec(db)
-            .await;
+            .await
+        {
+            Ok(_) | Err(sea_orm::DbErr::RecordNotInserted) => {}
+            Err(e) => {
+                tracing::warn!("Failed to insert document record for {}: {e}", rel_path);
+            }
+        }
     }
 
     if count > 0 {
