@@ -47,7 +47,8 @@ const FALLBACK_BASE_PATH = "~/Documents/SwarmNote";
 async function resolveDefaultBasePath(): Promise<string> {
   try {
     const docs = await documentDir();
-    return `${docs}SwarmNote`;
+    const sep = docs.endsWith("/") || docs.endsWith("\\") ? "" : "/";
+    return `${docs}${sep}SwarmNote`;
   } catch {
     return FALLBACK_BASE_PATH;
   }
@@ -65,38 +66,88 @@ function groupByPeer(workspaces: RemoteWorkspaceInfo[]): Map<string, RemoteWorks
 
 // ── SyncProgressRow ──
 
-function SyncProgressRow({ item, peerId }: { item: WorkspaceSyncItem; peerId: string }) {
+function SyncProgressRow({
+  item,
+  peerId,
+  onOpen,
+}: {
+  item: WorkspaceSyncItem;
+  peerId: string;
+  onOpen?: (path: string) => void;
+}) {
   const activeSyncs = useSyncStore((s) => s.activeSyncs);
   const syncKey = `${item.ws.uuid}:${peerId}`;
   const activeSync = activeSyncs[syncKey];
 
+  const hasProgress = item.status === "syncing" && activeSync && activeSync.total > 0;
+  const percent = hasProgress ? Math.round((activeSync.completed / activeSync.total) * 100) : 0;
+  const canOpen = item.status === "done" && !!item.localPath && !!onOpen;
+
+  const handleOpen = canOpen
+    ? () => {
+        if (item.localPath) onOpen(item.localPath);
+      }
+    : undefined;
+
+  const Container = canOpen ? "button" : "div";
+
   return (
-    <div className="flex items-center gap-3 rounded-lg border p-3">
-      <div className="shrink-0">
-        {item.status === "done" && <CheckCircle className="h-4 w-4 text-green-500" />}
-        {item.status === "error" && <XCircle className="h-4 w-4 text-destructive" />}
-        {item.status === "syncing" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-        {item.status === "pending" && <Circle className="h-4 w-4 text-muted-foreground" />}
+    <Container
+      type={canOpen ? "button" : undefined}
+      className={`flex w-full flex-col gap-2 rounded-lg border p-3 text-left${canOpen ? " cursor-pointer transition-colors hover:bg-muted/50" : ""}`}
+      onClick={handleOpen}
+    >
+      <div className="flex items-center gap-3">
+        <div className="shrink-0">
+          {item.status === "done" && <CheckCircle className="h-4 w-4 text-green-500" />}
+          {item.status === "error" && <XCircle className="h-4 w-4 text-destructive" />}
+          {item.status === "syncing" && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+          {item.status === "pending" && <Circle className="h-4 w-4 text-muted-foreground" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{item.ws.name}</p>
+          {item.status === "pending" && (
+            <p className="text-xs text-muted-foreground">
+              <Trans>{item.ws.docCount} 篇文档</Trans>
+            </p>
+          )}
+          {item.status === "syncing" && !hasProgress && (
+            <p className="text-xs text-muted-foreground">
+              <Trans>准备同步 · {item.ws.docCount} 篇文档</Trans>
+            </p>
+          )}
+          {item.status === "error" && item.error && (
+            <p className="truncate text-xs text-destructive">{item.error}</p>
+          )}
+          {item.status === "done" && (
+            <p className="text-xs text-muted-foreground">
+              <Trans>同步完成 · {item.ws.docCount} 篇文档</Trans>
+            </p>
+          )}
+        </div>
+        {hasProgress && (
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{percent}%</span>
+        )}
+        {canOpen && (
+          <span className="shrink-0 text-xs text-primary">
+            <Trans>打开</Trans>
+          </span>
+        )}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.ws.name}</p>
-        {item.status === "syncing" && activeSync && activeSync.total > 0 && (
-          <p className="text-xs text-muted-foreground">
-            <Trans>
-              {activeSync.completed}/{activeSync.total} 篇文档
-            </Trans>
-          </p>
-        )}
-        {item.status === "error" && item.error && (
-          <p className="truncate text-xs text-destructive">{item.error}</p>
-        )}
-        {item.status === "done" && (
-          <p className="text-xs text-muted-foreground">
-            <Trans>同步完成</Trans>
-          </p>
-        )}
-      </div>
-    </div>
+      {hasProgress && (
+        <div className="flex items-center gap-2">
+          <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            {activeSync.completed}/{activeSync.total}
+          </span>
+        </div>
+      )}
+    </Container>
   );
 }
 
@@ -159,7 +210,7 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
   }
 
   async function handleStartSync() {
-    const selected = remoteWorkspaces.filter((ws) => selectedIds.has(ws.uuid) && !ws.isLocal);
+    const selected = remoteWorkspaces.filter((ws) => selectedIds.has(ws.uuid));
     if (selected.length === 0) return;
 
     const items: WorkspaceSyncItem[] = selected.map((ws) => ({
@@ -191,16 +242,15 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
     }
 
     setPhase("done");
+  }
 
-    // Auto-open first successful workspace
-    const firstDone = updatedItems.find((item) => item.status === "done");
-    if (firstDone?.localPath) {
-      if (pickerMode === "fullscreen") {
-        await openWorkspace(firstDone.localPath);
-      } else {
-        await openWorkspaceWindow(firstDone.localPath);
-      }
+  async function handleOpenSyncedWorkspace(path: string) {
+    if (pickerMode === "fullscreen") {
+      await openWorkspace(path);
+    } else {
+      await openWorkspaceWindow(path);
     }
+    onOpenChange(false);
   }
 
   function handleBackground() {
@@ -226,9 +276,7 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
 
   const isSyncing = phase === "syncing";
 
-  const selectedCount = remoteWorkspaces.filter(
-    (ws) => selectedIds.has(ws.uuid) && !ws.isLocal,
-  ).length;
+  const selectedCount = selectedIds.size;
 
   const doneCount = syncItems.filter((i) => i.status === "done").length;
   const errorCount = syncItems.filter((i) => i.status === "error").length;
@@ -289,14 +337,13 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
                     {wsList.map((ws) => (
                       <label
                         key={ws.uuid}
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50${ws.isLocal ? " cursor-not-allowed opacity-60" : ""}`}
+                        className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
                       >
                         <input
                           type="checkbox"
                           className="h-4 w-4 accent-primary"
-                          checked={ws.isLocal || selectedIds.has(ws.uuid)}
-                          disabled={ws.isLocal}
-                          onChange={() => !ws.isLocal && toggleSelection(ws.uuid)}
+                          checked={selectedIds.has(ws.uuid)}
+                          onChange={() => toggleSelection(ws.uuid)}
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{ws.name}</p>
@@ -305,7 +352,7 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
                           </p>
                         </div>
                         {ws.isLocal && (
-                          <span className="shrink-0 text-xs text-muted-foreground">
+                          <span className="shrink-0 rounded-full bg-green-100 px-1.5 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
                             <Trans>已同步</Trans>
                           </span>
                         )}
@@ -365,7 +412,12 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
           <div className="flex flex-col gap-4">
             <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
               {syncItems.map((item) => (
-                <SyncProgressRow key={item.ws.uuid} item={item} peerId={item.ws.peerId} />
+                <SyncProgressRow
+                  key={item.ws.uuid}
+                  item={item}
+                  peerId={item.ws.peerId}
+                  onOpen={handleOpenSyncedWorkspace}
+                />
               ))}
             </div>
             <p className="text-sm text-muted-foreground">

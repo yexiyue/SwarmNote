@@ -78,7 +78,7 @@ export function WorkspacePicker({ mode, open: dialogOpen, onOpenChange }: Worksp
   }
 
   const content = (
-    <div className="flex w-full max-w-lg flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       {/* Header (fullscreen only) */}
       {mode === "fullscreen" && (
         <div className="flex flex-col items-center gap-2">
@@ -125,11 +125,11 @@ export function WorkspacePicker({ mode, open: dialogOpen, onOpenChange }: Worksp
 
       {/* Recent workspaces */}
       {recents.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex min-h-0 flex-col gap-2">
           <span className="text-xs font-medium text-muted-foreground">
             <Trans>最近打开</Trans>
           </span>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto">
             {recents.map((ws) => (
               <WorkspaceItem key={ws.path} workspace={ws} onClick={handleSelectWorkspace} />
             ))}
@@ -143,33 +143,35 @@ export function WorkspacePicker({ mode, open: dialogOpen, onOpenChange }: Worksp
           </p>
         </div>
       )}
-
-      <WorkspaceSyncDialog
-        open={syncDialogOpen}
-        onOpenChange={setSyncDialogOpen}
-        pickerMode={mode}
-      />
     </div>
+  );
+
+  const syncDialog = (
+    <WorkspaceSyncDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen} pickerMode={mode} />
   );
 
   if (mode === "dialog") {
     return (
-      <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              <Trans>工作区管理</Trans>
-            </DialogTitle>
-          </DialogHeader>
-          {content}
-        </DialogContent>
-      </Dialog>
+      <>
+        <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
+          <DialogContent className="max-h-[80vh] overflow-x-hidden overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                <Trans>工作区管理</Trans>
+              </DialogTitle>
+            </DialogHeader>
+            {content}
+          </DialogContent>
+        </Dialog>
+        {syncDialog}
+      </>
     );
   }
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-background px-6">
       {content}
+      {syncDialog}
     </div>
   );
 }
