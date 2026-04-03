@@ -3,6 +3,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use swarm_p2p_core::libp2p::PeerId;
 use tauri::{AppHandle, Manager};
+use tokio::sync::Notify;
 use tokio::task::AbortHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
@@ -32,6 +33,8 @@ pub struct SyncManager {
     /// Abort handle for the pending buffer flush task (used on shutdown).
     #[allow(dead_code)]
     pending_flush_handle: std::sync::Mutex<Option<AbortHandle>>,
+    /// Signal to trigger an urgent SV compensation round (e.g. after publish failure).
+    sv_urgent: Arc<Notify>,
 }
 
 impl SyncManager {
@@ -45,6 +48,7 @@ impl SyncManager {
             asset_check_handles: DashMap::new(),
             pending_buffer,
             pending_flush_handle: std::sync::Mutex::new(Some(flush_handle)),
+            sv_urgent: Arc::new(Notify::new()),
         }
     }
 
@@ -298,68 +302,86 @@ impl SyncManager {
         None
     }
 
-    /// Start periodic SV compensation for open documents (60s interval).
+    /// Start periodic SV compensation for open documents.
+    ///
+    /// Runs every 5 minutes, or 30 s after a GossipSub publish failure (urgent signal).
     /// Stops when the cancellation token is triggered (node shutdown).
     pub fn start_sv_compensation(self: &Arc<Self>, cancel: CancellationToken) {
         let this = Arc::clone(self);
+        let urgent = Arc::clone(&self.sv_urgent);
+
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+            let period = std::time::Duration::from_secs(300); // 5 min
+            let urgent_debounce = std::time::Duration::from_secs(30);
+            let mut interval = tokio::time::interval(period);
+
             loop {
                 tokio::select! {
                     _ = cancel.cancelled() => {
                         info!("SV compensation task stopped");
                         return;
                     }
-                    _ = interval.tick() => {}
-                }
-
-                let ydoc_mgr = this.app.state::<crate::yjs::manager::YDocManager>();
-                let open_docs = ydoc_mgr.list_open_doc_uuids();
-
-                if open_docs.is_empty() {
-                    continue;
-                }
-
-                // For each open doc, find connected paired peers and do SV exchange
-                let device_mgr_result = {
-                    if let Some(net_state) = this.app.try_state::<crate::network::NetManagerState>()
-                    {
-                        net_state.devices().await.ok()
-                    } else {
-                        None
+                    _ = interval.tick() => {
+                        // Normal 5-min periodic tick
                     }
-                };
-
-                let Some(device_mgr) = device_mgr_result else {
-                    continue;
-                };
-
-                let connected_peers = device_mgr.connected_paired_peers();
-                if connected_peers.is_empty() {
-                    continue;
+                    _ = urgent.notified() => {
+                        // Publish failure — debounce 30s then run
+                        tokio::time::sleep(urgent_debounce).await;
+                        // Reset the 5-min timer so we don't run again too soon
+                        interval.reset();
+                    }
                 }
 
-                for doc_uuid in &open_docs {
-                    for peer_id in &connected_peers {
-                        if let Some((ws_uuid, _)) = this.find_doc_context(*doc_uuid).await {
-                            if let Err(e) = doc_sync::sync_via_state_vector(
-                                &this.app,
-                                &this.client,
-                                *peer_id,
-                                ws_uuid,
-                                *doc_uuid,
-                            )
-                            .await
-                            {
-                                tracing::trace!(
-                                    "SV compensation failed for doc {doc_uuid} with {peer_id}: {e}"
-                                );
-                            }
-                        }
+                this.run_sv_compensation().await;
+            }
+        });
+    }
+
+    /// Execute one round of SV compensation for all open documents.
+    async fn run_sv_compensation(self: &Arc<Self>) {
+        let ydoc_mgr = self.app.state::<crate::yjs::manager::YDocManager>();
+        let open_docs = ydoc_mgr.list_open_doc_uuids();
+
+        if open_docs.is_empty() {
+            return;
+        }
+
+        let device_mgr_result = {
+            if let Some(net_state) = self.app.try_state::<crate::network::NetManagerState>() {
+                net_state.devices().await.ok()
+            } else {
+                None
+            }
+        };
+
+        let Some(device_mgr) = device_mgr_result else {
+            return;
+        };
+
+        let connected_peers = device_mgr.connected_paired_peers();
+        if connected_peers.is_empty() {
+            return;
+        }
+
+        for doc_uuid in &open_docs {
+            for peer_id in &connected_peers {
+                if let Some((ws_uuid, _)) = self.find_doc_context(*doc_uuid).await {
+                    if let Err(e) = doc_sync::sync_via_state_vector(
+                        &self.app,
+                        &self.client,
+                        *peer_id,
+                        ws_uuid,
+                        *doc_uuid,
+                    )
+                    .await
+                    {
+                        tracing::trace!(
+                            "SV compensation failed for doc {doc_uuid} with {peer_id}: {e}"
+                        );
                     }
                 }
             }
-        });
+        }
     }
 
     /// Subscribe to a workspace-level GossipSub topic.
@@ -387,6 +409,8 @@ impl SyncManager {
         if let Err(e) = self.client.publish(&topic, payload).await {
             // NoPeersSubscribedToTopic is expected when no other peer has the workspace open
             tracing::debug!("Failed to publish doc update to {topic}: {e}");
+            // Schedule urgent SV compensation to ensure data consistency
+            self.sv_urgent.notify_one();
         }
     }
 }
