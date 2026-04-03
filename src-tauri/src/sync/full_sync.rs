@@ -247,7 +247,7 @@ pub async fn full_sync(
     let mut actions = diff_doc_lists(&local_docs, &remote_docs);
 
     // 3. Sort by priority
-    actions.sort_by(|a, b| priority_key(a, &app).cmp(&priority_key(b, &app)));
+    actions.sort_by_key(|a| priority_key(a, &app));
 
     let total = actions.len();
     let mut completed = 0u32;
