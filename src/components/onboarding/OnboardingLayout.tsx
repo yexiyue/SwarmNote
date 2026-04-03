@@ -1,18 +1,18 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { TOTAL_STEPS } from "@/components/onboarding/OnboardingFlow";
 import { cn } from "@/lib/utils";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-
-const STEPS = [0, 1, 2] as const;
 
 function StepIndicator() {
   const currentStep = useOnboardingStore((s) => s.currentStep);
 
   return (
     <div className="flex items-center gap-2">
-      {STEPS.map((step) => (
+      {Array.from({ length: TOTAL_STEPS }, (_, step) => (
         <div
-          key={step}
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length indicator dots
+          key={`step-${step}`}
           className={cn(
             "h-2 w-2 rounded-full transition-colors duration-300",
             step === currentStep ? "bg-primary" : "bg-muted-foreground/30",

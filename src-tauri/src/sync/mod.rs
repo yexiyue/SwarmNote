@@ -1,4 +1,5 @@
 pub(crate) mod asset_sync;
+pub mod commands;
 mod doc_sync;
 mod full_sync;
 mod manager;

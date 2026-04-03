@@ -52,17 +52,24 @@ impl SyncManager {
     }
 
     /// Spawn a full sync task if not already running for this (peer, workspace).
-    async fn spawn_full_sync(self: &Arc<Self>, peer_id: PeerId, workspace_uuid: Uuid) {
+    pub async fn spawn_full_sync(self: &Arc<Self>, peer_id: PeerId, workspace_uuid: Uuid) {
         let key = (peer_id, workspace_uuid);
 
-        // Dedup: skip if already syncing this (peer, workspace)
-        if self.active_syncs.contains_key(&key) {
-            info!("Full sync already active for {peer_id} / {workspace_uuid}, skipping");
-            return;
-        }
-
-        let cancel = CancellationToken::new();
-        self.active_syncs.insert(key, cancel.clone());
+        // Atomic check-and-insert to prevent duplicate syncs
+        let cancel = {
+            use dashmap::mapref::entry::Entry;
+            match self.active_syncs.entry(key) {
+                Entry::Occupied(_) => {
+                    info!("Full sync already active for {peer_id} / {workspace_uuid}, skipping");
+                    return;
+                }
+                Entry::Vacant(e) => {
+                    let cancel = CancellationToken::new();
+                    e.insert(cancel.clone());
+                    cancel
+                }
+            }
+        };
 
         let this = Arc::clone(self);
         let app = self.app.clone();

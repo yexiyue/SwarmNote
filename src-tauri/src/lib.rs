@@ -84,6 +84,9 @@ pub fn run() {
             yjs::commands::close_ydoc,
             yjs::commands::rename_ydoc,
             yjs::commands::reload_ydoc_confirmed,
+            // 同步
+            sync::commands::trigger_workspace_sync,
+            workspace::commands::create_workspace_for_sync,
         ])
         .on_window_event(|window, event| {
             #[cfg(desktop)]
