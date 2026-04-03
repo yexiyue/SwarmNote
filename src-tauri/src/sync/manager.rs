@@ -12,6 +12,7 @@ use crate::network::online::AppNetClient;
 use crate::protocol::{AppResponse, SyncRequest, SyncResponse};
 use crate::workspace::state::{DbState, WorkspaceState};
 
+use super::pending_buffer::PendingUpdateBuffer;
 use super::{asset_sync, doc_sync, full_sync};
 
 /// Manages full-sync sessions and incremental (GossipSub) sync.
@@ -26,15 +27,24 @@ pub struct SyncManager {
     active_syncs: DashMap<(PeerId, Uuid), CancellationToken>,
     /// Debounce: pending asset-check tasks per doc_uuid (abort old on new update).
     asset_check_handles: DashMap<Uuid, AbortHandle>,
+    /// Buffer for GossipSub updates targeting closed documents (3s debounce).
+    pending_buffer: PendingUpdateBuffer,
+    /// Abort handle for the pending buffer flush task (used on shutdown).
+    #[allow(dead_code)]
+    pending_flush_handle: std::sync::Mutex<Option<AbortHandle>>,
 }
 
 impl SyncManager {
     pub fn new(app: AppHandle, client: AppNetClient) -> Self {
+        let pending_buffer = PendingUpdateBuffer::new();
+        let flush_handle = pending_buffer.spawn_flush_task(app.clone());
         Self {
             app,
             client,
             active_syncs: DashMap::new(),
             asset_check_handles: DashMap::new(),
+            pending_buffer,
+            pending_flush_handle: std::sync::Mutex::new(Some(flush_handle)),
         }
     }
 
@@ -190,53 +200,80 @@ impl SyncManager {
         }
     }
 
-    /// Handle an incoming GossipSub message (incremental yrs update).
-    pub async fn handle_gossip_update(
+    /// Handle an incoming workspace-level GossipSub message.
+    ///
+    /// Routes to open doc (real-time apply) or pending buffer (closed doc).
+    pub async fn handle_ws_gossip_update(
         self: &Arc<Self>,
         source: Option<PeerId>,
+        workspace_uuid: Uuid,
         doc_uuid: Uuid,
         data: Vec<u8>,
     ) {
-        // 1. Apply the text update (document is guaranteed to be open)
+        // 1. Try the open-doc path first
         let ydoc_mgr = self.app.state::<crate::yjs::manager::YDocManager>();
-        if let Some(Err(e)) = ydoc_mgr
+        match ydoc_mgr
             .apply_sync_update(&self.app, &doc_uuid, &data)
             .await
         {
-            warn!("Failed to apply gossip update for {doc_uuid}: {e}");
-            return;
-        }
-
-        // 2. Debounced asset check: abort previous pending check, spawn new one
-        if let Some(peer) = source {
-            // Abort any previous pending asset check for this doc
-            if let Some((_, old_handle)) = self.asset_check_handles.remove(&doc_uuid) {
-                old_handle.abort();
+            Some(Ok(())) => {
+                // Successfully applied to open doc — do asset check
+                self.schedule_asset_check(source, doc_uuid);
             }
-
-            let this = Arc::clone(self);
-            let handle = tokio::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                // Cleanup handle entry before running (no longer cancellable)
-                this.asset_check_handles.remove(&doc_uuid);
-                if let Some((ws_uuid, rel_path)) = this.find_doc_context(doc_uuid).await {
-                    if let Err(e) = asset_sync::sync_doc_assets(
-                        &this.app,
-                        &this.client,
-                        peer,
-                        ws_uuid,
-                        doc_uuid,
-                        &rel_path,
-                    )
+            Some(Err(e)) => {
+                warn!("Failed to apply ws gossip update for {doc_uuid}: {e}");
+            }
+            None => {
+                // Document not open — buffer for later flush
+                // If cap exceeded, push returns overflow for immediate apply
+                if let Some((ws, overflow)) = self
+                    .pending_buffer
+                    .push(workspace_uuid, doc_uuid, data)
                     .await
-                    {
-                        warn!("Incremental asset sync failed for {doc_uuid}: {e}");
+                {
+                    for update in &overflow {
+                        if let Err(e) =
+                            doc_sync::apply_remote_update(&self.app, ws, doc_uuid, update).await
+                        {
+                            warn!("Overflow flush failed for doc {doc_uuid}: {e}");
+                            break;
+                        }
                     }
                 }
-            });
-            self.asset_check_handles
-                .insert(doc_uuid, handle.abort_handle());
+            }
         }
+    }
+
+    /// Schedule a debounced asset check for a document after receiving a remote update.
+    fn schedule_asset_check(self: &Arc<Self>, source: Option<PeerId>, doc_uuid: Uuid) {
+        let Some(peer) = source else { return };
+
+        // Abort any previous pending asset check for this doc
+        if let Some((_, old_handle)) = self.asset_check_handles.remove(&doc_uuid) {
+            old_handle.abort();
+        }
+
+        let this = Arc::clone(self);
+        let handle = tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            this.asset_check_handles.remove(&doc_uuid);
+            if let Some((ws_uuid, rel_path)) = this.find_doc_context(doc_uuid).await {
+                if let Err(e) = asset_sync::sync_doc_assets(
+                    &this.app,
+                    &this.client,
+                    peer,
+                    ws_uuid,
+                    doc_uuid,
+                    &rel_path,
+                )
+                .await
+                {
+                    warn!("Incremental asset sync failed for {doc_uuid}: {e}");
+                }
+            }
+        });
+        self.asset_check_handles
+            .insert(doc_uuid, handle.abort_handle());
     }
 
     /// Find workspace UUID and rel_path for a document by searching all open workspace DBs.
@@ -322,29 +359,46 @@ impl SyncManager {
         });
     }
 
-    /// Notify that a document was opened — subscribe to its GossipSub topic.
-    pub async fn notify_doc_opened(&self, doc_uuid: Uuid) {
-        let topic = format!("swarmnote/doc/{doc_uuid}");
+    /// Subscribe to a workspace-level GossipSub topic.
+    pub async fn subscribe_workspace(&self, workspace_uuid: Uuid) {
+        let topic = super::ws_topic(&workspace_uuid);
         match self.client.subscribe(&topic).await {
-            Ok(_) => info!("Subscribed to GossipSub topic: {topic}"),
+            Ok(_) => info!("Subscribed to workspace GossipSub topic: {topic}"),
             Err(e) => warn!("Failed to subscribe to {topic}: {e}"),
         }
     }
 
-    /// Notify that a document was closed — unsubscribe from its GossipSub topic.
-    pub async fn notify_doc_closed(&self, doc_uuid: Uuid) {
-        let topic = format!("swarmnote/doc/{doc_uuid}");
+    /// Unsubscribe from a workspace-level GossipSub topic (called on workspace close).
+    pub async fn unsubscribe_workspace(&self, workspace_uuid: Uuid) {
+        let topic = super::ws_topic(&workspace_uuid);
         match self.client.unsubscribe(&topic).await {
-            Ok(_) => info!("Unsubscribed from GossipSub topic: {topic}"),
+            Ok(_) => info!("Unsubscribed from workspace GossipSub topic: {topic}"),
             Err(e) => warn!("Failed to unsubscribe from {topic}: {e}"),
+        }
+    }
+
+    /// Publish a document update to the workspace GossipSub topic.
+    pub async fn publish_doc_update(&self, workspace_uuid: Uuid, doc_uuid: Uuid, update: Vec<u8>) {
+        let topic = super::ws_topic(&workspace_uuid);
+        let payload = super::encode_ws_gossip(&doc_uuid, &update);
+        if let Err(e) = self.client.publish(&topic, payload).await {
+            warn!("Failed to publish doc update to {topic}: {e}");
         }
     }
 }
 
-/// Parse a GossipSub topic string to extract the doc UUID.
+/// Parse a GossipSub topic string to extract the doc UUID (legacy per-doc topic).
 /// Topic format: `swarmnote/doc/{uuid}`
 pub fn parse_sync_topic(topic: &str) -> Option<Uuid> {
     topic
         .strip_prefix("swarmnote/doc/")
+        .and_then(|s| Uuid::parse_str(s).ok())
+}
+
+/// Parse a workspace-level GossipSub topic to extract the workspace UUID.
+/// Topic format: `swarmnote/ws/{uuid}`
+pub fn parse_ws_topic(topic: &str) -> Option<Uuid> {
+    topic
+        .strip_prefix("swarmnote/ws/")
         .and_then(|s| Uuid::parse_str(s).ok())
 }

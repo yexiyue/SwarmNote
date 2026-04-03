@@ -199,6 +199,13 @@ pub async fn open_workspace(
     )
     .await;
 
+    // Subscribe to workspace-level GossipSub topic for real-time sync
+    if let Some(net_state) = app_handle.try_state::<crate::network::NetManagerState>() {
+        if let Ok(sync_mgr) = net_state.sync().await {
+            sync_mgr.subscribe_workspace(info.id).await;
+        }
+    }
+
     Ok(info)
 }
 
@@ -337,9 +344,9 @@ pub async fn create_workspace_for_sync(
 
     let base = PathBuf::from(&base_path);
     if !base.is_dir() {
-        return Err(AppError::InvalidPath(format!(
-            "Base directory does not exist: {base_path}"
-        )));
+        tokio::fs::create_dir_all(&base).await.map_err(|e| {
+            AppError::InvalidPath(format!("Failed to create base directory {base_path}: {e}"))
+        })?;
     }
     let ws_path = base.join(&name);
     let ws_path_str = ws_path
