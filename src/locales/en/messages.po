@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: event.payload.relPath
-#: src/components/editor/NoteEditor.tsx:221
+#: src/components/editor/NoteEditor.tsx:238
 msgid "\"{0}\" 已被外部修改。是否重新加载？当前未保存的编辑将丢失。"
 msgstr "\"{0}\" was modified externally. Reload? Unsaved edits will be lost."
 
@@ -34,19 +34,27 @@ msgstr "P2P Network"
 msgid "P2P 网络状态与工作区同步"
 msgstr "P2P network status and workspace sync"
 
+#: src/components/settings/NetworkStatusCard.tsx:68
+msgid "P2P 节点未运行"
+msgstr "P2P node not running"
+
 #: src/routes/settings/about.tsx:54
 msgid "SwarmNote 版本与设备信息"
 msgstr "SwarmNote version and device info"
 
-#: src/components/onboarding/DeviceNameStep.tsx:56
+#: src/components/onboarding/DeviceNameStep.tsx:58
 msgid "上一步"
 msgstr "Back"
 
-#: src/components/onboarding/DeviceNameStep.tsx:59
+#: src/components/onboarding/DeviceNameStep.tsx:61
 msgid "下一步"
 msgstr "Next"
 
-#: src/components/onboarding/DeviceNameStep.tsx:39
+#: src/components/pairing/ConnectionBadge.tsx:40
+msgid "中继"
+msgstr "Relay"
+
+#: src/components/onboarding/DeviceNameStep.tsx:41
 msgid "为你的设备取个名字，方便在 P2P 网络中识别。"
 msgstr "Give your device a name to identify it on the P2P network."
 
@@ -54,7 +62,7 @@ msgstr "Give your device a name to identify it on the P2P network."
 #~ msgid "主题"
 #~ msgstr "Theme"
 
-#: src/components/onboarding/CompleteStep.tsx:36
+#: src/components/onboarding/CompleteStep.tsx:38
 msgid "你的设备身份已建立，可以开始使用 SwarmNote 了。"
 msgstr "Your device identity is set up. You can start using SwarmNote."
 
@@ -62,15 +70,16 @@ msgstr "Your device identity is set up. You can start using SwarmNote."
 msgid "使用配对码与远程设备配对"
 msgstr "Pair with remote devices using a pairing code"
 
+#: src/routes/settings.tsx:20
 #: src/routes/settings/about.tsx:51
 msgid "关于"
 msgstr "About"
 
-#: src/components/settings/NetworkStatusCard.tsx:116
+#: src/components/settings/NetworkStatusCard.tsx:121
 msgid "关闭 P2P 网络将断开与所有设备的连接，笔记将停止同步。"
 msgstr "Closing P2P network will disconnect all devices and stop syncing notes."
 
-#: src/components/settings/NetworkStatusCard.tsx:99
+#: src/components/settings/NetworkStatusCard.tsx:104
 msgid "关闭网络"
 msgstr "Stop Network"
 
@@ -78,7 +87,7 @@ msgstr "Stop Network"
 msgid "最近文件"
 msgstr "Recent Files"
 
-#: src/components/onboarding/CompleteStep.tsx:34
+#: src/components/onboarding/CompleteStep.tsx:35
 msgid "准备就绪!"
 msgstr "Ready to Go!"
 
@@ -114,14 +123,19 @@ msgstr "A decentralized, local-first note-taking app that syncs securely between
 #: src/components/filetree/FileTree.tsx:72
 #: src/components/pairing/CodePairingCard.tsx:161
 #: src/components/pairing/CodePairingCard.tsx:202
-#: src/components/settings/NetworkStatusCard.tsx:120
+#: src/components/settings/NetworkStatusCard.tsx:125
 msgid "取消"
 msgstr "Cancel"
+
+#: src/components/pairing/PairedDeviceCard.tsx:65
+msgid "取消配对"
+msgstr "Unpair"
 
 #: src/components/settings/WorkspaceSyncList.tsx:50
 msgid "各工作区的同步状态"
 msgstr "Sync status for each workspace"
 
+#: src/routes/settings.tsx:18
 #: src/routes/settings/sync.tsx:18
 msgid "同步"
 msgstr "Sync"
@@ -134,11 +148,11 @@ msgstr "Sync not enabled"
 msgid "启动 P2P 网络后即可同步工作区"
 msgstr "Start P2P network to sync workspaces"
 
-#: src/components/settings/NetworkStatusCard.tsx:103
+#: src/components/settings/NetworkStatusCard.tsx:108
 msgid "启动中..."
 msgstr "Starting..."
 
-#: src/components/settings/NetworkStatusCard.tsx:103
+#: src/components/settings/NetworkStatusCard.tsx:108
 msgid "启动网络"
 msgstr "Start Network"
 
@@ -175,6 +189,10 @@ msgstr "Encrypted"
 msgid "将此配对码告知对方设备，配对码将在 {0} 后过期"
 msgstr "Share this code with the other device. It expires in {0}."
 
+#: src/components/pairing/ConnectionBadge.tsx:38
+msgid "局域网"
+msgstr "LAN"
+
 #: src/components/layout/TitleBar.tsx:59
 msgid "展开侧边栏"
 msgstr "Expand Sidebar"
@@ -187,6 +205,10 @@ msgstr "Workspace Sync"
 msgid "已保存"
 msgstr "Saved"
 
+#: src/components/settings/NetworkStatusCard.tsx:52
+msgid "已停止"
+msgstr "Stopped"
+
 #: src/components/layout/Sidebar.tsx:156
 msgid "已连接"
 msgstr "Connected"
@@ -195,6 +217,14 @@ msgstr "Connected"
 #: src/components/layout/Sidebar.tsx:155
 msgid "已连接 · {0} 台设备在线"
 msgstr "Connected · {0} device(s) online"
+
+#: src/components/settings/NetworkStatusCard.tsx:64
+msgid "已连接 {connectedCount} 台设备"
+msgstr "Connected to {connectedCount} device(s)"
+
+#: src/components/settings/NetworkStatusCard.tsx:65
+msgid "已连接，暂无设备在线"
+msgstr "Connected, no devices online"
 
 #: src/routes/settings/devices.tsx:81
 msgid "已配对设备"
@@ -224,7 +254,7 @@ msgstr "Detailed info about the current device"
 msgid "我的笔记"
 msgstr "My Notes"
 
-#: src/components/onboarding/DeviceNameStep.tsx:47
+#: src/components/onboarding/DeviceNameStep.tsx:49
 msgid "我的设备"
 msgstr "My Device"
 
@@ -244,6 +274,10 @@ msgstr "Automatically start P2P node when opening a workspace"
 msgid "打开设置"
 msgstr "Open Settings"
 
+#: src/components/pairing/ConnectionBadge.tsx:39
+msgid "打洞"
+msgstr "Hole-punch"
+
 #: src/components/layout/TitleBar.tsx:85
 msgid "搜索..."
 msgstr "Search..."
@@ -260,7 +294,7 @@ msgstr "Operating System"
 msgid "收起侧边栏"
 msgstr "Collapse Sidebar"
 
-#: src/components/editor/NoteEditor.tsx:222
+#: src/components/editor/NoteEditor.tsx:239
 msgid "文件已修改"
 msgstr "File Modified"
 
@@ -346,11 +380,11 @@ msgstr "Are you sure you want to delete \"{0}\"?"
 msgid "确定要删除文件夹 \"{0}\" 及其所有内容吗？"
 msgstr "Are you sure you want to delete folder \"{0}\" and all its contents?"
 
-#: src/components/settings/NetworkStatusCard.tsx:123
+#: src/components/settings/NetworkStatusCard.tsx:128
 msgid "确认关闭"
 msgstr "Confirm Close"
 
-#: src/components/settings/NetworkStatusCard.tsx:113
+#: src/components/settings/NetworkStatusCard.tsx:118
 msgid "确认关闭网络？"
 msgstr "Confirm closing network?"
 
@@ -370,19 +404,27 @@ msgstr "Waiting for connection..."
 msgid "管理已配对设备和发现附近设备"
 msgstr "Manage paired devices and discover nearby devices"
 
+#: src/routes/settings.tsx:79
+msgid "管理应用偏好与设备"
+msgstr "Manage app preferences and devices"
+
 #: src/routes/settings/general.tsx:100
 msgid "管理界面外观和语言偏好"
 msgstr "Manage appearance and language preferences"
+
+#: src/components/settings/NetworkStatusCard.tsx:67
+msgid "节点启动失败"
+msgstr "Node failed to start"
 
 #: src/routes/settings/sync.tsx:33
 msgid "节点运行状态与连接信息"
 msgstr "Node status and connection info"
 
-#: src/routes/settings.tsx:110
-#~ msgid "设备"
-#~ msgstr "Device"
+#: src/routes/settings.tsx:19
+msgid "设备"
+msgstr "Device"
 
-#: src/components/onboarding/CompleteStep.tsx:52
+#: src/components/onboarding/CompleteStep.tsx:57
 msgid "设备 ID"
 msgstr "Device ID"
 
@@ -390,8 +432,8 @@ msgstr "Device ID"
 msgid "设备信息"
 msgstr "Device Info"
 
-#: src/components/onboarding/CompleteStep.tsx:44
-#: src/components/onboarding/DeviceNameStep.tsx:37
+#: src/components/onboarding/CompleteStep.tsx:47
+#: src/components/onboarding/DeviceNameStep.tsx:38
 #: src/components/settings/DeviceSettings.tsx:11
 #: src/routes/settings/about.tsx:99
 msgid "设备名称"
@@ -402,6 +444,8 @@ msgid "设备管理"
 msgstr "Device Management"
 
 #: src/components/layout/TitleBar.tsx:99
+#: src/routes/settings.tsx:43
+#: src/routes/settings.tsx:75
 msgid "设置"
 msgstr "Settings"
 
@@ -434,12 +478,16 @@ msgstr "Enter the 6-digit code generated on the other device"
 msgid "输入配对码"
 msgstr "Enter Pairing Code"
 
+#: src/components/settings/NetworkStatusCard.tsx:53
+msgid "运行中"
+msgstr "Running"
+
 #: src/components/filetree/EmptyTreeState.tsx:9
 #: src/components/layout/EmptyState.tsx:17
 msgid "还没有笔记"
 msgstr "No Notes Yet"
 
-#: src/components/onboarding/CompleteStep.tsx:59
+#: src/components/onboarding/CompleteStep.tsx:65
 msgid "进入 SwarmNote"
 msgstr "Enter SwarmNote"
 
@@ -456,6 +504,7 @@ msgstr "Connecting..."
 msgid "连接失败"
 msgstr "Connection Failed"
 
+#: src/routes/settings.tsx:17
 #: src/routes/settings/general.tsx:97
 msgid "通用"
 msgstr "General"
@@ -475,6 +524,10 @@ msgstr "Pairing rejected"
 #: src/components/filetree/FileTreeContextMenu.tsx:50
 msgid "重命名"
 msgstr "Rename"
+
+#: src/components/settings/NetworkStatusCard.tsx:54
+msgid "错误"
+msgstr "Error"
 
 #: src/routes/settings/devices.tsx:107
 msgid "附近设备"

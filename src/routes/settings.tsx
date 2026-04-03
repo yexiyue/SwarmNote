@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -6,17 +7,18 @@ import { useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, isMac } from "@/lib/utils";
 
-const navItems = [
-  { to: "/settings/general", icon: Settings, label: "通用" },
-  { to: "/settings/sync", icon: RefreshCw, label: "同步" },
-  { to: "/settings/devices", icon: MonitorSmartphone, label: "设备" },
-  { to: "/settings/about", icon: Info, label: "关于" },
-] as const;
-
 function SettingsLayout() {
   const router = useRouter();
   const { pathname } = useLocation();
   const appWindow = getCurrentWindow();
+  const { t } = useLingui();
+
+  const navItems = [
+    { to: "/settings/general", icon: Settings, label: t`通用` },
+    { to: "/settings/sync", icon: RefreshCw, label: t`同步` },
+    { to: "/settings/devices", icon: MonitorSmartphone, label: t`设备` },
+    { to: "/settings/about", icon: Info, label: t`关于` },
+  ] as const;
 
   useEffect(() => {
     const unlisten = listen<string>("navigate", (event) => {
@@ -38,7 +40,7 @@ function SettingsLayout() {
           <div className="w-17.5" data-tauri-drag-region />
         ) : (
           <span className="text-sm font-semibold text-foreground" data-tauri-drag-region>
-            设置
+            <Trans>设置</Trans>
           </span>
         )}
         <div className="flex items-center gap-1">
@@ -68,9 +70,13 @@ function SettingsLayout() {
         {/* Sidebar */}
         <nav className="flex w-55 flex-col border-r bg-background/60">
           <div className="p-5 pb-2">
-            {isMac && <h2 className="text-base font-semibold tracking-tight">设置</h2>}
+            {isMac && (
+              <h2 className="text-base font-semibold tracking-tight">
+                <Trans>设置</Trans>
+              </h2>
+            )}
             <p className={cn("text-xs text-muted-foreground", isMac && "mt-0.5")}>
-              管理应用偏好与设备
+              <Trans>管理应用偏好与设备</Trans>
             </p>
           </div>
 

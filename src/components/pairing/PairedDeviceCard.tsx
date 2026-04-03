@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { Loader2, Unlink } from "lucide-react";
 import type { PairedDeviceInfo } from "@/commands/pairing";
 import { unpairDevice } from "@/commands/pairing";
@@ -14,6 +15,7 @@ interface PairedDeviceCardProps {
 }
 
 export function PairedDeviceCard({ device, onUnpaired }: PairedDeviceCardProps) {
+  const { t } = useLingui();
   const { loading, run } = useAsyncAction();
   const isOnline = device.isOnline ?? false;
 
@@ -60,7 +62,7 @@ export function PairedDeviceCard({ device, onUnpaired }: PairedDeviceCardProps) 
         onClick={handleUnpair}
         disabled={loading}
         className="shrink-0 text-muted-foreground hover:text-destructive"
-        title="取消配对"
+        title={t`取消配对`}
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlink className="h-4 w-4" />}
       </Button>
