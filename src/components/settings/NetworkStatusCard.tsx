@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Power } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,6 @@ import { type NodeStatus, useNetworkStore } from "@/stores/networkStore";
 const statusConfig: Record<
   NodeStatus,
   {
-    label: string;
     variant: "default" | "secondary" | "destructive" | "outline";
     indicatorClass: string;
     iconClass: string;
@@ -17,21 +16,18 @@ const statusConfig: Record<
   }
 > = {
   stopped: {
-    label: "已停止",
     variant: "secondary",
     indicatorClass: "bg-muted-foreground/40",
     iconClass: "text-muted-foreground",
     cardClass: "border-border",
   },
   running: {
-    label: "运行中",
     variant: "default",
     indicatorClass: "bg-green-500",
     iconClass: "text-white",
     cardClass: "border-green-500/30 bg-green-500/5",
   },
   error: {
-    label: "错误",
     variant: "destructive",
     indicatorClass: "bg-red-500",
     iconClass: "text-white",
@@ -40,6 +36,7 @@ const statusConfig: Record<
 };
 
 export function NetworkStatusCard() {
+  const { t } = useLingui();
   const status = useNetworkStore((s) => s.status);
   const error = useNetworkStore((s) => s.error);
   const loading = useNetworkStore((s) => s.loading);
@@ -51,16 +48,24 @@ export function NetworkStatusCard() {
 
   const [showStopConfirm, setShowStopConfirm] = useState(false);
 
-  const { label, variant, indicatorClass, iconClass, cardClass } = statusConfig[status];
+  const statusLabels: Record<NodeStatus, string> = {
+    stopped: t`已停止`,
+    running: t`运行中`,
+    error: t`错误`,
+  };
 
+  const { variant, indicatorClass, iconClass, cardClass } = statusConfig[status];
+  const label = statusLabels[status];
+
+  const natSuffix = natStatus ? ` · ${natStatus}` : "";
   const statusDescription =
     status === "running"
       ? connectedCount > 0
-        ? `已连接 ${connectedCount} 台设备${natStatus ? ` · ${natStatus}` : ""}`
-        : `已连接，暂无设备在线${natStatus ? ` · ${natStatus}` : ""}`
+        ? `${t`已连接 ${connectedCount} 台设备`}${natSuffix}`
+        : `${t`已连接，暂无设备在线`}${natSuffix}`
       : status === "error"
-        ? error || "节点启动失败"
-        : "P2P 节点未运行";
+        ? error || t`节点启动失败`
+        : t`P2P 节点未运行`;
 
   const confirmStop = async () => {
     setShowStopConfirm(false);
