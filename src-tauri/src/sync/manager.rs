@@ -56,7 +56,10 @@ impl SyncManager {
         let ws_state = self.app.state::<WorkspaceState>();
         let workspaces = ws_state.list_all().await;
 
-        for ws_info in workspaces {
+        for ws_info in &workspaces {
+            // Ensure workspace topic is subscribed (may have been skipped if
+            // the workspace was opened before the network started).
+            self.subscribe_workspace(ws_info.id).await;
             self.spawn_full_sync(peer_id, ws_info.id).await;
         }
     }
@@ -226,9 +229,9 @@ impl SyncManager {
             None => {
                 // Document not open — buffer for later flush
                 // If cap exceeded, push returns overflow for immediate apply
-                if let Some((ws, overflow)) = self
+                if let Some((ws, _source_peer, overflow)) = self
                     .pending_buffer
-                    .push(workspace_uuid, doc_uuid, data)
+                    .push(workspace_uuid, doc_uuid, data, source)
                     .await
                 {
                     for update in &overflow {
@@ -382,7 +385,8 @@ impl SyncManager {
         let topic = super::ws_topic(&workspace_uuid);
         let payload = super::encode_ws_gossip(&doc_uuid, &update);
         if let Err(e) = self.client.publish(&topic, payload).await {
-            warn!("Failed to publish doc update to {topic}: {e}");
+            // NoPeersSubscribedToTopic is expected when no other peer has the workspace open
+            tracing::debug!("Failed to publish doc update to {topic}: {e}");
         }
     }
 }
