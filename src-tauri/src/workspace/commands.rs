@@ -357,7 +357,7 @@ pub async fn create_workspace_for_sync(
     // Create the workspace directory
     tokio::fs::create_dir_all(&ws_path)
         .await
-        .map_err(|e| AppError::Io(e))?;
+        .map_err(AppError::Io)?;
 
     // Write identity with the specified UUID
     let identity_data = super::identity::WorkspaceIdentity {
