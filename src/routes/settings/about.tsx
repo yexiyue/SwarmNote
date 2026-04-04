@@ -93,7 +93,7 @@ function AboutPage() {
             <div>
               <h3 className="text-sm font-semibold">SwarmNote</h3>
               <p className="text-xs text-muted-foreground">
-                <UpdateStatusText status={status} version={displayVersion} />
+                <UpdateStatusText status={status} />
               </p>
             </div>
             <div className="ml-auto flex items-center gap-3">
