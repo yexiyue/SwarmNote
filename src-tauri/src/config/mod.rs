@@ -47,6 +47,9 @@ pub struct RecentWorkspace {
     pub path: String,
     pub name: String,
     pub last_opened_at: String,
+    /// 工作区 UUID，用于前端匹配同步状态。旧数据可能没有此字段。
+    #[serde(default)]
+    pub uuid: Option<String>,
 }
 
 /// 返回配置目录路径（~/.swarmnote/）。
@@ -106,12 +109,23 @@ pub fn save_config(config: &GlobalConfig) -> AppResult<()> {
 ///
 /// 按路径去重，按 `last_opened_at` 降序排列，最多保留 10 条。
 pub fn update_last_workspace(config: &mut GlobalConfig, path: &str, name: &str) -> AppResult<()> {
-    apply_workspace_update(config, path, name);
+    apply_workspace_update(config, path, name, None);
+    save_config(config)
+}
+
+/// 带 UUID 的工作区更新（同步创建时使用）。
+pub fn update_last_workspace_with_uuid(
+    config: &mut GlobalConfig,
+    path: &str,
+    name: &str,
+    uuid: &str,
+) -> AppResult<()> {
+    apply_workspace_update(config, path, name, Some(uuid));
     save_config(config)
 }
 
 /// 内存中的工作区更新逻辑（无磁盘 I/O），可独立测试。
-fn apply_workspace_update(config: &mut GlobalConfig, path: &str, name: &str) {
+fn apply_workspace_update(config: &mut GlobalConfig, path: &str, name: &str, uuid: Option<&str>) {
     let now = chrono::Utc::now().to_rfc3339();
 
     config.last_workspace_path = Some(path.to_owned());
@@ -126,6 +140,7 @@ fn apply_workspace_update(config: &mut GlobalConfig, path: &str, name: &str) {
             path: path.to_owned(),
             name: name.to_owned(),
             last_opened_at: now,
+            uuid: uuid.map(|s| s.to_owned()),
         },
     );
 
@@ -181,6 +196,7 @@ mod tests {
             path: "/tmp/ws".to_owned(),
             name: "ws".to_owned(),
             last_opened_at: "2026-01-01T00:00:00Z".to_owned(),
+            uuid: None,
         });
 
         let json = serde_json::to_string(&config).unwrap();
@@ -193,7 +209,7 @@ mod tests {
     #[test]
     fn update_sets_last_workspace_path() {
         let mut config = empty_config();
-        apply_workspace_update(&mut config, "/tmp/notes", "notes");
+        apply_workspace_update(&mut config, "/tmp/notes", "notes", None);
 
         assert_eq!(config.last_workspace_path.as_deref(), Some("/tmp/notes"));
     }
@@ -201,8 +217,8 @@ mod tests {
     #[test]
     fn update_adds_to_recent_list() {
         let mut config = empty_config();
-        apply_workspace_update(&mut config, "/tmp/a", "a");
-        apply_workspace_update(&mut config, "/tmp/b", "b");
+        apply_workspace_update(&mut config, "/tmp/a", "a", None);
+        apply_workspace_update(&mut config, "/tmp/b", "b", None);
 
         assert_eq!(config.recent_workspaces.len(), 2);
         assert_eq!(config.recent_workspaces[0].path, "/tmp/b");
@@ -212,9 +228,9 @@ mod tests {
     #[test]
     fn update_deduplicates_by_path() {
         let mut config = empty_config();
-        apply_workspace_update(&mut config, "/tmp/a", "a");
-        apply_workspace_update(&mut config, "/tmp/b", "b");
-        apply_workspace_update(&mut config, "/tmp/a", "a-renamed");
+        apply_workspace_update(&mut config, "/tmp/a", "a", None);
+        apply_workspace_update(&mut config, "/tmp/b", "b", None);
+        apply_workspace_update(&mut config, "/tmp/a", "a-renamed", None);
 
         assert_eq!(config.recent_workspaces.len(), 2);
         assert_eq!(config.recent_workspaces[0].path, "/tmp/a");
@@ -226,7 +242,7 @@ mod tests {
     fn update_caps_at_10_entries() {
         let mut config = empty_config();
         for i in 0..15 {
-            apply_workspace_update(&mut config, &format!("/tmp/{i}"), &format!("{i}"));
+            apply_workspace_update(&mut config, &format!("/tmp/{i}"), &format!("{i}"), None);
         }
 
         assert_eq!(config.recent_workspaces.len(), MAX_RECENT_WORKSPACES);

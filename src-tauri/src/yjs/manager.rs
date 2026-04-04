@@ -48,6 +48,7 @@ struct DocEntry {
     doc: tokio::sync::Mutex<Doc>,
     rel_path: RwLock<String>,
     workspace_path: String,
+    workspace_id: Uuid,
     doc_db_id: Uuid,
     dirty: AtomicBool,
     last_update_ms: AtomicU64,
@@ -279,6 +280,7 @@ impl YDocManager {
             doc: tokio::sync::Mutex::new(doc),
             rel_path: RwLock::new(rel_path.to_owned()),
             workspace_path: ws_path,
+            workspace_id,
             doc_db_id: doc_uuid,
             dirty: AtomicBool::new(false),
             last_update_ms: AtomicU64::new(now_ms()),
@@ -365,16 +367,26 @@ impl YDocManager {
         let result = doc_entry.apply_update(update).await;
         if result.is_ok() {
             doc_entry.mark_dirty();
-            // Notify frontend to refresh editor
+            // Notify frontend to refresh editor (include update bytes)
             let _ = app.emit_to(
                 &label,
                 "yjs:external-update",
                 serde_json::json!({
                     "docUuid": doc_uuid.to_string(),
+                    "update": update,
                 }),
             );
         }
         Some(result)
+    }
+
+    /// Get the workspace UUID for an open document (by doc_uuid).
+    /// Returns `None` if the document is not open.
+    pub fn workspace_uuid_for_doc(&self, doc_uuid: &Uuid) -> Option<Uuid> {
+        self.docs
+            .iter()
+            .find(|e| e.key().1 == *doc_uuid)
+            .map(|e| e.value().workspace_id)
     }
 
     /// Get the state vector for an open document (by doc_uuid).

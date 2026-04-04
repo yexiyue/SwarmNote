@@ -53,6 +53,15 @@ pub async fn cleanup_window(
 
     crate::fs::watcher::stop_watching(label, watcher_state);
 
+    // Unsubscribe from workspace GossipSub topic before unbinding (need UUID)
+    if let Some(ws_info) = ws_state.get_by_label(label).await {
+        if let Some(net_state) = app.try_state::<crate::network::NetManagerState>() {
+            if let Ok(sync_mgr) = net_state.sync().await {
+                sync_mgr.unsubscribe_workspace(ws_info.id).await;
+            }
+        }
+    }
+
     if ws_state.unbind_by_label(label).await {
         tracing::info!("Cleaned up WorkspaceInfo for window '{label}'");
     }

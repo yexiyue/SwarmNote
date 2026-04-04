@@ -16,7 +16,7 @@ use crate::pairing::PairingManager;
 use crate::protocol::{
     AppRequest, AppResponse, WorkspaceMeta, WorkspaceRequest, WorkspaceResponse,
 };
-use crate::sync::{parse_sync_topic, SyncManager};
+use crate::sync::{decode_ws_gossip, parse_sync_topic, parse_ws_topic, SyncManager};
 use crate::workspace::state::{DbState, WorkspaceState};
 
 /// Tauri 事件名常量
@@ -166,10 +166,24 @@ async fn handle_event(
             topic,
             data,
         } => {
-            if let Some(doc_uuid) = parse_sync_topic(&topic) {
-                sync_manager
-                    .handle_gossip_update(source, doc_uuid, data)
-                    .await;
+            if let Some(ws_uuid) = parse_ws_topic(&topic) {
+                // Workspace-level topic: decode doc_uuid from payload
+                if let Some((doc_uuid, update)) = decode_ws_gossip(&data) {
+                    sync_manager
+                        .handle_ws_gossip_update(source, ws_uuid, doc_uuid, update.to_vec())
+                        .await;
+                } else {
+                    warn!("Invalid workspace GossipSub payload on {topic}");
+                }
+            } else if let Some(doc_uuid) = parse_sync_topic(&topic) {
+                // Legacy per-doc topic (backwards compat during transition)
+                let ydoc_mgr = sync_manager.app.state::<crate::yjs::manager::YDocManager>();
+                if let Some(Err(e)) = ydoc_mgr
+                    .apply_sync_update(&sync_manager.app, &doc_uuid, &data)
+                    .await
+                {
+                    warn!("Failed to apply legacy gossip update for {doc_uuid}: {e}");
+                }
             } else {
                 info!("GossipSub message on unknown topic: {topic}");
             }

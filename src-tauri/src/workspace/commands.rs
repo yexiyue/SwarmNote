@@ -199,6 +199,13 @@ pub async fn open_workspace(
     )
     .await;
 
+    // Subscribe to workspace-level GossipSub topic for real-time sync
+    if let Some(net_state) = app_handle.try_state::<crate::network::NetManagerState>() {
+        if let Ok(sync_mgr) = net_state.sync().await {
+            sync_mgr.subscribe_workspace(info.id).await;
+        }
+    }
+
     Ok(info)
 }
 
@@ -301,6 +308,141 @@ fn workspace_window_label(path: &str) -> String {
     let mut hasher = DefaultHasher::new();
     path.hash(&mut hasher);
     format!("ws-{:016x}", hasher.finish())
+}
+
+/// 为同步创建一个新工作区（不打开窗口），使用指定的 UUID。
+///
+/// 用于接收方在接收到远程工作区邀请时，在本地创建并注册对应工作区。
+/// 与 `open_workspace` 的区别：
+/// - 写入指定的 UUID（而非生成新的）
+/// - 不创建窗口，使用 `sync-{uuid}` 作为临时 label
+/// - 失败时清理已创建的目录
+#[tauri::command]
+pub async fn create_workspace_for_sync(
+    uuid: String,
+    name: String,
+    base_path: String,
+    db_state: State<'_, DbState>,
+    ws_state: State<'_, WorkspaceState>,
+    config_state: State<'_, GlobalConfigState>,
+    identity: State<'_, IdentityState>,
+) -> AppResult<String> {
+    let ws_uuid =
+        Uuid::parse_str(&uuid).map_err(|e| AppError::Config(format!("Invalid UUID: {e}")))?;
+
+    // Validate workspace name — prevent path traversal
+    if name.is_empty()
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains("..")
+        || name == "."
+    {
+        return Err(AppError::InvalidPath(format!(
+            "Invalid workspace name: {name}"
+        )));
+    }
+
+    let base = PathBuf::from(&base_path);
+    if !base.is_dir() {
+        tokio::fs::create_dir_all(&base).await.map_err(|e| {
+            AppError::InvalidPath(format!("Failed to create base directory {base_path}: {e}"))
+        })?;
+    }
+    let ws_path = base.join(&name);
+    let ws_path_str = ws_path
+        .to_str()
+        .ok_or_else(|| AppError::InvalidPath("Workspace path is not valid UTF-8".to_owned()))?
+        .to_owned();
+
+    // Create the workspace directory
+    tokio::fs::create_dir_all(&ws_path)
+        .await
+        .map_err(AppError::Io)?;
+
+    // Write identity with the specified UUID
+    let identity_data = super::identity::WorkspaceIdentity {
+        uuid: ws_uuid,
+        name: name.clone(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    let write_result = super::identity::write_identity(&ws_path, &identity_data).await;
+    if let Err(e) = write_result {
+        // Clean up on failure
+        let _ = tokio::fs::remove_dir_all(&ws_path).await;
+        return Err(e);
+    }
+
+    // Initialize workspace DB and run migrations
+    let conn = match init_workspace_db(&ws_path).await {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = tokio::fs::remove_dir_all(&ws_path).await;
+            return Err(e);
+        }
+    };
+
+    // Insert workspace record into DB
+    let peer_id = match identity.peer_id() {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = tokio::fs::remove_dir_all(&ws_path).await;
+            return Err(e);
+        }
+    };
+    let workspace_result = {
+        use entity::workspace::workspaces;
+        use sea_orm::EntityTrait;
+
+        let found = match workspaces::Entity::find().one(&conn).await {
+            Ok(v) => v,
+            Err(e) => {
+                let _ = tokio::fs::remove_dir_all(&ws_path).await;
+                return Err(e.into());
+            }
+        };
+        match found {
+            Some(ws) => ws,
+            None => {
+                let model = workspaces::ActiveModel {
+                    id: Set(ws_uuid),
+                    name: Set(name.clone()),
+                    created_by: Set(peer_id),
+                    ..Default::default()
+                };
+                match model.insert(&conn).await {
+                    Ok(ws) => ws,
+                    Err(e) => {
+                        let _ = tokio::fs::remove_dir_all(&ws_path).await;
+                        return Err(e.into());
+                    }
+                }
+            }
+        }
+    };
+
+    // Register in DbState and WorkspaceState using sync-{uuid} as label
+    let label = format!("sync-{ws_uuid}");
+    db_state.insert_workspace_db(&label, ws_uuid, conn).await;
+
+    let info = WorkspaceInfo::from_model(&workspace_result, &ws_path_str);
+    ws_state.bind(&label, info).await;
+
+    // Update recent workspaces in global config
+    {
+        let mut config = config_state.write().await;
+        if let Err(e) = crate::config::update_last_workspace_with_uuid(
+            &mut config,
+            &ws_path_str,
+            &name,
+            &ws_uuid.to_string(),
+        ) {
+            tracing::warn!("Failed to update global config for sync workspace: {e}");
+        }
+    }
+
+    tracing::info!("Created workspace for sync: {name} ({ws_uuid}) at {ws_path_str}");
+    Ok(ws_path_str)
 }
 
 /// 打开或聚焦设置窗口，支持路由导航。

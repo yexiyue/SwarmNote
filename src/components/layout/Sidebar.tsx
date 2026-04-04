@@ -2,13 +2,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { FilePlus, FolderOpen, FolderPlus, PanelLeft } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { openSettingsWindow } from "@/commands/workspace";
 import { FileTree } from "@/components/filetree/FileTree";
+import { SyncStatusBar } from "@/components/layout/SyncStatusBar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isMac, modKey } from "@/lib/utils";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
-import { useNetworkStore } from "@/stores/networkStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
@@ -21,10 +20,7 @@ export function Sidebar() {
   const createAndOpenFile = useFileTreeStore((s) => s.createAndOpenFile);
   const createDir = useFileTreeStore((s) => s.createDir);
 
-  const nodeStatus = useNetworkStore((s) => s.status);
-  const nodeLoading = useNetworkStore((s) => s.loading);
-  const devices = useNetworkStore((s) => s.devices);
-  const connectedPeers = devices.filter((d) => d.status === "online");
+  const workspaceUuid = workspace?.id;
 
   // Rescan when workspace changes
   useEffect(() => {
@@ -129,37 +125,8 @@ export function Sidebar() {
           <FileTree width={232} height={treeHeight} />
         </div>
 
-        {/* Network status indicator */}
-        <div className="border-t border-sidebar-border px-1 pt-2">
-          <button
-            type="button"
-            className="flex w-full items-center gap-1.5 rounded-sm px-1 py-1 text-left hover:bg-sidebar-accent"
-            onClick={() => openSettingsWindow("network")}
-          >
-            <span
-              className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-                nodeLoading
-                  ? "animate-pulse bg-yellow-500"
-                  : nodeStatus === "running"
-                    ? "bg-green-500"
-                    : nodeStatus === "error"
-                      ? "bg-red-500"
-                      : "bg-gray-400"
-              }`}
-            />
-            <span className="truncate text-xs text-muted-foreground">
-              {nodeLoading
-                ? t`连接中...`
-                : nodeStatus === "running"
-                  ? connectedPeers.length > 0
-                    ? t`已连接 · ${connectedPeers.length} 台设备在线`
-                    : t`已连接`
-                  : nodeStatus === "error"
-                    ? t`连接失败`
-                    : t`未连接`}
-            </span>
-          </button>
-        </div>
+        {/* Sync status indicator */}
+        <SyncStatusBar workspaceUuid={workspaceUuid} />
       </div>
     </aside>
   );

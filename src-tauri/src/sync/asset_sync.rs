@@ -6,7 +6,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use swarm_p2p_core::libp2p::PeerId;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -78,6 +78,7 @@ pub fn diff_assets(local: &[AssetMeta], remote: &[AssetMeta]) -> Vec<AssetMeta> 
 // ── Sync orchestration ──
 
 /// Sync assets for a single document: exchange manifest, diff, pull missing.
+/// Returns the list of successfully pulled asset file names (empty if none).
 pub async fn sync_doc_assets(
     app: &AppHandle,
     client: &AppNetClient,
@@ -85,7 +86,7 @@ pub async fn sync_doc_assets(
     workspace_uuid: Uuid,
     doc_id: Uuid,
     rel_path: &str,
-) -> AppResult<()> {
+) -> AppResult<Vec<String>> {
     let workspace_path = get_workspace_path(app, workspace_uuid).await?;
 
     // Request remote manifest
@@ -102,12 +103,12 @@ pub async fn sync_doc_assets(
         AppResponse::Sync(SyncResponse::AssetManifest { assets, .. }) => assets,
         _ => {
             warn!("Unexpected AssetManifest response for doc {doc_id}");
-            return Ok(());
+            return Ok(vec![]);
         }
     };
 
     if remote_assets.is_empty() {
-        return Ok(());
+        return Ok(vec![]);
     }
 
     // Scan local assets
@@ -116,7 +117,7 @@ pub async fn sync_doc_assets(
     // Diff
     let missing = diff_assets(&local_assets, &remote_assets);
     if missing.is_empty() {
-        return Ok(());
+        return Ok(vec![]);
     }
 
     info!("Doc {doc_id}: {} missing asset(s) to pull", missing.len());
@@ -125,7 +126,8 @@ pub async fn sync_doc_assets(
     let asset_dir = workspace_path.join(asset_dir_from_rel_path(rel_path));
     tokio::fs::create_dir_all(&asset_dir).await.ok();
 
-    // Pull each missing asset
+    // Pull each missing asset, track successes
+    let mut pulled = Vec::new();
     for asset in &missing {
         if let Err(e) = pull_asset(
             client,
@@ -140,10 +142,23 @@ pub async fn sync_doc_assets(
         {
             // Single asset failure does not block overall sync
             warn!("Failed to pull asset {} for doc {doc_id}: {e}", asset.name);
+        } else {
+            pulled.push(asset.name.clone());
         }
     }
 
-    Ok(())
+    // Emit notification to frontend if any assets were pulled
+    if !pulled.is_empty() {
+        let _ = app.emit(
+            "yjs:assets-updated",
+            serde_json::json!({
+                "docUuid": doc_id.to_string(),
+                "assets": pulled,
+            }),
+        );
+    }
+
+    Ok(pulled)
 }
 
 // ── Chunked pull ──

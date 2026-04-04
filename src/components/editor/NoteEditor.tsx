@@ -20,12 +20,16 @@ import { TauriYjsProvider } from "@/lib/TauriYjsProvider";
 import { useEditorStore } from "@/stores/editorStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { CustomReactImageBlock } from "./CustomImageBlock";
+import { CustomReactVideoBlock } from "./CustomVideoBlock";
 import { EditorTitle } from "./EditorTitle";
 
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     codeBlock: createCodeBlockSpec(codeBlockOptions),
+    image: CustomReactImageBlock(),
+    video: CustomReactVideoBlock(),
   },
 });
 
