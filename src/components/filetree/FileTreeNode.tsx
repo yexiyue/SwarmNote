@@ -28,21 +28,15 @@ export function FileTreeNodeRenderer({
 }: NodeRendererProps<FileTreeNodeData>) {
   const isSelected = node.isSelected;
 
-  // Files use single-click = select, double-click = activate (instead of
-  // single-click = activate) to avoid accidental editor switches while the
-  // user is just navigating the tree. Enter/Space on a focused node matches
-  // double-click semantics.
+  // Note-app convention (Obsidian/Notion/Bear): single-click on a file
+  // opens it immediately — there are no tabs to accidentally switch, and
+  // an intermediate "selected but not opened" state isn't useful here.
+  // Folders toggle expand/collapse on click. Enter/Space mirror click.
   const handleClick = (e: React.MouseEvent) => {
     if (node.isInternal) {
       node.toggle();
     } else {
       node.select();
-    }
-    e.stopPropagation();
-  };
-
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    if (!node.isInternal) {
       node.activate();
     }
     e.stopPropagation();
@@ -77,7 +71,6 @@ export function FileTreeNodeRenderer({
           : "text-sidebar-foreground hover:bg-sidebar-accent/50",
       )}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
     >
       {node.isInternal ? (
