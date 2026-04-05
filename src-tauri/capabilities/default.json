@@ -24,6 +24,8 @@
     "core:event:allow-listen",
     "core:event:allow-emit",
     "mcp-bridge:default",
-    "notification:default"
+    "notification:default",
+    "updater:default",
+    "process:default"
   ]
 }
