@@ -28,8 +28,26 @@ export async function getRecentWorkspaces(): Promise<RecentWorkspace[]> {
   return invoke<RecentWorkspace[]>("get_recent_workspaces");
 }
 
-export async function openWorkspaceWindow(path: string): Promise<void> {
-  return invoke("open_workspace_window", { path });
+export type OpenWorkspaceWindowResult =
+  | { kind: "bound_to_caller"; info: WorkspaceInfo }
+  | { kind: "focused_existing" }
+  | { kind: "new_window" };
+
+export interface OpenWorkspaceWindowOptions {
+  /** When set, request the backend to bind the workspace to the given window
+   *  label (typically the caller's own window) if that window has no workspace
+   *  bound. Lets fullscreen pickers avoid spawning a second window. */
+  bindToWindow?: string;
+}
+
+export async function openWorkspaceWindow(
+  path: string,
+  options: OpenWorkspaceWindowOptions = {},
+): Promise<OpenWorkspaceWindowResult> {
+  return invoke<OpenWorkspaceWindowResult>("open_workspace_window", {
+    path,
+    bindToWindow: options.bindToWindow ?? null,
+  });
 }
 
 export async function openSettingsWindow(route?: string): Promise<void> {

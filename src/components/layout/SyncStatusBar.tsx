@@ -2,14 +2,45 @@ import { useLingui } from "@lingui/react/macro";
 
 import { openSettingsWindow } from "@/commands/workspace";
 import { useSyncDisplayState } from "@/hooks/useSyncDisplayState";
+import { computeSyncDisplay, type SyncDisplayLabel, syncDotClass } from "@/lib/syncDisplay";
 import { useNetworkStore } from "@/stores/networkStore";
 
 interface SyncStatusBarProps {
   workspaceUuid: string | undefined;
 }
 
-export function SyncStatusBar({ workspaceUuid }: SyncStatusBarProps) {
+/**
+ * Turn a structured `SyncDisplayLabel` into a localized human-readable string.
+ * Keeping the translation here (rather than in `computeSyncDisplay`) preserves
+ * the purity of the state machine while still participating in Lingui i18n.
+ */
+function useSyncLabelText(label: SyncDisplayLabel): string {
   const { t } = useLingui();
+  switch (label.kind) {
+    case "connecting":
+      return t`连接中...`;
+    case "error":
+      return t`连接失败`;
+    case "stopped":
+      return t`网络未启动`;
+    case "waiting-for-peers":
+      return t`等待设备连接`;
+    case "syncing": {
+      const { peerCount, completed, total } = label;
+      return t`${peerCount} 台 · 同步中 ${completed}/${total}`;
+    }
+    case "synced": {
+      const { peerCount } = label;
+      return t`${peerCount} 台设备在线 · 已同步`;
+    }
+    case "online": {
+      const { peerCount } = label;
+      return t`${peerCount} 台设备在线`;
+    }
+  }
+}
+
+export function SyncStatusBar({ workspaceUuid }: SyncStatusBarProps) {
   const nodeStatus = useNetworkStore((s) => s.status);
   const nodeLoading = useNetworkStore((s) => s.loading);
   const connectedPeerCount = useNetworkStore(
@@ -17,34 +48,14 @@ export function SyncStatusBar({ workspaceUuid }: SyncStatusBarProps) {
   );
   const syncState = useSyncDisplayState(workspaceUuid);
 
-  let dotClass: string;
-  let label: string;
+  const { dot, label } = computeSyncDisplay({
+    nodeLoading,
+    nodeStatus,
+    connectedPeerCount,
+    syncState,
+  });
 
-  if (nodeLoading) {
-    dotClass = "animate-pulse bg-yellow-500";
-    label = t`连接中...`;
-  } else if (nodeStatus === "error") {
-    dotClass = "bg-red-500";
-    label = t`连接失败`;
-  } else if (nodeStatus !== "running") {
-    dotClass = "bg-gray-400";
-    label = t`网络未启动`;
-  } else if (connectedPeerCount === 0) {
-    dotClass = "bg-green-500";
-    label = t`已连接`;
-  } else if (syncState.status === "syncing") {
-    dotClass = "bg-green-500";
-    const peerCount = connectedPeerCount;
-    label = t`${peerCount} 台 · 同步中 ${syncState.completed}/${syncState.total}`;
-  } else if (syncState.status === "synced") {
-    dotClass = "bg-green-500";
-    const peerCount = connectedPeerCount;
-    label = t`${peerCount} 台设备在线 · 已同步`;
-  } else {
-    dotClass = "bg-green-500";
-    const peerCount = connectedPeerCount;
-    label = peerCount > 0 ? t`${peerCount} 台设备在线` : t`已连接`;
-  }
+  const labelText = useSyncLabelText(label);
 
   return (
     <div className="border-t border-sidebar-border px-1 pt-2">
@@ -53,8 +64,8 @@ export function SyncStatusBar({ workspaceUuid }: SyncStatusBarProps) {
         className="flex w-full items-center gap-1.5 rounded-sm px-1 py-1 text-left hover:bg-sidebar-accent"
         onClick={() => openSettingsWindow("sync")}
       >
-        <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
-        <span className="truncate text-xs text-muted-foreground">{label}</span>
+        <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${syncDotClass(dot)}`} />
+        <span className="truncate text-xs text-muted-foreground">{labelText}</span>
       </button>
     </div>
   );

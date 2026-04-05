@@ -1,4 +1,16 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { createTauriStorage, waitForHydration } from "@/lib/tauriStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
+
+const RECENT_DOCS_LIMIT = 10;
+
+export interface RecentDoc {
+  id: string;
+  title: string;
+  relPath: string;
+  openedAt: number;
+}
 
 interface EditorState {
   currentDocId: string | null;
@@ -9,6 +21,8 @@ interface EditorState {
   isDirty: boolean;
   lastSavedAt: Date | null;
   charCount: number;
+  /** Recently opened documents, keyed by workspace id. Most-recent first, capped at 10 per workspace. */
+  recentDocs: Record<string, RecentDoc[]>;
 }
 
 interface EditorActions {
@@ -20,9 +34,11 @@ interface EditorActions {
   markFlushed: (lastSavedAt: Date) => void;
   setCharCount: (count: number) => void;
   clear: () => void;
+  /** Drop recentDocs entries for workspace ids not present in the given set. */
+  pruneRecentDocs: (validWorkspaceIds: Set<string>) => void;
 }
 
-const initialState: EditorState = {
+const ephemeralInitial = {
   currentDocId: null,
   docUuid: null,
   title: "",
@@ -32,30 +48,82 @@ const initialState: EditorState = {
   charCount: 0,
 };
 
-export const useEditorStore = create<EditorState & EditorActions>()((set) => ({
-  ...initialState,
+const initialState: EditorState = {
+  ...ephemeralInitial,
+  recentDocs: {},
+};
 
-  loadDocument: (id, title, relPath) => {
-    set({
+export const useEditorStore = create<EditorState & EditorActions>()(
+  persist(
+    (set) => ({
       ...initialState,
-      currentDocId: id,
-      title,
-      relPath,
-    });
-  },
 
-  setDocUuid: (uuid) => set({ docUuid: uuid }),
+      loadDocument: (id, title, relPath) => {
+        const workspaceId = useWorkspaceStore.getState().workspace?.id;
+        set((state) => {
+          const nextRecent: Record<string, RecentDoc[]> = { ...state.recentDocs };
+          if (workspaceId) {
+            const existing = nextRecent[workspaceId] ?? [];
+            const filtered = existing.filter((d) => d.id !== id);
+            const entry: RecentDoc = { id, title, relPath, openedAt: Date.now() };
+            nextRecent[workspaceId] = [entry, ...filtered].slice(0, RECENT_DOCS_LIMIT);
+          }
+          return {
+            ...ephemeralInitial,
+            currentDocId: id,
+            title,
+            relPath,
+            recentDocs: nextRecent,
+          };
+        });
+      },
 
-  updateTitle: (title) => set({ title }),
+      setDocUuid: (uuid) => set({ docUuid: uuid }),
 
-  updateRelPath: (newRelPath, newTitle) =>
-    set({ currentDocId: newRelPath, relPath: newRelPath, title: newTitle }),
+      updateTitle: (title) => set({ title }),
 
-  markDirty: () => set((state) => (state.isDirty ? state : { isDirty: true })),
+      updateRelPath: (newRelPath, newTitle) =>
+        set((state) => {
+          const workspaceId = useWorkspaceStore.getState().workspace?.id;
+          const nextRecent: Record<string, RecentDoc[]> = { ...state.recentDocs };
+          if (workspaceId && state.currentDocId) {
+            const oldId = state.currentDocId;
+            const existing = nextRecent[workspaceId] ?? [];
+            nextRecent[workspaceId] = existing.map((d) =>
+              d.id === oldId ? { ...d, id: newRelPath, title: newTitle, relPath: newRelPath } : d,
+            );
+          }
+          return {
+            currentDocId: newRelPath,
+            relPath: newRelPath,
+            title: newTitle,
+            recentDocs: nextRecent,
+          };
+        }),
 
-  markFlushed: (lastSavedAt) => set({ isDirty: false, lastSavedAt }),
+      markDirty: () => set((state) => (state.isDirty ? state : { isDirty: true })),
 
-  setCharCount: (count) => set({ charCount: count }),
+      markFlushed: (lastSavedAt) => set({ isDirty: false, lastSavedAt }),
 
-  clear: () => set(initialState),
-}));
+      setCharCount: (count) => set({ charCount: count }),
+
+      clear: () => set((state) => ({ ...ephemeralInitial, recentDocs: state.recentDocs })),
+
+      pruneRecentDocs: (validWorkspaceIds) =>
+        set((state) => {
+          const next: Record<string, RecentDoc[]> = {};
+          for (const [wsId, docs] of Object.entries(state.recentDocs)) {
+            if (validWorkspaceIds.has(wsId)) next[wsId] = docs;
+          }
+          return { recentDocs: next };
+        }),
+    }),
+    {
+      name: "swarmnote-editor",
+      storage: createTauriStorage("settings.json"),
+      partialize: (state) => ({ recentDocs: state.recentDocs }),
+    },
+  ),
+);
+
+export const waitForEditorHydration = () => waitForHydration(useEditorStore);

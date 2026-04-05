@@ -28,18 +28,35 @@ export function FileTreeNodeRenderer({
 }: NodeRendererProps<FileTreeNodeData>) {
   const isSelected = node.isSelected;
 
+  // Files use single-click = select, double-click = activate (instead of
+  // single-click = activate) to avoid accidental editor switches while the
+  // user is just navigating the tree. Enter/Space on a focused node matches
+  // double-click semantics.
   const handleClick = (e: React.MouseEvent) => {
     if (node.isInternal) {
       node.toggle();
     } else {
       node.select();
+    }
+    e.stopPropagation();
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!node.isInternal) {
       node.activate();
     }
     e.stopPropagation();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleClick(e as unknown as React.MouseEvent);
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (node.isInternal) {
+        node.toggle();
+      } else {
+        node.activate();
+      }
+    }
   };
 
   return (
@@ -47,14 +64,20 @@ export function FileTreeNodeRenderer({
       ref={dragHandle}
       style={style}
       role="treeitem"
-      tabIndex={-1}
+      // Roving tabindex: only the currently-focused node is Tab-reachable.
+      // react-arborist manages focus and handles arrow-key navigation on
+      // its Tree container.
+      tabIndex={node.isFocused ? 0 : -1}
+      aria-selected={isSelected}
+      aria-expanded={node.isInternal ? node.isOpen : undefined}
       className={cn(
-        "flex items-center gap-1 rounded px-2 py-[5px] text-[13px] cursor-default",
+        "flex items-center gap-1 rounded px-2 py-1.25 text-[13px] cursor-default",
         isSelected
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
           : "text-sidebar-foreground hover:bg-sidebar-accent/50",
       )}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
     >
       {node.isInternal ? (

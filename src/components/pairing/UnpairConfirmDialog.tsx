@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Unlink } from "lucide-react";
 import { unpairDevice } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
@@ -43,11 +44,13 @@ export function UnpairConfirmDialog({
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <Unlink className="h-6 w-6 text-destructive" />
           </div>
-          <DialogTitle>取消配对</DialogTitle>
+          <DialogTitle>
+            <Trans>取消配对</Trans>
+          </DialogTitle>
           <DialogDescription className="text-center">
-            确定要取消与 {deviceName} 的配对吗？
+            <Trans>确定要取消与 {deviceName} 的配对吗？</Trans>
             <br />
-            取消配对后将停止与该设备的笔记同步。
+            <Trans>取消配对后将停止与该设备的笔记同步。</Trans>
           </DialogDescription>
         </DialogHeader>
 
@@ -55,10 +58,10 @@ export function UnpairConfirmDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            取消
+            <Trans>取消</Trans>
           </Button>
           <Button variant="destructive" onClick={handleConfirm} loading={loading}>
-            {loading ? "取消配对中..." : "确认取消"}
+            {loading ? <Trans>取消配对中...</Trans> : <Trans>确认取消</Trans>}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -21,6 +21,12 @@ const buttonVariants = cva(
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      // Icon button size scale for layout chrome:
+      //   icon-xs (24px) — dense toolbar buttons inside the Sidebar header
+      //   icon-sm (28px) — TitleBar buttons (command palette, settings) and
+      //                    any chrome at the top of a surface
+      //   icon    (32px) — main toolbar actions (e.g. editor toolbar)
+      //   icon-lg (36px) — featured / hero buttons
       size: {
         default:
           "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",

@@ -1,5 +1,6 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { documentDir } from "@tauri-apps/api/path";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { CheckCircle, Circle, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -19,7 +20,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSyncStore } from "@/stores/syncStore";
-import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 // ── Types ──
 
@@ -154,13 +154,13 @@ function SyncProgressRow({
 // ── Main Component ──
 
 export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: WorkspaceSyncDialogProps) {
+  const { t } = useLingui();
   const [phase, setPhase] = useState<Phase>("loading");
   const [remoteWorkspaces, setRemoteWorkspaces] = useState<RemoteWorkspaceInfo[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [basePath, setBasePath] = useState(FALLBACK_BASE_PATH);
   const [syncItems, setSyncItems] = useState<WorkspaceSyncItem[]>([]);
-  const openWorkspace = useWorkspaceStore((s) => s.openWorkspace);
 
   const loadWorkspaces = useCallback(async () => {
     setPhase("loading");
@@ -205,7 +205,7 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
   }
 
   async function handleChangeBasePath() {
-    const selected = await openDialog({ directory: true, title: "选择同步目标目录" });
+    const selected = await openDialog({ directory: true, title: t`选择同步目标目录` });
     if (selected) setBasePath(selected);
   }
 
@@ -245,11 +245,9 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
   }
 
   async function handleOpenSyncedWorkspace(path: string) {
-    if (pickerMode === "fullscreen") {
-      await openWorkspace(path);
-    } else {
-      await openWorkspaceWindow(path);
-    }
+    const callerLabel = getCurrentWindow().label;
+    const bindToWindow = pickerMode === "fullscreen" ? callerLabel : undefined;
+    await openWorkspaceWindow(path, { bindToWindow });
     onOpenChange(false);
   }
 

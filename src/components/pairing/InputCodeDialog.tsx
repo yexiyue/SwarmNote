@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { getDeviceByCode } from "@/commands/pairing";
@@ -51,8 +52,12 @@ export function InputCodeDialog({ open, onOpenChange, onDeviceFound }: InputCode
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>输入配对码</DialogTitle>
-          <DialogDescription>输入对方设备上显示的 6 位数字</DialogDescription>
+          <DialogTitle>
+            <Trans>输入配对码</Trans>
+          </DialogTitle>
+          <DialogDescription>
+            <Trans>输入对方设备上显示的 6 位数字</Trans>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex justify-center py-2">
@@ -71,15 +76,15 @@ export function InputCodeDialog({ open, onOpenChange, onDeviceFound }: InputCode
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleClose(false)} disabled={loading}>
-            取消
+            <Trans>取消</Trans>
           </Button>
           <Button onClick={handleSearch} disabled={code.length < 6} loading={loading}>
             {loading ? (
-              "查找中..."
+              <Trans>查找中...</Trans>
             ) : (
               <>
                 <Search className="h-4 w-4" />
-                查找设备
+                <Trans>查找设备</Trans>
               </>
             )}
           </Button>

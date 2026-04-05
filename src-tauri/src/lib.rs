@@ -51,6 +51,7 @@ pub fn run() {
             document::commands::delete_document_by_rel_path,
             document::commands::delete_documents_by_prefix,
             document::commands::rename_document,
+            document::commands::move_document,
             document::commands::db_get_folders,
             document::commands::db_create_folder,
             document::commands::db_delete_folder,

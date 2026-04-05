@@ -1,4 +1,5 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, FolderPlus, PenLine, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -14,7 +15,6 @@ import { WorkspaceItem } from "@/components/workspace/WorkspaceItem";
 import { WorkspaceSyncDialog } from "@/components/workspace/WorkspaceSyncDialog";
 import { useNetworkStore } from "@/stores/networkStore";
 import { useOnboardingStore } from "@/stores/onboardingStore";
-import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface WorkspacePickerProps {
   mode: "fullscreen" | "dialog";
@@ -23,9 +23,9 @@ interface WorkspacePickerProps {
 }
 
 export function WorkspacePicker({ mode, open: dialogOpen, onOpenChange }: WorkspacePickerProps) {
+  const { t } = useLingui();
   const [recents, setRecents] = useState<RecentWorkspace[]>([]);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-  const openWorkspace = useWorkspaceStore((s) => s.openWorkspace);
   const devices = useNetworkStore((s) => s.devices);
   const pairedInOnboarding = useOnboardingStore((s) => s.pairedInOnboarding);
   const setPairedInOnboarding = useOnboardingStore((s) => s.setPairedInOnboarding);
@@ -46,35 +46,33 @@ export function WorkspacePicker({ mode, open: dialogOpen, onOpenChange }: Worksp
     getRecentWorkspaces().then(setRecents);
   }, []);
 
-  async function handleSelectWorkspace(path: string) {
-    if (mode === "fullscreen") {
-      await openWorkspace(path);
-    } else {
-      await openWorkspaceWindow(path);
+  // Unified handler: both fullscreen and dialog modes go through
+  // `open_workspace_window`. In fullscreen mode we pass the caller's window
+  // label so the backend can bind the workspace to the current window
+  // (which has no workspace yet) instead of spawning a second window.
+  async function openPath(path: string) {
+    const callerLabel = getCurrentWindow().label;
+    const bindToWindow = mode === "fullscreen" ? callerLabel : undefined;
+    await openWorkspaceWindow(path, { bindToWindow });
+    if (mode === "dialog") {
       onOpenChange?.(false);
     }
+  }
+
+  async function handleSelectWorkspace(path: string) {
+    await openPath(path);
   }
 
   async function handleOpenFolder() {
-    const selected = await open({ directory: true, title: "打开工作区文件夹" });
+    const selected = await open({ directory: true, title: t`打开工作区文件夹` });
     if (!selected) return;
-    if (mode === "fullscreen") {
-      await openWorkspace(selected);
-    } else {
-      await openWorkspaceWindow(selected);
-      onOpenChange?.(false);
-    }
+    await openPath(selected);
   }
 
   async function handleCreateWorkspace() {
-    const selected = await open({ directory: true, title: "选择新工作区目录" });
+    const selected = await open({ directory: true, title: t`选择新工作区目录` });
     if (!selected) return;
-    if (mode === "fullscreen") {
-      await openWorkspace(selected);
-    } else {
-      await openWorkspaceWindow(selected);
-      onOpenChange?.(false);
-    }
+    await openPath(selected);
   }
 
   const content = (

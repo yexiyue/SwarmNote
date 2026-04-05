@@ -166,15 +166,7 @@ pub fn rename(workspace: &Path, rel_path: &str, new_name: &str) -> Result<String
         return Err(AppError::NameConflict(target_name));
     }
 
-    // Best-effort: rename resource directory for .md files (e.g. "note.assets/" → "diary.assets/")
-    if full.is_file() && full.extension().and_then(|e| e.to_str()) == Some("md") {
-        let old_resource_dir = full.with_extension("assets");
-        if old_resource_dir.is_dir() {
-            let new_resource_dir = new_path.with_extension("assets");
-            let _ = std::fs::rename(&old_resource_dir, &new_resource_dir);
-        }
-    }
-
+    move_assets_sidecar(&full, &new_path, false)?;
     std::fs::rename(&full, &new_path)?;
 
     let rel = new_path
@@ -184,6 +176,90 @@ pub fn rename(workspace: &Path, rel_path: &str, new_name: &str) -> Result<String
         .replace('\\', "/");
 
     Ok(rel)
+}
+
+/// 对 `.md` 文件的 `.assets/` 伴生目录进行重命名/移动。
+///
+/// - 如果源不是 `.md` 或没有 `.assets/` 伴生目录，直接返回（no-op）。
+/// - `check_conflict=true`：若目标 `.assets/` 已存在则返回 `NameConflict`
+///   （move 语义要求不覆盖）。
+/// - `check_conflict=false`：已存在则跳过（rename 路径保持原有 best-effort 行为）。
+fn move_assets_sidecar(from: &Path, to: &Path, check_conflict: bool) -> Result<(), AppError> {
+    if !from.is_file() || from.extension().and_then(|e| e.to_str()) != Some("md") {
+        return Ok(());
+    }
+    let old_assets = from.with_extension("assets");
+    if !old_assets.is_dir() {
+        return Ok(());
+    }
+    let new_assets = to.with_extension("assets");
+    if new_assets.exists() {
+        if check_conflict {
+            return Err(AppError::NameConflict(
+                new_assets.to_string_lossy().into_owned(),
+            ));
+        }
+        return Ok(());
+    }
+    std::fs::rename(&old_assets, &new_assets)?;
+    Ok(())
+}
+
+/// 结果信息：表示一次移动操作影响的元数据。
+#[derive(Debug)]
+pub struct MoveResult {
+    /// 是否为目录（false 表示文件）。
+    pub is_dir: bool,
+}
+
+/// 将文件或目录从 `from_rel` 移动到 `to_rel`（都是相对工作区根的路径）。
+///
+/// - `to_rel` 必须是**完整的目标路径**（包含文件名/目录名），而不是目标父目录。
+/// - 如果源是 `.md` 文件且存在同名 `.assets/` 伴生目录，会原子地一起移动。
+/// - 拒绝把目录移入自身的后代路径（防止递归嵌套）。
+/// - 拒绝覆盖已有目标。
+pub fn move_node(workspace: &Path, from_rel: &str, to_rel: &str) -> Result<MoveResult, AppError> {
+    let from_full = validate_rel_path(workspace, from_rel)?;
+    // `metadata()` fails with NotFound if the source does not exist; the `?`
+    // converts that into an AppError::Io with a clear message, so we can skip
+    // a separate `exists()` pre-check (TOCTOU) and get `is_dir` in one syscall.
+    let is_dir = from_full.metadata()?.is_dir();
+
+    if from_rel == to_rel {
+        // no-op：调用方通常应在客户端过滤掉这种情况
+        return Ok(MoveResult { is_dir });
+    }
+
+    // Target existence check IS load-bearing on Windows, where `std::fs::rename`
+    // can silently overwrite an existing file instead of failing.
+    let to_full = validate_rel_path(workspace, to_rel)?;
+    if to_full.exists() {
+        return Err(AppError::NameConflict(to_rel.to_owned()));
+    }
+
+    // 目录不允许被移入自身的后代路径（否则递归嵌套）。
+    if is_dir {
+        let from_with_sep = if from_rel.ends_with('/') {
+            from_rel.to_owned()
+        } else {
+            format!("{from_rel}/")
+        };
+        if to_rel.starts_with(&from_with_sep) {
+            return Err(AppError::InvalidPath(
+                "cannot move a folder into its own descendant".into(),
+            ));
+        }
+    }
+
+    // 确保目标父目录存在（create_dir_all 是幂等的）
+    if let Some(to_parent) = to_full.parent() {
+        std::fs::create_dir_all(to_parent)?;
+    }
+
+    move_assets_sidecar(&from_full, &to_full, true)?;
+    std::fs::rename(&from_full, &to_full)?;
+
+    Ok(MoveResult { is_dir })
 }
 
 #[cfg(test)]
@@ -294,5 +370,75 @@ mod tests {
         let rel = rename(dir.path(), "old-folder", "new-folder").unwrap();
         assert_eq!(rel, "new-folder");
         assert!(dir.path().join("new-folder").is_dir());
+    }
+
+    #[test]
+    fn move_file_into_folder() {
+        let dir = tmp();
+        fs::create_dir(dir.path().join("archive")).unwrap();
+        fs::write(dir.path().join("note.md"), "body").unwrap();
+        let result = move_node(dir.path(), "note.md", "archive/note.md").unwrap();
+        assert!(!result.is_dir);
+        assert!(!dir.path().join("note.md").exists());
+        assert!(dir.path().join("archive/note.md").exists());
+        assert_eq!(
+            fs::read_to_string(dir.path().join("archive/note.md")).unwrap(),
+            "body"
+        );
+    }
+
+    #[test]
+    fn move_file_moves_assets_sidecar() {
+        let dir = tmp();
+        fs::create_dir(dir.path().join("archive")).unwrap();
+        fs::write(dir.path().join("photo.md"), "body").unwrap();
+        fs::create_dir(dir.path().join("photo.assets")).unwrap();
+        fs::write(dir.path().join("photo.assets/img.png"), b"data").unwrap();
+
+        move_node(dir.path(), "photo.md", "archive/photo.md").unwrap();
+        assert!(dir.path().join("archive/photo.md").exists());
+        assert!(dir.path().join("archive/photo.assets").is_dir());
+        assert!(dir.path().join("archive/photo.assets/img.png").exists());
+        assert!(!dir.path().join("photo.md").exists());
+        assert!(!dir.path().join("photo.assets").exists());
+    }
+
+    #[test]
+    fn move_folder_recursive() {
+        let dir = tmp();
+        fs::create_dir(dir.path().join("archive")).unwrap();
+        fs::create_dir(dir.path().join("drafts")).unwrap();
+        fs::write(dir.path().join("drafts/a.md"), "").unwrap();
+        let result = move_node(dir.path(), "drafts", "archive/drafts").unwrap();
+        assert!(result.is_dir);
+        assert!(dir.path().join("archive/drafts").is_dir());
+        assert!(dir.path().join("archive/drafts/a.md").exists());
+        assert!(!dir.path().join("drafts").exists());
+    }
+
+    #[test]
+    fn move_folder_into_own_descendant_rejected() {
+        let dir = tmp();
+        fs::create_dir_all(dir.path().join("drafts/sub")).unwrap();
+        let err = move_node(dir.path(), "drafts", "drafts/sub/drafts").unwrap_err();
+        assert!(matches!(err, AppError::InvalidPath(_)));
+    }
+
+    #[test]
+    fn move_rejects_existing_target() {
+        let dir = tmp();
+        fs::write(dir.path().join("a.md"), "").unwrap();
+        fs::write(dir.path().join("b.md"), "").unwrap();
+        let err = move_node(dir.path(), "a.md", "b.md").unwrap_err();
+        assert!(matches!(err, AppError::NameConflict(_)));
+    }
+
+    #[test]
+    fn move_noop_same_path() {
+        let dir = tmp();
+        fs::write(dir.path().join("x.md"), "").unwrap();
+        let result = move_node(dir.path(), "x.md", "x.md").unwrap();
+        assert!(!result.is_dir);
+        assert!(dir.path().join("x.md").exists());
     }
 }

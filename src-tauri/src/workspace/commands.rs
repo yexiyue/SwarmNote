@@ -26,6 +26,18 @@ pub struct WorkspaceInfo {
     pub updated_at: DateTime<Utc>,
 }
 
+/// 结果类型：告诉前端 `open_workspace_window` 采取了哪种路径。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum OpenWorkspaceWindowResult {
+    /// 工作区已绑定到调用方窗口（fullscreen picker 场景）。
+    BoundToCaller { info: WorkspaceInfo },
+    /// 已聚焦一个已存在的窗口（路径已打开）。
+    FocusedExisting,
+    /// 创建了新窗口。
+    NewWindow,
+}
+
 impl WorkspaceInfo {
     pub fn from_model(model: &workspaces::Model, path: &str) -> Self {
         Self {
@@ -227,33 +239,38 @@ pub async fn get_recent_workspaces(
 }
 
 /// 为指定工作区路径打开新窗口，原子预绑定后端状态。
+///
+/// 当传入 `bind_to_window` 且该窗口尚未绑定任何工作区时（典型场景:
+/// fullscreen WorkspacePicker），后端会把工作区绑定到调用方窗口，而不是
+/// 创建新窗口——避免在 picker 场景下留下一个空白的原窗口。
+#[expect(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn open_workspace_window(
     app: tauri::AppHandle,
     path: String,
+    bind_to_window: Option<String>,
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
     config_state: State<'_, GlobalConfigState>,
     ws_state: State<'_, WorkspaceState>,
     watcher_state: State<'_, crate::fs::watcher::FsWatcherState>,
-) -> AppResult<()> {
-    let label = workspace_window_label(&path);
+) -> AppResult<OpenWorkspaceWindowResult> {
     let ws_path = PathBuf::from(&path);
 
-    // 检查是否已有窗口打开了该路径（通过窗口 label）
-    if let Some(existing) = app.get_webview_window(&label) {
-        existing
-            .set_focus()
-            .map_err(|e| AppError::InvalidPath(format!("failed to focus window: {e}")))?;
-        return Ok(());
-    }
-
-    // 检查 per-window 状态中是否已有该路径
+    // 优先级 1：如果该路径已在某个窗口中打开，直接 focus 那个窗口
+    //            （即便 caller 想 bind-to-self 也应该聚焦已有窗口，避免双开）
     if let Some(existing_label) = ws_state.find_label_by_path(&path).await {
         if let Some(win) = app.get_webview_window(&existing_label) {
             let _ = win.set_focus();
         }
-        return Ok(());
+        return Ok(OpenWorkspaceWindowResult::FocusedExisting);
+    }
+    let hashed_label = workspace_window_label(&path);
+    if let Some(existing) = app.get_webview_window(&hashed_label) {
+        existing
+            .set_focus()
+            .map_err(|e| AppError::InvalidPath(format!("failed to focus window: {e}")))?;
+        return Ok(OpenWorkspaceWindowResult::FocusedExisting);
     }
 
     if !ws_path.is_dir() {
@@ -262,8 +279,43 @@ pub async fn open_workspace_window(
         )));
     }
 
-    // 先完成 DB 初始化和状态绑定，再创建窗口，消除竞态
     let (conn, workspace) = ensure_workspace(&ws_path, &identity).await?;
+
+    // 优先级 2：如果 caller 请求绑定到自己，且自己尚未绑定任何工作区 → 绑定到 caller
+    if let Some(caller_label) = bind_to_window.as_deref() {
+        let caller_has_ws = ws_state.get_by_label(caller_label).await.is_some();
+        let caller_window = app.get_webview_window(caller_label);
+        if !caller_has_ws && caller_window.is_some() {
+            let info = bind_workspace_to_window(
+                caller_label,
+                &path,
+                conn,
+                &workspace,
+                &identity,
+                &db_state,
+                &ws_state,
+                &config_state,
+                &watcher_state,
+                &app,
+            )
+            .await;
+
+            // 通知 caller 窗口的前端工作区已就绪
+            if let Some(win) = caller_window {
+                if let Err(e) = win.emit("workspace:ready", &info) {
+                    log::warn!(
+                        "Failed to emit workspace:ready to caller window '{caller_label}': {e}"
+                    );
+                }
+                let _ = win.set_focus();
+            }
+
+            return Ok(OpenWorkspaceWindowResult::BoundToCaller { info });
+        }
+    }
+
+    // 优先级 3：创建新窗口。使用 path 的 hash 作为稳定 label。
+    let label = hashed_label;
     let info = bind_workspace_to_window(
         &label,
         &path,
@@ -300,7 +352,7 @@ pub async fn open_workspace_window(
 
     bind_window_cleanup(&new_window, &app, &label);
 
-    Ok(())
+    Ok(OpenWorkspaceWindowResult::NewWindow)
 }
 
 /// 根据工作区路径生成稳定的窗口 label。

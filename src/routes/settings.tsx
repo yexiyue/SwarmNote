@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Info, Minus, MonitorSmartphone, RefreshCw, Settings, X } from "lucide-react";
 import { useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAppVersion } from "@/hooks/useAppVersion";
 import { cn, isMac } from "@/lib/utils";
 
 function SettingsLayout() {
@@ -12,6 +13,7 @@ function SettingsLayout() {
   const { pathname } = useLocation();
   const appWindow = getCurrentWindow();
   const { t } = useLingui();
+  const appVersion = useAppVersion();
 
   const navItems = [
     { to: "/settings/general", icon: Settings, label: t`通用` },
@@ -31,18 +33,15 @@ function SettingsLayout() {
 
   return (
     <div className="flex h-screen flex-col bg-muted/30">
-      {/* Title Bar */}
+      {/* Title Bar — drag region only; title is rendered consistently in the
+          sidebar header below on every platform to avoid per-platform layouts. */}
       <header
         data-tauri-drag-region
         className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background/60 px-4"
       >
-        {isMac ? (
-          <div className="w-17.5" data-tauri-drag-region />
-        ) : (
-          <span className="text-sm font-semibold text-foreground" data-tauri-drag-region>
-            <Trans>设置</Trans>
-          </span>
-        )}
+        {/* macOS traffic lights spacer keeps the drag region clickable on mac;
+            on Windows/Linux we just leave it empty. */}
+        <div className={isMac ? "w-17.5" : ""} data-tauri-drag-region />
         <div className="flex items-center gap-1">
           {!isMac && (
             <>
@@ -70,12 +69,10 @@ function SettingsLayout() {
         {/* Sidebar */}
         <nav className="flex w-55 flex-col border-r bg-background/60">
           <div className="p-5 pb-2">
-            {isMac && (
-              <h2 className="text-base font-semibold tracking-tight">
-                <Trans>设置</Trans>
-              </h2>
-            )}
-            <p className={cn("text-xs text-muted-foreground", isMac && "mt-0.5")}>
+            <h2 className="text-base font-semibold tracking-tight">
+              <Trans>设置</Trans>
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
               <Trans>管理应用偏好与设备</Trans>
             </p>
           </div>
@@ -105,7 +102,9 @@ function SettingsLayout() {
           {/* Bottom branding */}
           <div className="mt-auto border-t px-5 py-4">
             <div className="text-xs text-muted-foreground">SwarmNote</div>
-            <div className="text-[11px] text-muted-foreground/60">v0.2.0</div>
+            <div className="text-[11px] text-muted-foreground/60">
+              {appVersion ? `v${appVersion}` : ""}
+            </div>
           </div>
         </nav>
 

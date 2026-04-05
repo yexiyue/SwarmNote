@@ -5,8 +5,14 @@ import { createTauriStorage, waitForHydration } from "@/lib/tauriStore";
 
 type Theme = "light" | "dark" | "system";
 
+export const SIDEBAR_WIDTH_MIN = 200;
+export const SIDEBAR_WIDTH_MAX = 480;
+export const SIDEBAR_WIDTH_DEFAULT = 256;
+
 interface UIState {
   sidebarOpen: boolean;
+  /** Persisted width of the sidebar (before collapse). Clamped to [200, 480]. */
+  sidebarWidth: number;
   workspacePickerOpen: boolean;
   theme: Theme;
   resolvedTheme: "light" | "dark";
@@ -16,6 +22,7 @@ interface UIState {
 interface UIActions {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  setSidebarWidth: (width: number) => void;
   setWorkspacePickerOpen: (open: boolean) => void;
   setTheme: (theme: Theme) => void;
   setLocale: (locale: Locale) => void;
@@ -33,6 +40,7 @@ export const useUIStore = create<UIState & UIActions>()(
   persist(
     (set) => ({
       sidebarOpen: true,
+      sidebarWidth: SIDEBAR_WIDTH_DEFAULT,
       workspacePickerOpen: false,
       theme: "light",
       resolvedTheme: "light",
@@ -41,6 +49,14 @@ export const useUIStore = create<UIState & UIActions>()(
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+      setSidebarWidth: (width) => {
+        const clamped = Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, width));
+        // Skip the set when the clamped value hasn't changed — avoids firing
+        // subscribers on every mousemove once the drag goes past the clamp.
+        if (clamped === useUIStore.getState().sidebarWidth) return;
+        set({ sidebarWidth: clamped });
+      },
 
       setWorkspacePickerOpen: (open) => set({ workspacePickerOpen: open }),
 
@@ -62,6 +78,7 @@ export const useUIStore = create<UIState & UIActions>()(
       storage: createTauriStorage("settings.json"),
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
+        sidebarWidth: state.sidebarWidth,
         theme: state.theme,
         locale: state.locale,
       }),

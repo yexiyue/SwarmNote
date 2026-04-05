@@ -49,6 +49,7 @@ interface YjsContext {
  * in EditorPane.
  */
 export function NoteEditor() {
+  const { t } = useLingui();
   const docId = useEditorStore((s) => s.currentDocId);
   const relPath = useEditorStore((s) => s.relPath);
   const workspace = useWorkspaceStore((s) => s.workspace);
@@ -94,7 +95,7 @@ export function NoteEditor() {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
         <div className="h-8" />
-        <div className="animate-pulse text-sm text-muted-foreground">Loading...</div>
+        <div className="animate-pulse text-sm text-muted-foreground">{t`加载中...`}</div>
       </div>
     );
   }

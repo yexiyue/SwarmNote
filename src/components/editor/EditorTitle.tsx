@@ -1,9 +1,11 @@
+import { useLingui } from "@lingui/react/macro";
 import { type KeyboardEvent, useCallback, useRef } from "react";
 import { renameYDoc } from "@/commands/document";
 import { useEditorStore } from "@/stores/editorStore";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 
 export function EditorTitle() {
+  const { t } = useLingui();
   const title = useEditorStore((s) => s.title);
   const relPath = useEditorStore((s) => s.relPath);
   const updateRelPath = useEditorStore((s) => s.updateRelPath);
@@ -11,7 +13,7 @@ export function EditorTitle() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const commitTitle = useCallback(async () => {
-    const raw = inputRef.current?.value.trim() || "Untitled";
+    const raw = inputRef.current?.value.trim() || t`无标题`;
     const newTitle = raw.toLowerCase().endsWith(".md") ? raw : `${raw}.md`;
     if (newTitle === title) return;
 
@@ -25,7 +27,7 @@ export function EditorTitle() {
         await renameYDoc(docUuid, newRelPath);
       }
     }
-  }, [title, relPath, updateRelPath, rename]);
+  }, [title, relPath, updateRelPath, rename, t]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -38,7 +40,7 @@ export function EditorTitle() {
     <input
       ref={inputRef}
       className="w-full border-none bg-transparent text-2xl font-bold text-foreground outline-none placeholder:text-muted-foreground"
-      placeholder="Untitled"
+      placeholder={t`无标题`}
       defaultValue={title.replace(/\.md$/i, "")}
       onBlur={commitTitle}
       onKeyDown={handleKeyDown}

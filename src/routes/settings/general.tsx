@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute } from "@tanstack/react-router";
 import { FolderOpen, Globe, Palette } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -82,6 +82,7 @@ function StyledSelect({
 }
 
 function GeneralSettingsPage() {
+  const { t } = useLingui();
   const theme = useUIStore((s) => s.theme);
   const locale = useUIStore((s) => s.locale);
   const setTheme = useUIStore((s) => s.setTheme);
@@ -102,38 +103,38 @@ function GeneralSettingsPage() {
       </div>
 
       <div className="space-y-4">
-        <SettingCard title="外观" description="自定义应用的显示方式">
+        <SettingCard title={t`外观`} description={t`自定义应用的显示方式`}>
           <div className="space-y-1">
-            <SettingRow icon={Globe} label="语言" description="选择界面显示语言">
+            <SettingRow icon={Globe} label={t`语言`} description={t`选择界面显示语言`}>
               <StyledSelect
                 value={locale}
                 onChange={(v) => setLocale(v as Locale)}
                 options={[
-                  { value: "zh", label: "中文" },
+                  { value: "zh", label: t`中文` },
                   { value: "en", label: "English" },
                 ]}
               />
             </SettingRow>
             <Separator />
-            <SettingRow icon={Palette} label="外观" description="选择明亮或暗色主题">
+            <SettingRow icon={Palette} label={t`外观`} description={t`选择明亮或暗色主题`}>
               <StyledSelect
                 value={theme}
                 onChange={(v) => setTheme(v as "light" | "dark" | "system")}
                 options={[
-                  { value: "light", label: "浅色" },
-                  { value: "dark", label: "深色" },
-                  { value: "system", label: "跟随系统" },
+                  { value: "light", label: t`浅色` },
+                  { value: "dark", label: t`深色` },
+                  { value: "system", label: t`跟随系统` },
                 ]}
               />
             </SettingRow>
           </div>
         </SettingCard>
 
-        <SettingCard title="启动行为" description="控制应用启动时的默认行为">
+        <SettingCard title={t`启动行为`} description={t`控制应用启动时的默认行为`}>
           <SettingRow
             icon={FolderOpen}
-            label="恢复上次工作区"
-            description="启动时自动打开上次使用的工作区"
+            label={t`恢复上次工作区`}
+            description={t`启动时自动打开上次使用的工作区`}
           >
             <Switch checked={restoreLastWorkspace} onCheckedChange={setRestoreLastWorkspace} />
           </SettingRow>

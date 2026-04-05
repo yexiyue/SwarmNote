@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { ArrowUpRight, Check, Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -49,8 +50,13 @@ export function WorkspacePopover({ children, side = "bottom" }: WorkspacePopover
               <button
                 key={ws.path}
                 type="button"
-                onClick={() => !isCurrent && handleSelect(ws.path)}
-                className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                disabled={isCurrent}
+                onClick={isCurrent ? undefined : () => handleSelect(ws.path)}
+                className={
+                  isCurrent
+                    ? "flex cursor-not-allowed items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm opacity-70"
+                    : "flex items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                }
               >
                 {isCurrent ? (
                   <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
@@ -70,7 +76,9 @@ export function WorkspacePopover({ children, side = "bottom" }: WorkspacePopover
             className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
           >
             <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-foreground">工作区管理...</span>
+            <span className="text-foreground">
+              <Trans>工作区管理...</Trans>
+            </span>
           </button>
         </div>
       </PopoverContent>

@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { useEffect } from "react";
 import { openSettingsWindow } from "@/commands/workspace";
 import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
@@ -26,7 +27,7 @@ export function useKeyboardShortcuts() {
           break;
         case "n":
           e.preventDefault();
-          useFileTreeStore.getState().createAndOpenFile("", "新建笔记");
+          useFileTreeStore.getState().createAndOpenFile("", i18n._("新建笔记"));
           break;
         case "p":
           e.preventDefault();

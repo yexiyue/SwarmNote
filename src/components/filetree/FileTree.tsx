@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { NodeApi } from "react-arborist";
 import { Tree, type TreeApi } from "react-arborist";
 import type { FileTreeNode } from "@/commands/fs";
@@ -29,17 +29,33 @@ export function FileTree({ width, height }: FileTreeProps) {
 
   const treeRef = useRef<TreeApi<FileTreeNode>>(null);
 
+  // Deterministic rename-after-create: the `createFile`/`createDir` store
+  // actions update `tree` asynchronously via the Rust backend + rescan, so
+  // the NodeApi we want to enter edit mode on doesn't exist yet when we
+  // return. We stash the desired id in a ref and let a `useEffect` fire
+  // whenever `tree` changes — as soon as the node is present, we enter
+  // edit mode. No `setTimeout` needed.
+  const pendingEditRef = useRef<string | null>(null);
+
+  // `tree` is used as a render-signal dependency (we don't read from it
+  // directly — we use `treeRef.current?.get()` — but we must re-run on
+  // every change so react-arborist has time to reconcile).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above
+  useEffect(() => {
+    const pending = pendingEditRef.current;
+    if (!pending) return;
+    const node = treeRef.current?.get(pending);
+    if (node) {
+      pendingEditRef.current = null;
+      node.select();
+      node.edit();
+    }
+  }, [tree]);
+
   const handleCreateFile = useCallback(
     async (parentRel: string) => {
       const relPath = await createFile(parentRel, t`新建笔记`);
-      // Select the new file and enter rename mode
-      setTimeout(() => {
-        const node = treeRef.current?.get(relPath);
-        if (node) {
-          node.select();
-          node.edit();
-        }
-      }, 100);
+      pendingEditRef.current = relPath;
     },
     [createFile, t],
   );
@@ -47,13 +63,7 @@ export function FileTree({ width, height }: FileTreeProps) {
   const handleCreateDir = useCallback(
     async (parentRel: string) => {
       const relPath = await createDir(parentRel, t`新建文件夹`);
-      setTimeout(() => {
-        const node = treeRef.current?.get(relPath);
-        if (node) {
-          node.select();
-          node.edit();
-        }
-      }, 100);
+      pendingEditRef.current = relPath;
     },
     [createDir, t],
   );
@@ -92,6 +102,56 @@ export function FileTree({ width, height }: FileTreeProps) {
       await rename(id, newName);
     },
     [rename],
+  );
+
+  const move = useFileTreeStore((s) => s.move);
+
+  /**
+   * react-arborist drop handler. `parentId` is the destination folder's id
+   * (which is its rel_path) or `null` for the workspace root. `dragIds` are
+   * the rel_paths of the nodes being moved.
+   *
+   * For each dragged node we compute a target path = parent + "/" + basename,
+   * and reject no-op moves (target === source) and any case where the target
+   * would be a descendant of the source (enforced server-side too).
+   */
+  const handleMove = useCallback(
+    async ({ dragIds, parentId }: { dragIds: string[]; parentId: string | null }) => {
+      const parentRel = parentId ?? "";
+      for (const from of dragIds) {
+        const basename = from.split("/").pop() ?? from;
+        const to = parentRel ? `${parentRel}/${basename}` : basename;
+        if (to === from) continue;
+        // Fast-fail: the backend rejects folder-into-descendant too, but
+        // skipping here avoids a wasted IPC round-trip.
+        if (to.startsWith(`${from}/`)) continue;
+        try {
+          await move(from, to);
+        } catch (err) {
+          console.error(`Failed to move ${from} → ${to}:`, err);
+        }
+      }
+    },
+    [move],
+  );
+
+  const disableDropTarget = useCallback(
+    ({
+      parentNode,
+      dragNodes,
+    }: {
+      parentNode: NodeApi<FileTreeNode> | null;
+      dragNodes: NodeApi<FileTreeNode>[];
+    }) => {
+      // Only folders (and the root, which has parentNode === null) are valid
+      // drop targets. react-arborist gives us a null parentNode when hovering
+      // the root — we allow that.
+      if (parentNode && !parentNode.isInternal) return true;
+      // Reject dropping a folder onto one of its own descendants.
+      const parentId = parentNode?.id ?? "";
+      return dragNodes.some((n) => parentId.startsWith(`${n.id}/`) || parentId === n.id);
+    },
+    [],
   );
 
   const handleActivate = useCallback(
@@ -133,10 +193,10 @@ export function FileTree({ width, height }: FileTreeProps) {
           indent={16}
           rowHeight={28}
           openByDefault={false}
-          disableDrag
-          disableDrop
+          disableDrop={disableDropTarget}
           onRename={handleRenameSubmit}
           onActivate={handleActivate}
+          onMove={handleMove}
         >
           {(props) => (
             <FileTreeContextMenu

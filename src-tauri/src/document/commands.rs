@@ -1,11 +1,12 @@
 use entity::workspace::{deletion_log, documents, folders};
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Set};
-use tauri::State;
+use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::error::{AppError, AppResult};
+use crate::fs::crud as fs_crud;
 use crate::identity::IdentityState;
-use crate::workspace::state::DbState;
+use crate::workspace::state::{DbState, WorkspaceState};
 use crate::yjs::manager::YDocManager;
 
 // ── Document ──
@@ -124,6 +125,20 @@ pub struct RenameDocumentInput {
     pub old_rel_path: String,
     pub new_rel_path: String,
     pub new_title: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct MoveDocumentInput {
+    /// 源路径（文件或目录），相对工作区根。
+    pub from_rel_path: String,
+    /// 目标完整路径（不是目标父目录），相对工作区根。
+    pub to_rel_path: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct MoveDocumentResult {
+    pub new_rel_path: String,
+    pub is_dir: bool,
 }
 
 #[tauri::command]
@@ -277,4 +292,99 @@ pub async fn db_delete_folder(
 
     folders::Entity::delete_by_id(id).exec(db).await?;
     Ok(())
+}
+
+// ── Move ──
+
+/// Atomically move a document or folder from `from_rel_path` to `to_rel_path`.
+///
+/// - For a file: moves the `.md` file (plus its `.assets/` sidecar if present),
+///   updates the single DB row, and notifies `YDocManager` so any open Y.Doc
+///   keeps its handle under the new path.
+/// - For a folder: physically renames the folder on disk and updates every
+///   DB row whose `rel_path` starts with the old prefix; each currently-open
+///   Y.Doc under that prefix is also rebased.
+///
+/// The target must not exist and must not be a descendant of the source
+/// (folder-into-self is rejected).
+#[tauri::command]
+pub async fn move_document(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    input: MoveDocumentInput,
+    db_state: State<'_, DbState>,
+    ws_state: State<'_, WorkspaceState>,
+    ydoc_mgr: State<'_, YDocManager>,
+) -> AppResult<MoveDocumentResult> {
+    let label = window.label().to_owned();
+    let ws_path_str = ws_state.workspace_path_for(&label).await?;
+    let ws_path = std::path::PathBuf::from(&ws_path_str);
+
+    let from_rel = input.from_rel_path;
+    let to_rel = input.to_rel_path;
+
+    // 1) Physical move (synchronous, wrapped in spawn_blocking).
+    let move_result = {
+        let ws_path = ws_path.clone();
+        let from_rel = from_rel.clone();
+        let to_rel = to_rel.clone();
+        tokio::task::spawn_blocking(move || fs_crud::move_node(&ws_path, &from_rel, &to_rel))
+            .await
+            .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))??
+    };
+
+    // 2) Update database rows and rebase open Y.Docs.
+    let guard = db_state.workspace_db_by_label(&label).await?;
+    let db = guard.conn();
+
+    if move_result.is_dir {
+        // Folder case: update every document whose rel_path starts with `from_rel/`.
+        let prefix_from = if from_rel.ends_with('/') {
+            from_rel.clone()
+        } else {
+            format!("{from_rel}/")
+        };
+        let prefix_to = if to_rel.ends_with('/') {
+            to_rel.clone()
+        } else {
+            format!("{to_rel}/")
+        };
+
+        let docs = documents::Entity::find()
+            .filter(documents::Column::RelPath.starts_with(&prefix_from))
+            .all(db)
+            .await?;
+
+        for doc in docs {
+            let new_path = format!("{prefix_to}{}", &doc.rel_path[prefix_from.len()..]);
+            let doc_uuid = doc.id;
+            let mut active: documents::ActiveModel = doc.into();
+            active.rel_path = Set(new_path.clone());
+            active.update(db).await?;
+            ydoc_mgr.rename_doc(&label, doc_uuid, &new_path);
+        }
+    } else if let Some(doc) = documents::Entity::find()
+        .filter(documents::Column::RelPath.eq(&from_rel))
+        .one(db)
+        .await?
+    {
+        let doc_uuid = doc.id;
+        let mut active: documents::ActiveModel = doc.into();
+        active.rel_path = Set(to_rel.clone());
+        active.update(db).await?;
+        ydoc_mgr.rename_doc(&label, doc_uuid, &to_rel);
+    }
+
+    // 3) Notify the window to rescan the tree. Redundant with the fs watcher
+    //    (which would also fire on the physical rename), but emitting directly
+    //    after the DB commit guarantees the frontend sees DB + tree consistent
+    //    instead of racing against the watcher's 200ms debounce.
+    if let Err(e) = app.emit_to(&label, "fs:tree-changed", ()) {
+        log::warn!("Failed to emit fs:tree-changed after move: {e}");
+    }
+
+    Ok(MoveDocumentResult {
+        new_rel_path: to_rel,
+        is_dir: move_result.is_dir,
+    })
 }

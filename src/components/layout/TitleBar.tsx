@@ -74,17 +74,22 @@ export function TitleBar() {
         </WorkspacePopover>
       </div>
 
-      {/* Right: Search + Settings + Window Controls */}
+      {/* Right: Command Palette + Settings + Window Controls */}
       <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => document.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE))}
-          className="flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1.25 text-muted-foreground hover:bg-secondary/80"
-        >
-          <Search className="h-3.5 w-3.5" />
-          <span className="text-xs">{t`搜索...`}</span>
-          <span className="text-[10px] font-medium">{modKey}P</span>
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => document.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE))}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+            >
+              <Search className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t`命令面板`} ({modKey}P)
+          </TooltipContent>
+        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>

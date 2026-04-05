@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import type { Device } from "@/commands/pairing";
 import { requestPairing } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export function NearbyDeviceCard({ device, onPaired }: NearbyDeviceCardProps) {
         onClick={handlePair}
         loading={loading}
       >
-        {loading ? "配对中..." : "配对"}
+        {loading ? <Trans>配对中...</Trans> : <Trans>配对</Trans>}
       </Button>
     </div>
   );
