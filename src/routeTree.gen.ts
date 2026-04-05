@@ -12,6 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsSyncRouteImport } from './routes/settings/sync'
+import { Route as SettingsNetworkRouteImport } from './routes/settings/network'
+import { Route as SettingsGeneralRouteImport } from './routes/settings/general'
+import { Route as SettingsDevicesRouteImport } from './routes/settings/devices'
+import { Route as SettingsAboutRouteImport } from './routes/settings/about'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -28,35 +33,100 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsSyncRoute = SettingsSyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsNetworkRoute = SettingsNetworkRouteImport.update({
+  id: '/network',
+  path: '/network',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsGeneralRoute = SettingsGeneralRouteImport.update({
+  id: '/general',
+  path: '/general',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsDevicesRoute = SettingsDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAboutRoute = SettingsAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/about': typeof SettingsAboutRoute
+  '/settings/devices': typeof SettingsDevicesRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
+  '/settings/sync': typeof SettingsSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/about': typeof SettingsAboutRoute
+  '/settings/devices': typeof SettingsDevicesRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
+  '/settings/sync': typeof SettingsSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/about': typeof SettingsAboutRoute
+  '/settings/devices': typeof SettingsDevicesRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/network': typeof SettingsNetworkRoute
+  '/settings/sync': typeof SettingsSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/onboarding' | '/settings'
+  fullPaths:
+    | '/'
+    | '/onboarding'
+    | '/settings'
+    | '/settings/about'
+    | '/settings/devices'
+    | '/settings/general'
+    | '/settings/network'
+    | '/settings/sync'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/onboarding' | '/settings'
-  id: '__root__' | '/' | '/onboarding' | '/settings'
+  to:
+    | '/'
+    | '/onboarding'
+    | '/settings'
+    | '/settings/about'
+    | '/settings/devices'
+    | '/settings/general'
+    | '/settings/network'
+    | '/settings/sync'
+  id:
+    | '__root__'
+    | '/'
+    | '/onboarding'
+    | '/settings'
+    | '/settings/about'
+    | '/settings/devices'
+    | '/settings/general'
+    | '/settings/network'
+    | '/settings/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   OnboardingRoute: typeof OnboardingRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -82,13 +152,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/sync': {
+      id: '/settings/sync'
+      path: '/sync'
+      fullPath: '/settings/sync'
+      preLoaderRoute: typeof SettingsSyncRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/network': {
+      id: '/settings/network'
+      path: '/network'
+      fullPath: '/settings/network'
+      preLoaderRoute: typeof SettingsNetworkRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/general': {
+      id: '/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof SettingsGeneralRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/devices': {
+      id: '/settings/devices'
+      path: '/devices'
+      fullPath: '/settings/devices'
+      preLoaderRoute: typeof SettingsDevicesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/about': {
+      id: '/settings/about'
+      path: '/about'
+      fullPath: '/settings/about'
+      preLoaderRoute: typeof SettingsAboutRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
+
+interface SettingsRouteChildren {
+  SettingsAboutRoute: typeof SettingsAboutRoute
+  SettingsDevicesRoute: typeof SettingsDevicesRoute
+  SettingsGeneralRoute: typeof SettingsGeneralRoute
+  SettingsNetworkRoute: typeof SettingsNetworkRoute
+  SettingsSyncRoute: typeof SettingsSyncRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAboutRoute: SettingsAboutRoute,
+  SettingsDevicesRoute: SettingsDevicesRoute,
+  SettingsGeneralRoute: SettingsGeneralRoute,
+  SettingsNetworkRoute: SettingsNetworkRoute,
+  SettingsSyncRoute: SettingsSyncRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   OnboardingRoute: OnboardingRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

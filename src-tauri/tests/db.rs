@@ -4,6 +4,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, PaginatorTrait,
     QueryFilter, Set,
 };
+use uuid::Uuid;
 
 async fn setup_devices_db() -> DatabaseConnection {
     let db = Database::connect("sqlite::memory:").await.unwrap();
@@ -67,19 +68,18 @@ async fn workspace_db_creates_all_seven_tables() {
 #[tokio::test]
 async fn workspace_insert_and_find_by_id() {
     let db = setup_workspace_db().await;
+    let ws_id = Uuid::now_v7();
 
     let ws = workspaces::ActiveModel {
-        id: Set("ws-001".to_string()),
+        id: Set(ws_id),
         name: Set("Test Workspace".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     };
     let ws = ws.insert(&db).await.unwrap();
     assert_eq!(ws.name, "Test Workspace");
 
-    let found = workspaces::Entity::find_by_id("ws-001")
+    let found = workspaces::Entity::find_by_id(ws_id)
         .one(&db)
         .await
         .unwrap();
@@ -90,13 +90,13 @@ async fn workspace_insert_and_find_by_id() {
 #[tokio::test]
 async fn document_insert_update_delete() {
     let db = setup_workspace_db().await;
+    let ws_id = Uuid::now_v7();
+    let doc_id = Uuid::now_v7();
 
     workspaces::ActiveModel {
-        id: Set("ws-001".to_string()),
+        id: Set(ws_id),
         name: Set("Test".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -105,8 +105,8 @@ async fn document_insert_update_delete() {
 
     // Insert
     let doc = documents::ActiveModel {
-        id: Set("doc-001".to_string()),
-        workspace_id: Set("ws-001".to_string()),
+        id: Set(doc_id),
+        workspace_id: Set(ws_id),
         folder_id: Set(None),
         title: Set("My Note".to_string()),
         rel_path: Set("my-note.md".to_string()),
@@ -114,8 +114,6 @@ async fn document_insert_update_delete() {
         yjs_state: Set(None),
         state_vector: Set(None),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -125,22 +123,22 @@ async fn document_insert_update_delete() {
 
     // Query
     let docs = documents::Entity::find()
-        .filter(documents::Column::WorkspaceId.eq("ws-001"))
+        .filter(documents::Column::WorkspaceId.eq(ws_id))
         .all(&db)
         .await
         .unwrap();
     assert_eq!(docs.len(), 1);
 
     // Update
+    let original_updated_at = doc.updated_at;
     let mut active: documents::ActiveModel = doc.into();
     active.title = Set("Updated Note".to_string());
-    active.updated_at = Set(2000);
     let updated = active.update(&db).await.unwrap();
     assert_eq!(updated.title, "Updated Note");
-    assert_eq!(updated.updated_at, 2000);
+    assert!(updated.updated_at >= original_updated_at);
 
     // Delete
-    documents::Entity::delete_by_id("doc-001")
+    documents::Entity::delete_by_id(doc_id)
         .exec(&db)
         .await
         .unwrap();
@@ -150,13 +148,14 @@ async fn document_insert_update_delete() {
 #[tokio::test]
 async fn folder_hierarchy_parent_child() {
     let db = setup_workspace_db().await;
+    let ws_id = Uuid::now_v7();
+    let root_id = Uuid::now_v7();
+    let child_id = Uuid::now_v7();
 
     workspaces::ActiveModel {
-        id: Set("ws-001".to_string()),
+        id: Set(ws_id),
         name: Set("Test".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -165,14 +164,12 @@ async fn folder_hierarchy_parent_child() {
 
     // Root folder
     folders::ActiveModel {
-        id: Set("folder-root".to_string()),
-        workspace_id: Set("ws-001".to_string()),
+        id: Set(root_id),
+        workspace_id: Set(ws_id),
         parent_folder_id: Set(None),
         name: Set("Notes".to_string()),
         rel_path: Set("Notes".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -181,14 +178,12 @@ async fn folder_hierarchy_parent_child() {
 
     // Child folder
     folders::ActiveModel {
-        id: Set("folder-child".to_string()),
-        workspace_id: Set("ws-001".to_string()),
-        parent_folder_id: Set(Some("folder-root".to_string())),
+        id: Set(child_id),
+        workspace_id: Set(ws_id),
+        parent_folder_id: Set(Some(root_id)),
         name: Set("Daily".to_string()),
         rel_path: Set("Notes/Daily".to_string()),
         created_by: Set("peer-abc".to_string()),
-        created_at: Set(1000),
-        updated_at: Set(1000),
         ..Default::default()
     }
     .insert(&db)
@@ -196,14 +191,14 @@ async fn folder_hierarchy_parent_child() {
     .unwrap();
 
     let all = folders::Entity::find()
-        .filter(folders::Column::WorkspaceId.eq("ws-001"))
+        .filter(folders::Column::WorkspaceId.eq(ws_id))
         .all(&db)
         .await
         .unwrap();
     assert_eq!(all.len(), 2);
 
     let children = folders::Entity::find()
-        .filter(folders::Column::ParentFolderId.eq(Some("folder-root".to_string())))
+        .filter(folders::Column::ParentFolderId.eq(Some(root_id)))
         .all(&db)
         .await
         .unwrap();

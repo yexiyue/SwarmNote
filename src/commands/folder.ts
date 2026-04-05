@@ -7,8 +7,8 @@ export interface FolderModel {
   name: string;
   rel_path: string;
   created_by: string;
-  created_at: number;
-  updated_at: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateFolderInput {

@@ -1,11 +1,11 @@
 import { create } from "zustand";
-import { upsertDocument } from "@/commands/document";
 
 interface EditorState {
   currentDocId: string | null;
+  /** Stable UUID from the database (set after open_ydoc returns). */
+  docUuid: string | null;
   title: string;
   relPath: string;
-  content: string;
   isDirty: boolean;
   lastSavedAt: Date | null;
   charCount: number;
@@ -13,45 +13,49 @@ interface EditorState {
 
 interface EditorActions {
   loadDocument: (id: string, title: string, relPath: string) => void;
-  saveDocument: (workspaceId: string) => Promise<void>;
-  updateContent: (content: string) => void;
+  setDocUuid: (uuid: string) => void;
   updateTitle: (title: string) => void;
+  updateRelPath: (newRelPath: string, newTitle: string) => void;
+  markDirty: () => void;
+  markFlushed: (lastSavedAt: Date) => void;
+  setCharCount: (count: number) => void;
   clear: () => void;
 }
 
 const initialState: EditorState = {
   currentDocId: null,
+  docUuid: null,
   title: "",
   relPath: "",
-  content: "",
   isDirty: false,
   lastSavedAt: null,
   charCount: 0,
 };
 
-export const useEditorStore = create<EditorState & EditorActions>()((set, get) => ({
+export const useEditorStore = create<EditorState & EditorActions>()((set) => ({
   ...initialState,
 
   loadDocument: (id, title, relPath) => {
-    set({ ...initialState, currentDocId: id, title, relPath });
-  },
-
-  saveDocument: async (workspaceId) => {
-    const { currentDocId, title, relPath } = get();
-    if (!currentDocId) return;
-
-    await upsertDocument({
-      id: currentDocId,
-      workspace_id: workspaceId,
+    set({
+      ...initialState,
+      currentDocId: id,
       title,
-      rel_path: relPath,
+      relPath,
     });
-    set({ isDirty: false, lastSavedAt: new Date() });
   },
 
-  updateContent: (content) => set({ content, isDirty: true, charCount: content.length }),
+  setDocUuid: (uuid) => set({ docUuid: uuid }),
 
-  updateTitle: (title) => set({ title, isDirty: true }),
+  updateTitle: (title) => set({ title }),
+
+  updateRelPath: (newRelPath, newTitle) =>
+    set({ currentDocId: newRelPath, relPath: newRelPath, title: newTitle }),
+
+  markDirty: () => set((state) => (state.isDirty ? state : { isDirty: true })),
+
+  markFlushed: (lastSavedAt) => set({ isDirty: false, lastSavedAt }),
+
+  setCharCount: (count) => set({ charCount: count }),
 
   clear: () => set(initialState),
 }));

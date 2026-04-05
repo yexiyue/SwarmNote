@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@blocknote/core/fonts/inter.css";
+@import "@blocknote/shadcn/style.css";
+
+@source "../node_modules/@blocknote/shadcn";
 
 @custom-variant hover-none (@media (hover: none));
 
@@ -65,7 +69,7 @@
   --sidebar-primary-foreground: #fafafa;
   --sidebar-accent: #f4f4f4;
   --sidebar-accent-foreground: #18181b;
-  --sidebar-border: #e4e4e7;
+  --sidebar-border: #e2e8f0;
   --sidebar-ring: #71717a;
 }
 
@@ -98,8 +102,25 @@
   --sidebar-ring: #71717a;
 }
 
+*,
+*::before,
+*::after {
+  border-color: var(--color-border);
+}
+
 body {
   font-family: var(--font-sans);
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Make code block language selector always visible (override BlockNote defaults) */
+body .bn-block-content[data-content-type="codeBlock"] > div > select {
+  opacity: 0.6;
+  transition-delay: 0s;
+}
+
+body .bn-block-content[data-content-type="codeBlock"]:hover > div > select,
+body .bn-block-content[data-content-type="codeBlock"] > div > select:focus {
+  opacity: 1;
 }

@@ -40,3 +40,5 @@ dist-ssr
 
 # Lingui compiled catalogs (vite-plugin handles .po imports at build time)
 src/locales/**/*.js
+**/target/**
+.omc

@@ -1,41 +1,45 @@
-import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { openSettingsWindow } from "@/commands/workspace";
+import { OPEN_COMMAND_PALETTE } from "@/components/layout/CommandPalette";
+import { isMac } from "@/lib/utils";
+import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { useUIStore } from "@/stores/uiStore";
 
 export function useKeyboardShortcuts() {
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const navigate = useNavigate();
-
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const mod = navigator.platform.includes("Mac") ? e.metaKey : e.ctrlKey;
+      const mod = isMac ? e.metaKey : e.ctrlKey;
       if (!mod) return;
+
+      // Ctrl+Shift+O: open workspace picker
+      if (e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        const { setWorkspacePickerOpen, workspacePickerOpen } = useUIStore.getState();
+        setWorkspacePickerOpen(!workspacePickerOpen);
+        return;
+      }
 
       switch (e.key.toLowerCase()) {
         case "b":
           e.preventDefault();
-          toggleSidebar();
+          useUIStore.getState().toggleSidebar();
           break;
         case "n":
           e.preventDefault();
-          // TODO: create new note
-          break;
-        case "s":
-          e.preventDefault();
-          // TODO: save current note
+          useFileTreeStore.getState().createAndOpenFile("", "新建笔记");
           break;
         case "p":
           e.preventDefault();
-          document.dispatchEvent(new CustomEvent("open-command-palette"));
+          document.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE));
           break;
         case ",":
           e.preventDefault();
-          navigate({ to: "/settings" });
+          openSettingsWindow("general");
           break;
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar, navigate]);
+  }, []);
 }

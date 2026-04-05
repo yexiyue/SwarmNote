@@ -1,3 +1,4 @@
+pub mod deletion_log;
 pub mod doc_chunks;
 pub mod documents;
 pub mod folders;

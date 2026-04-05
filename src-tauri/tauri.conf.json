@@ -10,11 +10,12 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "SwarmNote",
-        "width": 1440,
-        "height": 900,
+        "width": 800,
+        "height": 600,
         "minWidth": 800,
         "minHeight": 600,
         "decorations": true,
@@ -24,12 +25,17 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,5 +43,17 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI3MTA0MTRDNzM0OTlBQzgKUldUSW1rbHpURUVRSjBsN1g0c3R1OGxVdTNEVmozcjFwYUkvekNXMWNUNzJHZGM4RVhsTndlZVEK",
+      "endpoints": [
+        "https://api.upgrade.toolsetlink.com/v1/tauri/upgrade?tauriKey=TODO_REPLACE_WITH_TAURI_KEY&versionName={{current_version}}&target={{target}}&arch={{arch}}",
+        "https://github.com/yexiyue/SwarmNote/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

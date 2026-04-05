@@ -1,5 +1,6 @@
+//! 设备身份管理：Ed25519 密钥对、PeerId、设备信息。
+
 pub mod commands;
-pub mod config;
 pub mod keychain;
 
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,7 @@ use std::sync::RwLock;
 use swarm_p2p_core::libp2p::identity::Keypair;
 use tauri::Manager;
 
-/// Errors from identity operations.
+/// 身份操作相关的错误类型。
 #[derive(Debug, thiserror::Error)]
 pub enum IdentityError {
     #[error("keychain error: {0}")]
@@ -20,21 +21,24 @@ pub enum IdentityError {
     Config(String),
 }
 
-impl From<IdentityError> for String {
-    fn from(e: IdentityError) -> Self {
-        e.to_string()
-    }
-}
-
-/// Runtime identity state, stored in Tauri State.
+/// 运行时身份状态，存储在 Tauri State 中。
 pub struct IdentityState {
-    /// Used by the P2P network layer (Phase 1).
-    #[allow(dead_code)]
     pub keypair: Keypair,
     pub device_info: RwLock<DeviceInfo>,
 }
 
-/// Device info returned to the frontend.
+impl IdentityState {
+    /// 获取当前设备的 PeerId 字符串。
+    pub fn peer_id(&self) -> crate::error::AppResult<String> {
+        let info = self
+            .device_info
+            .read()
+            .map_err(|e| IdentityError::Config(format!("lock error: {e}")))?;
+        Ok(info.peer_id.clone())
+    }
+}
+
+/// 返回给前端的设备信息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceInfo {
     pub peer_id: String,
@@ -45,24 +49,24 @@ pub struct DeviceInfo {
     pub created_at: String,
 }
 
-/// Initialize device identity during Tauri setup.
+/// 在 Tauri 启动阶段初始化设备身份。
 ///
-/// 1. Load or generate Ed25519 keypair from system keychain
-/// 2. Derive PeerId from public key
-/// 3. Load or create device config (device_name, created_at)
-/// 4. Register IdentityState in Tauri State
-pub fn init(app: &tauri::AppHandle) -> Result<(), IdentityError> {
+/// 1. 从系统钥匙串加载或生成 Ed25519 密钥对
+/// 2. 从公钥派生 PeerId
+/// 3. 加载或创建设备配置（device_name、created_at）
+/// 4. 将 IdentityState 和 GlobalConfigState 注册到 Tauri State
+pub fn init(app: &tauri::AppHandle) -> Result<(), crate::error::AppError> {
     let keypair = keychain::load_or_generate_keypair()?;
     let peer_id = keypair.public().to_peer_id().to_string();
-    let config = config::load_or_create_config()?;
+    let config = crate::config::load_or_create_config()?;
 
     let device_info = DeviceInfo {
         peer_id,
-        device_name: config.device_name,
+        device_name: config.device_name.clone(),
         os: std::env::consts::OS.to_string(),
         platform: std::env::consts::FAMILY.to_string(),
         arch: std::env::consts::ARCH.to_string(),
-        created_at: config.created_at,
+        created_at: config.created_at.clone(),
     };
 
     log::info!(
@@ -74,6 +78,8 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), IdentityError> {
         keypair,
         device_info: RwLock::new(device_info),
     });
+
+    app.manage(crate::config::GlobalConfigState::new(config));
 
     Ok(())
 }
@@ -87,7 +93,7 @@ mod tests {
         let keypair = Keypair::generate_ed25519();
         let peer_id = keypair.public().to_peer_id().to_string();
 
-        // libp2p PeerId starts with "12D3KooW"
+        // libp2p PeerId 以 "12D3KooW" 开头
         assert!(
             peer_id.starts_with("12D3KooW"),
             "PeerId should start with 12D3KooW, got: {peer_id}"

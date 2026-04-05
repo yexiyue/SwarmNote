@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "folders")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id: String,
-    pub workspace_id: String,
-    pub parent_folder_id: Option<String>,
+    pub id: Uuid,
+    pub workspace_id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
     pub name: String,
     pub rel_path: String,
     pub created_by: String,
-    pub created_at: i64,
-    pub updated_at: i64,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
     #[sea_orm(belongs_to, from = "workspace_id", to = "id")]
     pub workspace: HasOne<super::workspaces::Entity>,
     #[sea_orm(
@@ -34,4 +34,4 @@ pub struct Model {
     pub documents: HasMany<super::documents::Entity>,
 }
 
-impl ActiveModelBehavior for ActiveModel {}
+crate::impl_timestamped_behavior!(ActiveModel);

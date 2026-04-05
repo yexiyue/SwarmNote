@@ -5,8 +5,8 @@ use swarm_p2p_core::libp2p::identity::Keypair;
 const SERVICE: &str = "com.swarmnote";
 const KEYPAIR_KEY: &str = "ed25519-keypair";
 
-/// Load an existing Ed25519 keypair from the system keychain,
-/// or generate a new one and store it.
+/// 从系统钥匙串加载已有的 Ed25519 密钥对，
+/// 若不存在则生成新密钥对并存储。
 pub fn load_or_generate_keypair() -> Result<Keypair, crate::identity::IdentityError> {
     match load_keypair_from_keychain() {
         Ok(Some(keypair)) => {

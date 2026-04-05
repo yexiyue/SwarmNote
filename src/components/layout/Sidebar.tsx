@@ -1,51 +1,59 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  ChevronDown,
-  ChevronRight,
-  FilePlus,
-  FileText,
-  Folder,
-  FolderOpen,
-  FolderPlus,
-  Globe,
-  Monitor,
-  Moon,
-  PanelLeft,
-  Sun,
-} from "lucide-react";
+import { FilePlus, FolderOpen, FolderPlus, PanelLeft } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { FileTree } from "@/components/filetree/FileTree";
+import { SyncStatusBar } from "@/components/layout/SyncStatusBar";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { type Locale, locales } from "@/i18n";
-import { cn, isMac, modKey } from "@/lib/utils";
+import { isMac, modKey } from "@/lib/utils";
+import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { useUIStore } from "@/stores/uiStore";
-
-const treeItemBase = "flex items-center gap-1.5 rounded px-2 py-[5px] text-[13px]";
-
-const themeIcons = { light: Sun, dark: Moon, system: Monitor } as const;
-const themeOrder: Array<"light" | "dark" | "system"> = ["light", "dark", "system"];
-const localeKeys = Object.keys(locales) as Locale[];
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 export function Sidebar() {
   const { t } = useLingui();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const theme = useUIStore((s) => s.theme);
-  const setTheme = useUIStore((s) => s.setTheme);
-  const locale = useUIStore((s) => s.locale);
-  const setLocale = useUIStore((s) => s.setLocale);
+  const workspace = useWorkspaceStore((s) => s.workspace);
+  const rescan = useFileTreeStore((s) => s.rescan);
+  const createAndOpenFile = useFileTreeStore((s) => s.createAndOpenFile);
+  const createDir = useFileTreeStore((s) => s.createDir);
 
-  const ThemeIcon = themeIcons[theme];
+  const workspaceUuid = workspace?.id;
 
-  function cycleTheme() {
-    const idx = themeOrder.indexOf(theme);
-    setTheme(themeOrder[(idx + 1) % themeOrder.length]);
-  }
+  // Rescan when workspace changes
+  useEffect(() => {
+    if (workspace) {
+      rescan();
+    }
+  }, [workspace, rescan]);
 
-  function toggleLocale() {
-    const idx = localeKeys.indexOf(locale);
-    setLocale(localeKeys[(idx + 1) % localeKeys.length]);
-  }
+  const handleCreateFile = useCallback(() => {
+    createAndOpenFile("", t`新建笔记`);
+  }, [createAndOpenFile, t]);
+
+  const handleCreateDir = useCallback(() => {
+    createDir("", t`新建文件夹`);
+  }, [createDir, t]);
+
+  // Measure available height for the tree
+  const [treeHeight, setTreeHeight] = useState(400);
+  const treeContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = treeContainerRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setTreeHeight(entry.contentRect.height);
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <aside
@@ -60,13 +68,18 @@ export function Sidebar() {
           <div className="flex items-center gap-1.5">
             <FolderOpen className="h-4 w-4 text-sidebar-primary" />
             <span className="text-[13px] font-semibold text-sidebar-foreground">
-              <Trans>我的笔记</Trans>
+              {workspace?.name ?? <Trans>我的笔记</Trans>}
             </span>
           </div>
           <div className="flex gap-0.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-xs" className="text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground"
+                  onClick={handleCreateFile}
+                >
                   <FilePlus className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -76,7 +89,12 @@ export function Sidebar() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-xs" className="text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground"
+                  onClick={handleCreateDir}
+                >
                   <FolderPlus className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -102,76 +120,13 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* File Tree (static placeholder) */}
-        <ScrollArea className="flex-1">
-          <div className="flex flex-col gap-px">
-            {/* Folder: 日记 (expanded) */}
-            <div className={cn(treeItemBase, "text-sidebar-foreground")}>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              <Folder className="h-3.5 w-3.5 text-primary" />
-              <span>日记</span>
-            </div>
-            <div className={cn(treeItemBase, "bg-sidebar-accent pl-[34px]")}>
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              <span className="font-medium text-sidebar-accent-foreground">2026-03-21</span>
-            </div>
-            <div className={cn(treeItemBase, "pl-[34px] text-sidebar-foreground")}>
-              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>2026-03-19</span>
-            </div>
-            {/* Folder: 项目笔记 (collapsed) */}
-            <div className={cn(treeItemBase, "text-sidebar-foreground")}>
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              <Folder className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>项目笔记</span>
-            </div>
-            <div className={cn(treeItemBase, "text-sidebar-foreground")}>
-              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>快速笔记</span>
-            </div>
-          </div>
-        </ScrollArea>
-
-        {/* Device Info + Quick Settings */}
-        <div className="flex items-center gap-2 border-t border-sidebar-border px-1 pt-2">
-          <Monitor className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <div className="flex min-w-0 flex-1 flex-col gap-px">
-            <span className="text-xs font-medium text-sidebar-foreground">My-Desktop</span>
-            <span className="truncate text-[10px] text-muted-foreground">12D3KooW...a8f2</span>
-          </div>
-          <div className="flex shrink-0 gap-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="text-muted-foreground"
-                  onClick={cycleTheme}
-                  aria-label={t`切换主题`}
-                >
-                  <ThemeIcon className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <Trans>切换主题</Trans>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="text-muted-foreground"
-                  onClick={toggleLocale}
-                  aria-label={t`切换语言`}
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{locales[locale]}</TooltipContent>
-            </Tooltip>
-          </div>
+        {/* File Tree */}
+        <div ref={treeContainerRef} className="flex-1 overflow-hidden">
+          <FileTree width={232} height={treeHeight} />
         </div>
+
+        {/* Sync status indicator */}
+        <SyncStatusBar workspaceUuid={workspaceUuid} />
       </div>
     </aside>
   );

@@ -9,11 +9,13 @@ impl MigrationTrait for Migration {
         let db = manager.get_connection();
         db.execute_unprepared(
             "CREATE TABLE IF NOT EXISTS paired_devices (
-                peer_id TEXT PRIMARY KEY,
-                public_key BLOB NOT NULL,
-                device_name TEXT NOT NULL,
-                os_info TEXT,
-                paired_at INTEGER NOT NULL
+                peer_id     TEXT PRIMARY KEY,
+                hostname    TEXT NOT NULL,
+                os          TEXT,
+                platform    TEXT,
+                arch        TEXT,
+                paired_at   INTEGER NOT NULL,
+                last_seen   INTEGER
             )",
         )
         .await?;

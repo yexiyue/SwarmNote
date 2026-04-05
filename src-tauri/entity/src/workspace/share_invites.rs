@@ -12,8 +12,8 @@ pub struct Model {
     pub role: String,
     pub encrypted_keys: Vec<u8>,
     pub created_by: String,
-    pub created_at: i64,
-    pub expires_at: i64,
+    pub created_at: DateTimeUtc,
+    pub expires_at: DateTimeUtc,
     pub max_uses: Option<i32>,
     #[sea_orm(default_value = 0)]
     pub used_count: i32,

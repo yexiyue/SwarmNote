@@ -1,137 +1,125 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Monitor, Moon, Sun } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { type Locale, locales } from "@/i18n";
+import { createFileRoute, Outlet, useLocation, useRouter } from "@tanstack/react-router";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Info, Minus, MonitorSmartphone, RefreshCw, Settings, X } from "lucide-react";
+import { useEffect } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, isMac } from "@/lib/utils";
-import { useUIStore } from "@/stores/uiStore";
 
-// Language labels are intentionally not translated — they always display in their own language
-const localeOptions = (Object.entries(locales) as [Locale, string][]).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-function optionBtnClass(active: boolean) {
-  return cn(
-    "flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
-    active
-      ? "border-primary bg-primary/10 text-primary"
-      : "border-border text-muted-foreground hover:bg-muted",
-  );
-}
-
-export const Route = createFileRoute("/settings")({
-  component: SettingsPage,
-});
-
-function SettingsPage() {
+function SettingsLayout() {
+  const router = useRouter();
+  const { pathname } = useLocation();
+  const appWindow = getCurrentWindow();
   const { t } = useLingui();
-  const navigate = useNavigate();
-  const theme = useUIStore((s) => s.theme);
-  const setTheme = useUIStore((s) => s.setTheme);
-  const locale = useUIStore((s) => s.locale);
-  const setLocale = useUIStore((s) => s.setLocale);
-  const [deviceName, setDeviceName] = useState("My-Desktop");
 
-  const themeOptions = [
-    { value: "light" as const, label: t`浅色`, icon: Sun },
-    { value: "dark" as const, label: t`深色`, icon: Moon },
-    { value: "system" as const, label: t`跟随系统`, icon: Monitor },
-  ];
+  const navItems = [
+    { to: "/settings/general", icon: Settings, label: t`通用` },
+    { to: "/settings/sync", icon: RefreshCw, label: t`同步` },
+    { to: "/settings/devices", icon: MonitorSmartphone, label: t`设备` },
+    { to: "/settings/about", icon: Info, label: t`关于` },
+  ] as const;
+
+  useEffect(() => {
+    const unlisten = listen<string>("navigate", (event) => {
+      router.navigate({ to: event.payload });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [router]);
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-screen flex-col bg-muted/30">
+      {/* Title Bar */}
       <header
         data-tauri-drag-region
-        className={`flex h-10 shrink-0 items-center gap-3 border-b border-border bg-card px-3 ${isMac ? "pl-[70px]" : ""}`}
+        className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background/60 px-4"
       >
-        <Button variant="ghost" size="icon-sm" onClick={() => navigate({ to: "/" })}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-sm font-semibold text-foreground">
-          <Trans>设置</Trans>
-        </h1>
+        {isMac ? (
+          <div className="w-17.5" data-tauri-drag-region />
+        ) : (
+          <span className="text-sm font-semibold text-foreground" data-tauri-drag-region>
+            <Trans>设置</Trans>
+          </span>
+        )}
+        <div className="flex items-center gap-1">
+          {!isMac && (
+            <>
+              <button
+                type="button"
+                onClick={() => appWindow.minimize()}
+                className="flex h-7 w-9 items-center justify-center text-muted-foreground hover:bg-muted"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => appWindow.close()}
+                className="flex h-7 w-9 items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
-      {/* Content */}
-      <div className="mx-auto w-full max-w-xl space-y-6 overflow-y-auto px-6 py-8">
-        {/* Appearance */}
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-medium text-foreground">
-            <Trans>外观</Trans>
-          </h2>
-          <Separator className="my-3" />
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>
-                <Trans>主题</Trans>
-              </Label>
-              <div className="flex gap-2">
-                {themeOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setTheme(opt.value)}
-                    className={optionBtnClass(theme === opt.value)}
-                  >
-                    <opt.icon className="h-4 w-4" />
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>
-                <Trans>语言</Trans>
-              </Label>
-              <div className="flex gap-2">
-                {localeOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setLocale(opt.value)}
-                    className={optionBtnClass(locale === opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <nav className="flex w-55 flex-col border-r bg-background/60">
+          <div className="p-5 pb-2">
+            {isMac && (
+              <h2 className="text-base font-semibold tracking-tight">
+                <Trans>设置</Trans>
+              </h2>
+            )}
+            <p className={cn("text-xs text-muted-foreground", isMac && "mt-0.5")}>
+              <Trans>管理应用偏好与设备</Trans>
+            </p>
           </div>
-        </section>
 
-        {/* Device */}
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-medium text-foreground">
-            <Trans>设备</Trans>
-          </h2>
-          <Separator className="my-3" />
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="device-name">
-                <Trans>设备名称</Trans>
-              </Label>
-              <Input
-                id="device-name"
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Peer ID</Label>
-              <p className="rounded-md bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
-                12D3KooWAbCdEfGhIjKlMnOpQrStUvWxYz...a8f2
-              </p>
-            </div>
+          <div className="flex flex-col gap-0.5 px-3 pt-2">
+            {navItems.map((item) => {
+              const isActive = pathname.startsWith(item.to);
+              return (
+                <button
+                  key={item.to}
+                  type="button"
+                  onClick={() => router.navigate({ to: item.to })}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
+                    isActive
+                      ? "bg-background font-medium text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
-        </section>
+
+          {/* Bottom branding */}
+          <div className="mt-auto border-t px-5 py-4">
+            <div className="text-xs text-muted-foreground">SwarmNote</div>
+            <div className="text-[11px] text-muted-foreground/60">v0.2.0</div>
+          </div>
+        </nav>
+
+        {/* Content */}
+        <ScrollArea className="flex-1">
+          <main className="mx-auto max-w-2xl px-8 py-8">
+            <Outlet />
+          </main>
+        </ScrollArea>
       </div>
     </div>
   );
 }
+
+export const Route = createFileRoute("/settings")({
+  component: SettingsLayout,
+});
