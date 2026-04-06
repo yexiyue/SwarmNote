@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { activateLocale, detectLocale, type Locale } from "@/i18n";
-import { createTauriStorage, waitForHydration } from "@/lib/tauriStore";
+import { createTauriStorage, onTauriStoreKeyChange, waitForHydration } from "@/lib/tauriStore";
 
 type Theme = "light" | "dark" | "system";
+export type SidebarTab = "filetree" | "outline";
 
 export const SIDEBAR_WIDTH_MIN = 200;
 export const SIDEBAR_WIDTH_MAX = 480;
@@ -13,6 +14,10 @@ interface UIState {
   sidebarOpen: boolean;
   /** Persisted width of the sidebar (before collapse). Clamped to [200, 480]. */
   sidebarWidth: number;
+  /** Which panel is shown in the sidebar content area. */
+  sidebarTab: SidebarTab;
+  /** When true, editor content is constrained to a comfortable reading width. */
+  readableLineLength: boolean;
   workspacePickerOpen: boolean;
   theme: Theme;
   resolvedTheme: "light" | "dark";
@@ -23,6 +28,8 @@ interface UIActions {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  setSidebarTab: (tab: SidebarTab) => void;
+  setReadableLineLength: (enabled: boolean) => void;
   setWorkspacePickerOpen: (open: boolean) => void;
   setTheme: (theme: Theme) => void;
   setLocale: (locale: Locale) => void;
@@ -41,6 +48,8 @@ export const useUIStore = create<UIState & UIActions>()(
     (set) => ({
       sidebarOpen: true,
       sidebarWidth: SIDEBAR_WIDTH_DEFAULT,
+      sidebarTab: "filetree" as SidebarTab,
+      readableLineLength: true,
       workspacePickerOpen: false,
       theme: "light",
       resolvedTheme: "light",
@@ -57,6 +66,10 @@ export const useUIStore = create<UIState & UIActions>()(
         if (clamped === useUIStore.getState().sidebarWidth) return;
         set({ sidebarWidth: clamped });
       },
+
+      setSidebarTab: (tab) => set({ sidebarTab: tab }),
+
+      setReadableLineLength: (enabled) => set({ readableLineLength: enabled }),
 
       setWorkspacePickerOpen: (open) => set({ workspacePickerOpen: open }),
 
@@ -79,6 +92,8 @@ export const useUIStore = create<UIState & UIActions>()(
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         sidebarWidth: state.sidebarWidth,
+        sidebarTab: state.sidebarTab,
+        readableLineLength: state.readableLineLength,
         theme: state.theme,
         locale: state.locale,
       }),
@@ -101,5 +116,24 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
   const { theme, setTheme } = useUIStore.getState();
   if (theme === "system") {
     setTheme("system");
+  }
+});
+
+// Sync theme/locale from other windows via Tauri plugin-store cross-window events
+onTauriStoreKeyChange<string>("settings.json", "swarmnote-ui", (raw) => {
+  if (!raw) return;
+  try {
+    const persisted = JSON.parse(raw) as { state?: { theme?: Theme; locale?: Locale } };
+    const incoming = persisted.state;
+    if (!incoming) return;
+    const current = useUIStore.getState();
+    if (incoming.theme && incoming.theme !== current.theme) {
+      current.setTheme(incoming.theme);
+    }
+    if (incoming.locale && incoming.locale !== current.locale) {
+      current.setLocale(incoming.locale);
+    }
+  } catch {
+    // Ignore parse errors
   }
 });

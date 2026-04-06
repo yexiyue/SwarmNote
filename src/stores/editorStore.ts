@@ -1,3 +1,4 @@
+import type { BlockNoteEditor } from "@blocknote/core";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createTauriStorage, waitForHydration } from "@/lib/tauriStore";
@@ -23,6 +24,10 @@ interface EditorState {
   charCount: number;
   /** Recently opened documents, keyed by workspace id. Most-recent first, capped at 10 per workspace. */
   recentDocs: Record<string, RecentDoc[]>;
+  /** Transient: current BlockNote editor instance (not persisted). */
+  editorInstance: BlockNoteEditor | null;
+  /** Transient: scroll container ref for outline navigation (not persisted). */
+  scrollContainerRef: HTMLDivElement | null;
 }
 
 interface EditorActions {
@@ -36,6 +41,8 @@ interface EditorActions {
   clear: () => void;
   /** Drop recentDocs entries for workspace ids not present in the given set. */
   pruneRecentDocs: (validWorkspaceIds: Set<string>) => void;
+  setEditorInstance: (editor: BlockNoteEditor | null) => void;
+  setScrollContainerRef: (ref: HTMLDivElement | null) => void;
 }
 
 const ephemeralInitial = {
@@ -51,6 +58,8 @@ const ephemeralInitial = {
 const initialState: EditorState = {
   ...ephemeralInitial,
   recentDocs: {},
+  editorInstance: null,
+  scrollContainerRef: null,
 };
 
 export const useEditorStore = create<EditorState & EditorActions>()(
@@ -117,6 +126,9 @@ export const useEditorStore = create<EditorState & EditorActions>()(
           }
           return { recentDocs: next };
         }),
+
+      setEditorInstance: (editor) => set({ editorInstance: editor }),
+      setScrollContainerRef: (ref) => set({ scrollContainerRef: ref }),
     }),
     {
       name: "swarmnote-editor",

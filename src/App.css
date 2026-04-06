@@ -114,10 +114,39 @@ body {
   color: var(--foreground);
 }
 
-/* Make code block language selector always visible (override BlockNote defaults) */
+/* Editor background transparent — blend with page */
+.bn-editor {
+  background-color: transparent;
+  padding-inline: 40px;
+}
+
+@media (min-width: 1024px) {
+  .bn-editor {
+    padding-inline: 54px;
+  }
+}
+
+/* Code block: theme-aware styling (override BlockNote's default dark bg) */
+.bn-block-content[data-content-type="codeBlock"] {
+  background-color: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.bn-block-content[data-content-type="codeBlock"] > pre {
+  color: var(--foreground);
+}
+
+/* Language selector: theme-aware color + always visible */
 body .bn-block-content[data-content-type="codeBlock"] > div > select {
+  color: var(--muted-foreground);
   opacity: 0.6;
   transition-delay: 0s;
+}
+
+body .bn-block-content[data-content-type="codeBlock"] > div > select > option {
+  color: var(--foreground);
+  background-color: var(--popover);
 }
 
 body .bn-block-content[data-content-type="codeBlock"]:hover > div > select,

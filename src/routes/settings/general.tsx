@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Globe, Palette } from "lucide-react";
+import { FolderOpen, Globe, Palette, WrapText } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import type { Locale } from "@/i18n";
@@ -88,6 +88,9 @@ function GeneralSettingsPage() {
   const setTheme = useUIStore((s) => s.setTheme);
   const setLocale = useUIStore((s) => s.setLocale);
 
+  const readableLineLength = useUIStore((s) => s.readableLineLength);
+  const setReadableLineLength = useUIStore((s) => s.setReadableLineLength);
+
   const restoreLastWorkspace = usePreferencesStore((s) => s.restoreLastWorkspace);
   const setRestoreLastWorkspace = usePreferencesStore((s) => s.setRestoreLastWorkspace);
 
@@ -126,6 +129,14 @@ function GeneralSettingsPage() {
                   { value: "system", label: t`跟随系统` },
                 ]}
               />
+            </SettingRow>
+            <Separator />
+            <SettingRow
+              icon={WrapText}
+              label={t`可读行宽`}
+              description={t`限制编辑器内容宽度以提升阅读体验`}
+            >
+              <Switch checked={readableLineLength} onCheckedChange={setReadableLineLength} />
             </SettingRow>
           </div>
         </SettingCard>

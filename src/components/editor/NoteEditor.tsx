@@ -2,6 +2,7 @@ import { codeBlockOptions } from "@blocknote/code-block";
 import {
   BlockNoteSchema,
   createCodeBlockSpec,
+  createHeadingBlockSpec,
   type Dictionary,
   defaultBlockSpecs,
 } from "@blocknote/core";
@@ -22,11 +23,13 @@ import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { CustomReactImageBlock } from "./CustomImageBlock";
 import { CustomReactVideoBlock } from "./CustomVideoBlock";
-import { EditorTitle } from "./EditorTitle";
+
+const { heading: _heading, ...restBlockSpecs } = defaultBlockSpecs;
 
 const schema = BlockNoteSchema.create({
   blockSpecs: {
-    ...defaultBlockSpecs,
+    ...restBlockSpecs,
+    heading: createHeadingBlockSpec({ allowToggleHeadings: false }),
     codeBlock: createCodeBlockSpec(codeBlockOptions),
     image: CustomReactImageBlock(),
     video: CustomReactVideoBlock(),
@@ -111,6 +114,7 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
   const { t } = useLingui();
   const resolvedTheme = useUIStore((s) => s.resolvedTheme);
   const locale = useUIStore((s) => s.locale);
+  const readableLineLength = useUIStore((s) => s.readableLineLength);
   const markDirty = useEditorStore((s) => s.markDirty);
   const setCharCount = useEditorStore((s) => s.setCharCount);
   const docUuid = useEditorStore((s) => s.docUuid);
@@ -154,6 +158,7 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
       dictionary,
       uploadFile,
       resolveFileUrl,
+      trailingBlock: false,
       collaboration: {
         provider,
         fragment: ydoc.getXmlFragment("document-store"),
@@ -255,10 +260,19 @@ function NoteEditorInner({ ydoc, provider }: { ydoc: Y.Doc; provider: TauriYjsPr
     };
   }, [docUuid, t]);
 
+  // Expose editor instance to store for sidebar outline
+  useEffect(() => {
+    useEditorStore.getState().setEditorInstance(editor);
+    return () => {
+      useEditorStore.getState().setEditorInstance(null);
+    };
+  }, [editor]);
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <EditorTitle />
-      <BlockNoteView editor={editor} theme={resolvedTheme === "dark" ? "dark" : "light"} />
-    </div>
+    <BlockNoteView
+      editor={editor}
+      theme={resolvedTheme === "dark" ? "dark" : "light"}
+      className={`w-full [&_.bn-editor]:pb-32 ${readableLineLength ? "[&_.bn-editor]:mx-auto [&_.bn-editor]:max-w-4xl" : ""}`}
+    />
   );
 }
