@@ -66,6 +66,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "lefthook": "^2.1.4",
+    "tailwind-scrollbar": "^4.0.2",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
   }

@@ -1,13 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  ChevronsUpDown,
-  FilePlus,
-  FolderOpen,
-  FolderPlus,
-  FolderTree,
-  List,
-  PanelLeft,
-} from "lucide-react";
+import { FilePlus, FolderPlus, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DocumentOutline } from "@/components/editor/DocumentOutline";
@@ -15,30 +7,17 @@ import { FileTree } from "@/components/filetree/FileTree";
 import { SyncStatusBar } from "@/components/layout/SyncStatusBar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { WorkspacePopover } from "@/components/workspace/WorkspacePopover";
-import { cn, isMac, modKey } from "@/lib/utils";
+import { isMac } from "@/lib/utils";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
-import {
-  SIDEBAR_WIDTH_MAX,
-  SIDEBAR_WIDTH_MIN,
-  type SidebarTab,
-  useUIStore,
-} from "@/stores/uiStore";
+import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
-
-const TABS: { id: SidebarTab; icon: typeof FolderTree }[] = [
-  { id: "filetree", icon: FolderTree },
-  { id: "outline", icon: List },
-];
 
 export function Sidebar() {
   const { t } = useLingui();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const setSidebarWidth = useUIStore((s) => s.setSidebarWidth);
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const sidebarTab = useUIStore((s) => s.sidebarTab);
-  const setSidebarTab = useUIStore((s) => s.setSidebarTab);
   const workspace = useWorkspaceStore((s) => s.workspace);
   const rescan = useFileTreeStore((s) => s.rescan);
   const createAndOpenFile = useFileTreeStore((s) => s.createAndOpenFile);
@@ -92,7 +71,6 @@ export function Sidebar() {
 
   const workspaceUuid = workspace?.id;
 
-  // Rescan when workspace changes
   useEffect(() => {
     if (workspace) {
       rescan();
@@ -107,6 +85,7 @@ export function Sidebar() {
     createDir("", t`新建文件夹`);
   }, [createDir, t]);
 
+  const [searchTerm, setSearchTerm] = useState("");
   const [treeHeight, setTreeHeight] = useState(400);
   const treeContainerRef = useRef<HTMLDivElement>(null);
 
@@ -129,104 +108,73 @@ export function Sidebar() {
       className="group/sidebar relative flex shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-in-out"
       style={{ width: sidebarOpen ? sidebarWidth : 0 }}
     >
-      <div className="flex h-full flex-col gap-3 p-3" style={{ minWidth: sidebarWidth }}>
+      <div className="flex h-full flex-col" style={{ minWidth: sidebarWidth }}>
         {/* macOS traffic light spacer */}
         {isMac && <div className="h-6 shrink-0" data-tauri-drag-region />}
 
-        {/* Header: workspace switcher + tree actions */}
-        <div className="flex items-center justify-between gap-1">
-          <WorkspacePopover side="bottom">
-            <button
-              type="button"
-              title={workspace?.path}
-              aria-label={t`切换工作区`}
-              className="group/ws -ml-1 flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:bg-sidebar-accent aria-expanded:bg-sidebar-accent"
-            >
-              <FolderOpen className="h-3.5 w-3.5 shrink-0 text-sidebar-primary" />
-              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-sidebar-foreground">
-                {workspace?.name ?? <Trans>我的笔记</Trans>}
-              </span>
-              <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground/60 transition-colors group-hover/ws:text-muted-foreground group-aria-expanded/ws:text-muted-foreground" />
-            </button>
-          </WorkspacePopover>
-          <div className="flex shrink-0 items-center gap-0.5">
-            {sidebarTab === "filetree" && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="text-muted-foreground"
-                      onClick={handleCreateFile}
-                    >
-                      <FilePlus className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <Trans>新建文件</Trans>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="text-muted-foreground"
-                      onClick={handleCreateDir}
-                    >
-                      <FolderPlus className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <Trans>新建文件夹</Trans>
-                  </TooltipContent>
-                </Tooltip>
-                <div className="mx-0.5 h-3.5 w-px bg-sidebar-border" aria-hidden="true" />
-              </>
-            )}
+        {/* File tree header: search + actions (only in filetree mode) */}
+        {sidebarTab === "filetree" && (
+          <div className="flex shrink-0 items-center gap-1 px-2 py-1.5">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-sidebar-border bg-sidebar px-2">
+              <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={t`搜索文件...`}
+                className="min-w-0 flex-1 bg-transparent py-1 text-xs text-sidebar-foreground outline-none placeholder:text-muted-foreground"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="shrink-0 text-muted-foreground hover:text-sidebar-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  className="text-muted-foreground"
-                  onClick={toggleSidebar}
+                  className="shrink-0 text-muted-foreground"
+                  onClick={handleCreateFile}
                 >
-                  <PanelLeft className="h-3.5 w-3.5" />
+                  <FilePlus className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {t`收起侧边栏`} ({modKey}B)
+                <Trans>新建文件</Trans>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="shrink-0 text-muted-foreground"
+                  onClick={handleCreateDir}
+                >
+                  <FolderPlus className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <Trans>新建文件夹</Trans>
               </TooltipContent>
             </Tooltip>
           </div>
-        </div>
-
-        {/* Tab switcher */}
-        <div className="flex shrink-0 border-b border-sidebar-border">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSidebarTab(tab.id)}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 py-1.5 text-xs transition-colors",
-                sidebarTab === tab.id
-                  ? "border-b-2 border-primary text-sidebar-foreground font-medium"
-                  : "border-b-2 border-transparent text-muted-foreground hover:text-sidebar-foreground",
-              )}
-            >
-              <tab.icon className="h-3.5 w-3.5" />
-              {tab.id === "filetree" ? t`文件` : t`大纲`}
-            </button>
-          ))}
-        </div>
+        )}
 
         {/* Content area */}
         <div ref={treeContainerRef} className="flex-1 overflow-hidden">
           {sidebarTab === "filetree" ? (
-            <FileTree width={sidebarWidth - 24} height={treeHeight} />
+            <FileTree
+              width={sidebarWidth}
+              height={treeHeight}
+              searchTerm={searchTerm || undefined}
+            />
           ) : (
             <DocumentOutline height={treeHeight} />
           )}

@@ -56,16 +56,17 @@ export function FileTreeNodeRenderer({
   return (
     <div
       ref={dragHandle}
-      style={style}
+      style={{
+        ...style,
+        // Add base left padding on top of react-arborist's indent
+        paddingLeft: `${Number.parseInt(String(style.paddingLeft || "0"), 10) + 8}px`,
+      }}
       role="treeitem"
-      // Roving tabindex: only the currently-focused node is Tab-reachable.
-      // react-arborist manages focus and handles arrow-key navigation on
-      // its Tree container.
       tabIndex={node.isFocused ? 0 : -1}
       aria-selected={isSelected}
       aria-expanded={node.isInternal ? node.isOpen : undefined}
       className={cn(
-        "flex items-center gap-1 rounded px-2 py-1.25 text-[13px] cursor-default",
+        "mx-2 flex items-center gap-1 rounded-md pr-3 py-1.25 text-[13px] cursor-default",
         isSelected
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
           : "text-sidebar-foreground hover:bg-sidebar-accent/50",

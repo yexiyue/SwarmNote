@@ -1,6 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useRef } from "react";
+import { SearchX } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { NodeApi } from "react-arborist";
 import { Tree, type TreeApi } from "react-arborist";
 import type { FileTreeNode } from "@/commands/fs";
@@ -13,9 +14,10 @@ import { FileTreeNodeRenderer } from "./FileTreeNode";
 interface FileTreeProps {
   width: number;
   height: number;
+  searchTerm?: string;
 }
 
-export function FileTree({ width, height }: FileTreeProps) {
+export function FileTree({ width, height, searchTerm }: FileTreeProps) {
   const { t } = useLingui();
   const tree = useFileTreeStore((s) => s.tree);
   const isLoading = useFileTreeStore((s) => s.isLoading);
@@ -164,6 +166,15 @@ export function FileTree({ width, height }: FileTreeProps) {
     [selectFile, loadDocument],
   );
 
+  // Check if search yields no results (hook must be before early returns)
+  const hasSearchResults = useMemo(() => {
+    if (!searchTerm || tree.length === 0) return true;
+    const term = searchTerm.toLowerCase();
+    const check = (nodes: FileTreeNode[]): boolean =>
+      nodes.some((n) => n.name.toLowerCase().includes(term) || (n.children && check(n.children)));
+    return check(tree);
+  }, [searchTerm, tree]);
+
   if (isLoading && tree.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -174,6 +185,15 @@ export function FileTree({ width, height }: FileTreeProps) {
 
   if (tree.length === 0) {
     return <EmptyTreeState />;
+  }
+
+  if (!hasSearchResults) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+        <SearchX className="h-8 w-8 opacity-30" />
+        <p className="text-xs">{t`没有匹配的文件`}</p>
+      </div>
+    );
   }
 
   return (
@@ -197,6 +217,8 @@ export function FileTree({ width, height }: FileTreeProps) {
           onRename={handleRenameSubmit}
           onActivate={handleActivate}
           onMove={handleMove}
+          searchTerm={searchTerm}
+          searchMatch={(node, term) => node.data.name.toLowerCase().includes(term.toLowerCase())}
         >
           {(props) => (
             <FileTreeContextMenu

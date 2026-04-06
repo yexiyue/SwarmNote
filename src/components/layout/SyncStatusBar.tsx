@@ -58,7 +58,7 @@ export function SyncStatusBar({ workspaceUuid }: SyncStatusBarProps) {
   const labelText = useSyncLabelText(label);
 
   return (
-    <div className="border-t border-sidebar-border px-1 pt-2">
+    <div className="border-t border-sidebar-border px-2 py-1.5">
       <button
         type="button"
         className="flex w-full items-center gap-1.5 rounded-sm px-1 py-1 text-left hover:bg-sidebar-accent"

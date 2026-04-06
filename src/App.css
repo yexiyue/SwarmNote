@@ -6,6 +6,8 @@
 
 @source "../node_modules/@blocknote/shadcn";
 
+@plugin 'tailwind-scrollbar';
+
 @custom-variant hover-none (@media (hover: none));
 
 @theme inline {
@@ -108,10 +110,16 @@
   border-color: var(--color-border);
 }
 
+
 body {
   font-family: var(--font-sans);
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Global scrollbar: thin + theme-aware colors */
+* {
+  @apply scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50;
 }
 
 /* Editor background transparent — blend with page */
