@@ -1,4 +1,5 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { toast } from "sonner";
 import { unpairDevice } from "@/commands/pairing";
 import {
   AlertDialog,
@@ -27,11 +28,13 @@ export function UnpairConfirmDialog({
   peerId,
   onConfirm,
 }: UnpairConfirmDialogProps) {
+  const { t } = useLingui();
   const { loading, run } = useAsyncAction();
 
   async function handleConfirm() {
     await run(async () => {
       await unpairDevice(peerId);
+      toast.success(t`已取消与 ${deviceName} 的配对`);
       onConfirm();
     });
   }

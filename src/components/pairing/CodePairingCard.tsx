@@ -51,8 +51,8 @@ export function CodePairingCard() {
   async function handleGenerate() {
     try {
       setCodeInfo(await generatePairingCode(300));
-    } catch (e) {
-      console.error("Failed to generate pairing code:", e);
+    } catch {
+      toast.error(t`生成配对码失败`);
     }
   }
 

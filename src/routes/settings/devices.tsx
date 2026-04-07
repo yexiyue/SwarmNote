@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Check, Link, Loader2, Radio, RefreshCw, X } from "lucide-react";
 import type * as React from "react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { type DeviceInfo, getDeviceInfo, setDeviceName } from "@/commands/identity";
 import { CodePairingCard } from "@/components/pairing/CodePairingCard";
 import { DeviceAvatar } from "@/components/pairing/DeviceAvatar";
@@ -164,9 +165,14 @@ function DevicesPage() {
               <InlineEditName
                 currentName={myDevice?.device_name ?? ""}
                 onSave={async (name) => {
-                  await setDeviceName(name);
-                  setMyDevice((prev) => (prev ? { ...prev, device_name: name } : prev));
-                  setIsEditing(false);
+                  try {
+                    await setDeviceName(name);
+                    setMyDevice((prev) => (prev ? { ...prev, device_name: name } : prev));
+                    setIsEditing(false);
+                    toast.success(t`设备名称已更新`);
+                  } catch {
+                    toast.error(t`更新名称失败`);
+                  }
                 }}
                 onCancel={() => setIsEditing(false)}
               />

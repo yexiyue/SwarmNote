@@ -1,4 +1,5 @@
 import { Trans } from "@lingui/react/macro";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { getDeviceByCode } from "@/commands/pairing";
@@ -12,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorMessage } from "@/components/ui/error-message";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 
 interface InputCodeDialogProps {
@@ -28,8 +30,8 @@ export function InputCodeDialog({ open, onOpenChange, onDeviceFound }: InputCode
   const [code, setCode] = useState("");
   const { loading, error, run, clearError } = useAsyncAction();
 
-  function handleCodeChange(value: string) {
-    setCode(value.replace(/\D/g, "").slice(0, 6));
+  function handleChange(value: string) {
+    setCode(value);
     clearError();
   }
 
@@ -62,15 +64,22 @@ export function InputCodeDialog({ open, onOpenChange, onDeviceFound }: InputCode
         </DialogHeader>
 
         <div className="flex justify-center py-2">
-          <input
-            type="text"
-            inputMode="numeric"
-            value={code}
-            onChange={(e) => handleCodeChange(e.target.value)}
-            placeholder="000000"
+          <InputOTP
             maxLength={6}
-            className="w-48 rounded-lg border bg-muted px-4 py-3 text-center font-mono text-2xl tracking-[0.3em] outline-none focus:ring-2 focus:ring-ring"
-          />
+            pattern={REGEXP_ONLY_DIGITS}
+            value={code}
+            onChange={handleChange}
+            onComplete={handleSearch}
+          >
+            <InputOTPGroup className="gap-2">
+              <InputOTPSlot index={0} className="size-11 rounded-md border text-lg" />
+              <InputOTPSlot index={1} className="size-11 rounded-md border text-lg" />
+              <InputOTPSlot index={2} className="size-11 rounded-md border text-lg" />
+              <InputOTPSlot index={3} className="size-11 rounded-md border text-lg" />
+              <InputOTPSlot index={4} className="size-11 rounded-md border text-lg" />
+              <InputOTPSlot index={5} className="size-11 rounded-md border text-lg" />
+            </InputOTPGroup>
+          </InputOTP>
         </div>
 
         <ErrorMessage error={error} className="text-center" />

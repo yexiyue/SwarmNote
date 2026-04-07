@@ -1,4 +1,5 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { toast } from "sonner";
 import type { Device } from "@/commands/pairing";
 import { requestPairing } from "@/commands/pairing";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ interface NearbyDeviceCardProps {
 }
 
 export function NearbyDeviceCard({ device, onPaired, isLast }: NearbyDeviceCardProps) {
+  const { t } = useLingui();
   const { loading, run } = useAsyncAction();
 
   async function handlePair() {
@@ -29,7 +31,10 @@ export function NearbyDeviceCard({ device, onPaired, isLast }: NearbyDeviceCardP
         },
       );
       if (resp.status === "Success") {
+        toast.success(t`已与 ${device.hostname} 配对`);
         onPaired?.();
+      } else {
+        toast.error(resp.reason ?? t`配对被拒绝`);
       }
     });
   }
