@@ -169,7 +169,7 @@ function DevicesPage() {
                     await setDeviceName(name);
                     setMyDevice((prev) => (prev ? { ...prev, device_name: name } : prev));
                     setIsEditing(false);
-                    toast.success(t`设备名称已更新`);
+                    toast.success(t`设备名称已更新，网络身份已同步`);
                   } catch {
                     toast.error(t`更新名称失败`);
                   }
@@ -180,7 +180,9 @@ function DevicesPage() {
               <div className="text-sm font-semibold">{myDevice?.device_name ?? "—"}</div>
             )}
             <div className="mt-0.5 text-xs text-muted-foreground">
-              {myDevice ? `${myDevice.os} · ${myDevice.platform} · ` : "— · "}
+              {myDevice
+                ? `${myDevice.device_name !== myDevice.hostname ? `${myDevice.hostname} · ` : ""}${myDevice.os} · ${myDevice.platform} · `
+                : "— · "}
               <Trans>当前设备</Trans>
             </div>
             {myDevice && (

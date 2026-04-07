@@ -30,15 +30,15 @@ export function PairedDeviceCard({ device, onUnpaired, isLast }: PairedDeviceCar
         <DeviceAvatar os={device.os} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-medium">{device.hostname}</span>
+            <span className="text-[13px] font-medium">{device.name ?? device.hostname}</span>
             {isOnline && device.connection && (
               <ConnectionBadge type={device.connection} latency={device.latency} />
             )}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {isOnline
-              ? `${device.os} · ${device.platform}`
-              : `${device.os} · ${device.platform} · ${t`最后在线 ${formatRelativeTime(device.lastSeen ?? null)}`}`}
+              ? `${device.name ? `${device.hostname} · ` : ""}${device.os} · ${device.platform}`
+              : `${device.name ? `${device.hostname} · ` : ""}${device.os} · ${device.platform} · ${t`最后在线 ${formatRelativeTime(device.lastSeen ?? null)}`}`}
           </div>
         </div>
         <button

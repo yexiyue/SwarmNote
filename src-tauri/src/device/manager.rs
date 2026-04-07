@@ -188,6 +188,8 @@ impl DeviceManager {
                     let info = entry.value();
                     let peer_id = info.peer_id.parse::<PeerId>().ok()?;
                     let peer_info = self.peers.get(&peer_id);
+
+                    // Online: use real-time identity from PeerInfo; offline: fall back to DB snapshot
                     let (status, connection, latency) = match peer_info.as_deref() {
                         Some(p) if p.is_connected => {
                             connection_info(&p.addrs, p.rtt_ms, p.hole_punched)
@@ -195,12 +197,30 @@ impl DeviceManager {
                         _ => (DeviceStatus::Offline, None, None),
                     };
 
+                    let live_os = peer_info
+                        .as_deref()
+                        .filter(|p| p.is_connected)
+                        .and_then(|p| p.agent_version.as_deref())
+                        .and_then(OsInfo::from_agent_version);
+
+                    let (name, hostname, os, platform, arch) = match live_os {
+                        Some(oi) => (oi.name, oi.hostname, oi.os, oi.platform, oi.arch),
+                        None => (
+                            None,
+                            info.hostname.clone(),
+                            info.os.clone(),
+                            info.platform.clone(),
+                            info.arch.clone(),
+                        ),
+                    };
+
                     Some(Device {
                         peer_id: info.peer_id.clone(),
-                        hostname: info.hostname.clone(),
-                        os: info.os.clone(),
-                        platform: info.platform.clone(),
-                        arch: info.arch.clone(),
+                        name,
+                        hostname,
+                        os,
+                        platform,
+                        arch,
                         status,
                         connection,
                         latency,
@@ -231,6 +251,7 @@ impl DeviceManager {
 
         Device {
             peer_id: peer.peer_id.to_string(),
+            name: os_info.name,
             hostname: os_info.hostname,
             os: os_info.os,
             platform: os_info.platform,

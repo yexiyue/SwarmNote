@@ -37,6 +37,7 @@ export type ConnectionType = "lan" | "dcutr" | "relay";
 
 export interface Device {
   peerId: string;
+  name?: string;
   hostname: string;
   os: string;
   platform: string;

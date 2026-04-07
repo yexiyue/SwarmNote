@@ -61,5 +61,6 @@ export function setupPairingListeners() {
 
   listen("devices-changed", () => {
     usePairingStore.getState().loadNearbyDevices();
+    usePairingStore.getState().loadPairedDevices();
   });
 }

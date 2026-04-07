@@ -44,12 +44,13 @@ export function NearbyDeviceCard({ device, onPaired, isLast }: NearbyDeviceCardP
       <DeviceAvatar os={device.os} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-[13px]">{device.hostname}</span>
+          <span className="text-[13px]">{device.name ?? device.hostname}</span>
           {device.connection && (
             <ConnectionBadge type={device.connection} latency={device.latency} />
           )}
         </div>
         <div className="text-[11px] text-muted-foreground">
+          {device.name ? `${device.hostname} · ` : ""}
           {device.os} · {device.platform}
         </div>
       </div>

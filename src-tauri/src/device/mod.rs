@@ -32,6 +32,7 @@ pub enum DeviceStatus {
 #[serde(rename_all = "camelCase")]
 pub struct Device {
     pub peer_id: String,
+    pub name: Option<String>,
     pub hostname: String,
     pub os: String,
     pub platform: String,

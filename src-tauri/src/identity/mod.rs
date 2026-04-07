@@ -43,6 +43,7 @@ impl IdentityState {
 pub struct DeviceInfo {
     pub peer_id: String,
     pub device_name: String,
+    pub hostname: String,
     pub os: String,
     pub platform: String,
     pub arch: String,
@@ -63,6 +64,9 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), crate::error::AppError> {
     let device_info = DeviceInfo {
         peer_id,
         device_name: config.device_name.clone(),
+        hostname: hostname::get()
+            .map(|h| h.to_string_lossy().to_string())
+            .unwrap_or_default(),
         os: std::env::consts::OS.to_string(),
         platform: std::env::consts::FAMILY.to_string(),
         arch: std::env::consts::ARCH.to_string(),
@@ -126,6 +130,7 @@ mod tests {
         let info = DeviceInfo {
             peer_id: "12D3KooWTest".to_string(),
             device_name: "Test Device".to_string(),
+            hostname: "DESKTOP-TEST".to_string(),
             os: "windows".to_string(),
             platform: "windows".to_string(),
             arch: "x86_64".to_string(),

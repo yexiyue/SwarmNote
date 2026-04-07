@@ -28,8 +28,18 @@ pub async fn do_start_p2p_node(
 
     let peer_id = keypair.public().to_peer_id();
 
-    // 构建 agent_version
-    let os_info = OsInfo::default();
+    // 构建 agent_version（包含用户自定义设备名称）
+    let mut os_info = OsInfo::default();
+    let identity_state = app.state::<IdentityState>();
+    let device_name = identity_state
+        .device_info
+        .read()
+        .map(|info| info.device_name.clone())
+        .unwrap_or_default();
+    // 只有当 device_name 与系统 hostname 不同时才设置 name 字段
+    if device_name != os_info.hostname {
+        os_info.name = Some(device_name);
+    }
     let agent_version = os_info.to_agent_version(env!("CARGO_PKG_VERSION"));
 
     // 创建节点配置
