@@ -80,6 +80,9 @@ pub fn run() {
             pairing::commands::get_nearby_devices,
             pairing::commands::list_devices,
             pairing::commands::get_remote_workspaces,
+            workspace::commands::finish_onboarding,
+            workspace::commands::remove_recent_workspace,
+            workspace::commands::open_workspace_manager_window,
             workspace::commands::open_settings_window,
             // Y.Doc 管理
             yjs::commands::open_ydoc,
@@ -96,7 +99,7 @@ pub fn run() {
             {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     let label = window.label();
-                    let is_workspace = label == "main" || label.starts_with("ws-");
+                    let is_workspace = label.starts_with("ws-");
 
                     if is_workspace {
                         // 统计当前可见的工作区窗口数量
@@ -106,8 +109,7 @@ pub fn run() {
                             .webview_windows()
                             .iter()
                             .filter(|(l, w)| {
-                                (*l == "main" || l.starts_with("ws-"))
-                                    && w.is_visible().unwrap_or(false)
+                                l.starts_with("ws-") && w.is_visible().unwrap_or(false)
                             })
                             .count();
 
@@ -125,7 +127,7 @@ pub fn run() {
                         }
                         // 否则：还有其他工作区窗口，正常关闭
                     }
-                    // 非工作区窗口（settings 等）：正常关闭销毁
+                    // 非工作区窗口（settings, workspace-manager, onboarding）：正常关闭销毁
                 }
             }
         })
@@ -135,20 +137,6 @@ pub fn run() {
             identity::init(app.handle())?;
             app.manage(fs::watcher::FsWatcherState::new());
             workspace::init(app.handle())?;
-
-            // 如果主窗口自动恢复了工作区，启动对应的 fs watcher
-            {
-                let ws_state = app.state::<workspace::state::WorkspaceState>();
-                let watcher_state = app.state::<fs::watcher::FsWatcherState>();
-                if let Some(info) = tauri::async_runtime::block_on(ws_state.get_by_label("main")) {
-                    let ws_path = std::path::PathBuf::from(&info.path);
-                    if let Err(e) =
-                        fs::watcher::start_watching(app.handle(), "main", &ws_path, &watcher_state)
-                    {
-                        log::warn!("Failed to start fs watcher for auto-restored workspace: {e}");
-                    }
-                }
-            }
 
             // Y.Doc 管理器
             app.manage(yjs::manager::YDocManager::new());
@@ -162,10 +150,52 @@ pub fn run() {
                 tray::TrayManager::init(app.handle())?;
             }
 
-            #[cfg(not(target_os = "macos"))]
-            {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.set_decorations(false)?;
+            // 根据 onboarding 状态和恢复偏好决定创建哪种窗口
+            match workspace::determine_startup_window(app.handle()) {
+                workspace::StartupWindow::Onboarding => {
+                    workspace::commands::create_onboarding_window(app.handle())?;
+                }
+                workspace::StartupWindow::WorkspaceManager => {
+                    tauri::async_runtime::block_on(async {
+                        if let Err(e) =
+                            workspace::commands::open_workspace_manager_window(app.handle().clone())
+                                .await
+                        {
+                            log::error!("Failed to create workspace manager window: {e}");
+                        }
+                    });
+                }
+                workspace::StartupWindow::RestoreWorkspace(path) => {
+                    // 创建工作区窗口并绑定。复用 open_workspace_window 的逻辑。
+                    let handle = app.handle().clone();
+                    tauri::async_runtime::block_on(async {
+                        let db_state = handle.state::<workspace::state::DbState>();
+                        let identity = handle.state::<identity::IdentityState>();
+                        let config_state = handle.state::<config::GlobalConfigState>();
+                        let ws_state = handle.state::<workspace::state::WorkspaceState>();
+                        let watcher_state = handle.state::<fs::watcher::FsWatcherState>();
+                        if let Err(e) = workspace::commands::open_workspace_window(
+                            handle.clone(),
+                            path,
+                            None,
+                            None,
+                            db_state,
+                            identity,
+                            config_state,
+                            ws_state,
+                            watcher_state,
+                        )
+                        .await
+                        {
+                            log::error!("Failed to restore workspace: {e}");
+                            // Fallback to workspace manager
+                            if let Err(e2) =
+                                workspace::commands::open_workspace_manager_window(handle).await
+                            {
+                                log::error!("Failed to create workspace manager window: {e2}");
+                            }
+                        }
+                    });
                 }
             }
 

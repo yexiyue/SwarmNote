@@ -171,6 +171,15 @@ async fn bind_workspace_to_window(
         log::warn!("Failed to start fs watcher for window '{label}': {e}");
     }
 
+    // 刷新托盘菜单（最近工作区列表已更新）
+    #[cfg(desktop)]
+    {
+        let app = app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            crate::tray::refresh_tray_menu(&app).await;
+        });
+    }
+
     info
 }
 
@@ -259,17 +268,33 @@ pub async fn get_recent_workspaces(
     Ok(config.recent_workspaces.clone())
 }
 
+/// 关闭指定 label 的窗口（如果存在），忽略不存在的 label。
+/// Debug 模式下 main 窗口仅隐藏（保持 MCP bridge 通信可用），release 模式销毁。
+fn maybe_close_window(app: &tauri::AppHandle, label: &Option<String>) {
+    if let Some(close_label) = label {
+        if let Some(win) = app.get_webview_window(close_label) {
+            #[cfg(debug_assertions)]
+            if close_label == "main" {
+                let _ = win.hide();
+                return;
+            }
+            let _ = win.destroy();
+        }
+    }
+}
+
 /// 为指定工作区路径打开新窗口，原子预绑定后端状态。
 ///
-/// 当传入 `bind_to_window` 且该窗口尚未绑定任何工作区时（典型场景:
-/// fullscreen WorkspacePicker），后端会把工作区绑定到调用方窗口，而不是
-/// 创建新窗口——避免在 picker 场景下留下一个空白的原窗口。
+/// 当传入 `bind_to_window` 且该窗口尚未绑定任何工作区时，后端会把工作区
+/// 绑定到调用方窗口，而不是创建新窗口。`close_window` 可选指定成功后要
+/// 关闭的窗口（如 workspace-manager）。
 #[expect(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn open_workspace_window(
     app: tauri::AppHandle,
     path: String,
     bind_to_window: Option<String>,
+    close_window: Option<String>,
     db_state: State<'_, DbState>,
     identity: State<'_, IdentityState>,
     config_state: State<'_, GlobalConfigState>,
@@ -279,11 +304,11 @@ pub async fn open_workspace_window(
     let ws_path = PathBuf::from(&path);
 
     // 优先级 1：如果该路径已在某个窗口中打开，直接 focus 那个窗口
-    //            （即便 caller 想 bind-to-self 也应该聚焦已有窗口，避免双开）
     if let Some(existing_label) = ws_state.find_label_by_path(&path).await {
         if let Some(win) = app.get_webview_window(&existing_label) {
             let _ = win.set_focus();
         }
+        maybe_close_window(&app, &close_window);
         return Ok(OpenWorkspaceWindowResult::FocusedExisting);
     }
     let hashed_label = workspace_window_label(&path);
@@ -291,6 +316,7 @@ pub async fn open_workspace_window(
         existing
             .set_focus()
             .map_err(|e| AppError::InvalidPath(format!("failed to focus window: {e}")))?;
+        maybe_close_window(&app, &close_window);
         return Ok(OpenWorkspaceWindowResult::FocusedExisting);
     }
 
@@ -321,7 +347,6 @@ pub async fn open_workspace_window(
             )
             .await;
 
-            // 通知 caller 窗口的前端工作区已就绪
             if let Some(win) = caller_window {
                 if let Err(e) = win.emit("workspace:ready", &info) {
                     log::warn!(
@@ -331,6 +356,7 @@ pub async fn open_workspace_window(
                 let _ = win.set_focus();
             }
 
+            maybe_close_window(&app, &close_window);
             return Ok(OpenWorkspaceWindowResult::BoundToCaller { info });
         }
     }
@@ -351,7 +377,6 @@ pub async fn open_workspace_window(
     )
     .await;
 
-    // 状态就绪后再创建窗口
     let new_window = with_platform_decorations(
         WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
             .title("SwarmNote")
@@ -361,12 +386,12 @@ pub async fn open_workspace_window(
     .build()
     .map_err(|e| AppError::InvalidPath(format!("failed to create window: {e}")))?;
 
-    // 推送工作区信息给新窗口，前端可通过事件直接获取而无需轮询
     if let Err(e) = new_window.emit("workspace:ready", &info) {
         log::warn!("Failed to emit workspace:ready to window '{label}': {e}");
     }
 
     bind_window_cleanup(&new_window, &app, &label);
+    maybe_close_window(&app, &close_window);
 
     Ok(OpenWorkspaceWindowResult::NewWindow)
 }
@@ -511,6 +536,81 @@ pub async fn create_workspace_for_sync(
 
     tracing::info!("Created workspace for sync: {name} ({ws_uuid}) at {ws_path_str}");
     Ok(ws_path_str)
+}
+
+/// 创建 onboarding 引导窗口（仅在 setup 阶段调用）。
+pub fn create_onboarding_window(app: &tauri::AppHandle) -> Result<(), AppError> {
+    with_platform_decorations(
+        WebviewWindowBuilder::new(app, "onboarding", WebviewUrl::App("/onboarding".into()))
+            .title("SwarmNote")
+            .inner_size(600.0, 500.0)
+            .min_inner_size(600.0, 500.0)
+            .maximizable(false),
+    )
+    .build()
+    .map_err(|e| AppError::Window(format!("Failed to create onboarding window: {e}")))?;
+
+    Ok(())
+}
+
+/// 完成 onboarding：原子化地创建工作区管理窗口并关闭 onboarding 窗口。
+/// 前端应先调用 `onboardingStore.complete()` 持久化状态，再调用此命令处理窗口切换。
+#[tauri::command]
+pub async fn finish_onboarding(app: tauri::AppHandle) -> AppResult<()> {
+    // 先创建管理窗口，确保用户看得到新窗口后再关闭旧窗口
+    open_workspace_manager_window(app.clone()).await?;
+
+    // 关闭 onboarding 窗口
+    if let Some(win) = app.get_webview_window("onboarding") {
+        let _ = win.destroy();
+    }
+
+    Ok(())
+}
+
+/// 从最近工作区列表中移除指定路径（幂等）。
+#[tauri::command]
+pub async fn remove_recent_workspace(
+    app: tauri::AppHandle,
+    path: String,
+    config_state: State<'_, GlobalConfigState>,
+) -> AppResult<()> {
+    let mut config = config_state.write().await;
+    config.recent_workspaces.retain(|w| w.path != path);
+    // 如果被移除的是 last_workspace_path，也清掉
+    if config.last_workspace_path.as_deref() == Some(&path) {
+        config.last_workspace_path = config.recent_workspaces.first().map(|w| w.path.clone());
+    }
+    crate::config::save_config(&config)?;
+    drop(config);
+
+    // 刷新托盘菜单
+    #[cfg(desktop)]
+    crate::tray::refresh_tray_menu(&app).await;
+
+    Ok(())
+}
+
+/// 打开或聚焦工作区管理窗口（label: "main"，兼容 MCP bridge 等基础设施）。
+#[tauri::command]
+pub async fn open_workspace_manager_window(app: tauri::AppHandle) -> AppResult<()> {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.set_focus();
+        return Ok(());
+    }
+
+    with_platform_decorations(
+        WebviewWindowBuilder::new(&app, "main", WebviewUrl::App("/workspace-manager".into()))
+            .title("SwarmNote")
+            .inner_size(780.0, 620.0)
+            .min_inner_size(780.0, 620.0)
+            .maximizable(false),
+    )
+    .build()
+    .map_err(|e| AppError::Window(format!("Failed to create workspace manager window: {e}")))?;
+
+    Ok(())
 }
 
 /// 打开或聚焦设置窗口，支持路由导航。

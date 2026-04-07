@@ -7,31 +7,29 @@ pub mod state;
 
 use std::path::PathBuf;
 
-use entity::workspace::workspaces;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use tauri::Manager;
 
 use crate::config::GlobalConfigState;
 use crate::error::AppError;
-use commands::WorkspaceInfo;
 use state::{DbState, WorkspaceState};
 
-/// 初始化数据库层：devices.db + 可选的工作区自动恢复（以 "main" 为 key）。
+/// 启动时应创建的窗口类型。
+pub enum StartupWindow {
+    /// 首次启动，显示 onboarding 引导窗口
+    Onboarding,
+    /// 显示工作区管理窗口（无历史或用户选择不自动恢复）
+    WorkspaceManager,
+    /// 自动恢复上次工作区
+    RestoreWorkspace(String),
+}
+
+/// 初始化数据库层：devices.db。不再自动恢复工作区到固定窗口。
+/// 启动时的窗口创建由 `determine_startup_window` + setup 统一处理。
 pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
-    let (devices_result, (workspace_db, workspace_info)) = tauri::async_runtime::block_on(async {
-        tokio::join!(db::init_devices_db(), try_auto_restore_workspace(app))
-    });
-    let devices_db = devices_result?;
+    let devices_db = tauri::async_runtime::block_on(db::init_devices_db())?;
 
     let db_state = DbState::new(devices_db);
     let ws_state = WorkspaceState::new();
-
-    if let (Some(conn), Some(info)) = (workspace_db, workspace_info) {
-        tauri::async_runtime::block_on(async {
-            db_state.insert_workspace_db("main", info.id, conn).await;
-            ws_state.bind("main", info).await;
-        });
-    }
 
     app.manage(db_state);
     app.manage(ws_state);
@@ -70,64 +68,46 @@ pub async fn cleanup_window(
     }
 }
 
-/// 尝试从全局配置自动恢复上次打开的工作区。
-async fn try_auto_restore_workspace(
-    app: &tauri::AppHandle,
-) -> (Option<DatabaseConnection>, Option<WorkspaceInfo>) {
-    let config_state = match app.try_state::<GlobalConfigState>() {
-        Some(s) => s,
-        None => return (None, None),
-    };
+/// 从前端 Tauri plugin-store 的 settings.json 中提取 Zustand persist 状态中的布尔字段。
+/// 格式: `{ "store-key": "{\"state\":{\"field\":true},\"version\":0}" }`
+fn read_store_bool(store: &serde_json::Value, store_key: &str, field: &str) -> Option<bool> {
+    let inner_str = store.get(store_key)?.as_str()?;
+    let inner: serde_json::Value = serde_json::from_str(inner_str).ok()?;
+    inner.get("state")?.get(field)?.as_bool()
+}
 
-    let last_path = {
-        let config = config_state.read().await;
-        config.last_workspace_path.clone()
-    };
+/// 根据 onboarding 完成状态和恢复偏好决定启动时创建哪种窗口。
+pub fn determine_startup_window(app: &tauri::AppHandle) -> StartupWindow {
+    // 一次性读取 settings.json，避免重复 I/O
+    let store = (|| -> Option<serde_json::Value> {
+        let app_data = app.path().app_data_dir().ok()?;
+        let content = std::fs::read_to_string(app_data.join("settings.json")).ok()?;
+        serde_json::from_str(&content).ok()
+    })()
+    .unwrap_or_default();
 
-    let path = match last_path {
-        Some(p) if !p.is_empty() => p,
-        _ => return (None, None),
-    };
+    let onboarding_completed =
+        read_store_bool(&store, "swarmnote-onboarding", "isCompleted").unwrap_or(false);
 
-    let ws_path = PathBuf::from(&path);
+    if !onboarding_completed {
+        return StartupWindow::Onboarding;
+    }
 
-    let conn = match db::init_workspace_db(&ws_path).await {
-        Ok(c) => c,
-        Err(e) => {
-            log::warn!("Failed to open workspace db at {path}: {e}");
-            return (None, None);
-        }
-    };
+    let restore_last =
+        read_store_bool(&store, "swarmnote-preferences", "restoreLastWorkspace").unwrap_or(true);
 
-    let ws = match workspaces::Entity::find().one(&conn).await {
-        Ok(Some(ws)) => ws,
-        Ok(None) => {
-            log::warn!("Workspace db exists but has no workspace record: {path}");
-            return (None, None);
-        }
-        Err(e) => {
-            log::warn!("Failed to query workspace record: {e}");
-            return (None, None);
-        }
-    };
-
-    let dir_name = commands::workspace_name_from_path(&ws_path);
-
-    let ws = if ws.name != dir_name {
-        let mut active: workspaces::ActiveModel = ws.into();
-        active.name = Set(dir_name.clone());
-        match active.update(&conn).await {
-            Ok(updated) => updated,
-            Err(e) => {
-                log::warn!("Failed to update workspace name: {e}");
-                return (Some(conn), None);
+    if restore_last {
+        if let Some(config_state) = app.try_state::<GlobalConfigState>() {
+            let last_path = tauri::async_runtime::block_on(async {
+                config_state.read().await.last_workspace_path.clone()
+            });
+            if let Some(path) = last_path {
+                if !path.is_empty() && PathBuf::from(&path).is_dir() {
+                    return StartupWindow::RestoreWorkspace(path);
+                }
             }
         }
-    } else {
-        ws
-    };
+    }
 
-    let info = WorkspaceInfo::from_model(&ws, &path);
-    log::info!("Auto-restored workspace: {dir_name} ({path})");
-    (Some(conn), Some(info))
+    StartupWindow::WorkspaceManager
 }

@@ -38,6 +38,9 @@ export interface OpenWorkspaceWindowOptions {
    *  label (typically the caller's own window) if that window has no workspace
    *  bound. Lets fullscreen pickers avoid spawning a second window. */
   bindToWindow?: string;
+  /** When set, close the window with this label after the workspace opens
+   *  (e.g. "workspace-manager" to close the manager window). */
+  closeWindow?: string;
 }
 
 export async function openWorkspaceWindow(
@@ -47,7 +50,20 @@ export async function openWorkspaceWindow(
   return invoke<OpenWorkspaceWindowResult>("open_workspace_window", {
     path,
     bindToWindow: options.bindToWindow ?? null,
+    closeWindow: options.closeWindow ?? null,
   });
+}
+
+export async function openWorkspaceManagerWindow(): Promise<void> {
+  return invoke("open_workspace_manager_window");
+}
+
+export async function finishOnboarding(): Promise<void> {
+  return invoke("finish_onboarding");
+}
+
+export async function removeRecentWorkspace(path: string): Promise<void> {
+  return invoke("remove_recent_workspace", { path });
 }
 
 export async function openSettingsWindow(route?: string): Promise<void> {

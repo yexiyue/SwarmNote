@@ -35,9 +35,14 @@ impl IconKind {
     }
 }
 
-/// 菜单项 ID，用枚举代替散落的字符串常量
+/// 菜单项 ID 前缀/常量
+const RECENT_WS_PREFIX: &str = "recent-ws:";
+const MAX_TRAY_RECENT: usize = 5;
+
+/// 固定菜单项 ID
 enum MenuAction {
     Open,
+    WorkspaceManager,
     ToggleSync,
     Settings,
     Quit,
@@ -49,6 +54,7 @@ impl MenuAction {
     fn as_str(&self) -> &'static str {
         match self {
             Self::Open => "open",
+            Self::WorkspaceManager => "workspace-manager",
             Self::ToggleSync => "toggle-sync",
             Self::Settings => "settings",
             Self::Quit => "quit",
@@ -58,6 +64,7 @@ impl MenuAction {
     fn from_str(s: &str) -> Option<Self> {
         match s {
             "open" => Some(Self::Open),
+            "workspace-manager" => Some(Self::WorkspaceManager),
             "toggle-sync" => Some(Self::ToggleSync),
             "settings" => Some(Self::Settings),
             "quit" => Some(Self::Quit),
@@ -81,7 +88,8 @@ impl TrayManager {
     /// 在 `setup` 中创建托盘并注册到 Tauri State
     pub fn init(app: &AppHandle) -> tauri::Result<()> {
         let status = TrayNodeStatus::Stopped;
-        let menu = Self::build_menu(app, status)?;
+        let recent = Self::load_recent_workspaces_sync(app);
+        let menu = Self::build_menu(app, status, &recent)?;
 
         let tray = TrayIconBuilder::with_id("main-tray")
             .icon(IconKind::Gray.load())
@@ -96,7 +104,7 @@ impl TrayManager {
             tray,
             app: app.clone(),
             status,
-            last_hidden_label: "main".to_string(),
+            last_hidden_label: String::new(),
         };
         app.manage(tokio::sync::Mutex::new(manager));
         Ok(())
@@ -108,10 +116,18 @@ impl TrayManager {
     }
 
     /// 更新节点状态 — 唯一的公开状态变更入口
-    pub fn set_status(&mut self, status: TrayNodeStatus) {
+    pub async fn set_status(&mut self, status: TrayNodeStatus) {
         self.status = status;
         self.refresh_icon();
-        self.refresh_menu();
+        self.refresh_menu().await;
+    }
+
+    /// 重建托盘菜单（在最近工作区列表变更后调用）
+    pub async fn refresh_menu(&self) {
+        let recent = Self::load_recent_workspaces(&self.app).await;
+        if let Ok(menu) = Self::build_menu(&self.app, self.status, &recent) {
+            let _ = self.tray.set_menu(Some(menu));
+        }
     }
 
     fn refresh_icon(&self) {
@@ -122,27 +138,64 @@ impl TrayManager {
         let _ = self.tray.set_icon(Some(kind.load()));
     }
 
-    /// 恢复最后隐藏的工作区窗口（托盘左键 / "打开 SwarmNote"）
+    /// 恢复最后隐藏的工作区窗口，或打开工作区管理窗口。
     fn restore_window(&self) {
         let label = &self.last_hidden_label;
-        if let Some(window) = self.app.get_webview_window(label) {
-            let _ = window.show();
-            let _ = window.set_focus();
-        } else if label != "main" {
-            if let Some(window) = self.app.get_webview_window("main") {
+        if !label.is_empty() {
+            if let Some(window) = self.app.get_webview_window(label) {
                 let _ = window.show();
                 let _ = window.set_focus();
+                return;
             }
         }
+        // 没有可恢复的窗口，打开工作区管理窗口
+        let handle = self.app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::workspace::commands::open_workspace_manager_window(handle).await
+            {
+                warn!("Failed to open workspace manager from tray: {e}");
+            }
+        });
     }
 
-    fn refresh_menu(&self) {
-        if let Ok(menu) = Self::build_menu(&self.app, self.status) {
-            let _ = self.tray.set_menu(Some(menu));
-        }
+    /// 同步版本：init 阶段（setup 中，无 tokio context）使用。
+    fn load_recent_workspaces_sync(app: &AppHandle) -> Vec<crate::config::RecentWorkspace> {
+        let Some(config_state) = app.try_state::<crate::config::GlobalConfigState>() else {
+            return Vec::new();
+        };
+        tauri::async_runtime::block_on(async {
+            config_state
+                .read()
+                .await
+                .recent_workspaces
+                .iter()
+                .take(MAX_TRAY_RECENT)
+                .cloned()
+                .collect()
+        })
     }
 
-    fn build_menu(app: &AppHandle, status: TrayNodeStatus) -> tauri::Result<Menu<tauri::Wry>> {
+    /// 异步版本：运行时刷新（已在 tokio context 中）使用。
+    async fn load_recent_workspaces(app: &AppHandle) -> Vec<crate::config::RecentWorkspace> {
+        let Some(config_state) = app.try_state::<crate::config::GlobalConfigState>() else {
+            return Vec::new();
+        };
+        let config = config_state.read().await;
+        let result = config
+            .recent_workspaces
+            .iter()
+            .take(MAX_TRAY_RECENT)
+            .cloned()
+            .collect();
+        drop(config);
+        result
+    }
+
+    fn build_menu(
+        app: &AppHandle,
+        status: TrayNodeStatus,
+        recent: &[crate::config::RecentWorkspace],
+    ) -> tauri::Result<Menu<tauri::Wry>> {
         let menu = Menu::new(app)?;
 
         // 状态行（不可点击）
@@ -161,10 +214,29 @@ impl TrayManager {
 
         menu.append(&PredefinedMenuItem::separator(app)?)?;
 
+        // 最近工作区列表
+        if !recent.is_empty() {
+            for ws in recent {
+                let id = format!("{RECENT_WS_PREFIX}{}", ws.path);
+                menu.append(&MenuItem::with_id(app, &id, &ws.name, true, None::<&str>)?)?;
+            }
+            menu.append(&PredefinedMenuItem::separator(app)?)?;
+        }
+
+        // 打开 SwarmNote（恢复隐藏窗口）
         menu.append(&MenuItem::with_id(
             app,
             MenuAction::Open.as_str(),
             "打开 SwarmNote",
+            true,
+            None::<&str>,
+        )?)?;
+
+        // 工作区管理
+        menu.append(&MenuItem::with_id(
+            app,
+            MenuAction::WorkspaceManager.as_str(),
+            "工作区管理",
             true,
             None::<&str>,
         )?)?;
@@ -205,7 +277,38 @@ impl TrayManager {
     // ── 事件处理 ──
 
     fn on_menu_event(app: &AppHandle, event: MenuEvent) {
-        let Some(action) = MenuAction::from_str(event.id().as_ref()) else {
+        let id = event.id().as_ref().to_string();
+
+        // 检查是否为最近工作区点击
+        if let Some(path) = id.strip_prefix(RECENT_WS_PREFIX) {
+            let path = path.to_string();
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let db_state = handle.state::<crate::workspace::state::DbState>();
+                let identity = handle.state::<crate::identity::IdentityState>();
+                let config_state = handle.state::<crate::config::GlobalConfigState>();
+                let ws_state = handle.state::<crate::workspace::state::WorkspaceState>();
+                let watcher_state = handle.state::<crate::fs::watcher::FsWatcherState>();
+                if let Err(e) = crate::workspace::commands::open_workspace_window(
+                    handle.clone(),
+                    path,
+                    None,
+                    None,
+                    db_state,
+                    identity,
+                    config_state,
+                    ws_state,
+                    watcher_state,
+                )
+                .await
+                {
+                    warn!("Failed to open workspace from tray: {e}");
+                }
+            });
+            return;
+        }
+
+        let Some(action) = MenuAction::from_str(&id) else {
             return;
         };
         match action {
@@ -215,6 +318,16 @@ impl TrayManager {
                         mgr.restore_window();
                     }
                 }
+            }
+            MenuAction::WorkspaceManager => {
+                let handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) =
+                        crate::workspace::commands::open_workspace_manager_window(handle).await
+                    {
+                        warn!("Failed to open workspace manager: {e}");
+                    }
+                });
             }
             MenuAction::ToggleSync => {
                 let handle = app.clone();
@@ -271,6 +384,14 @@ impl TrayManager {
 
 pub type TrayManagerState = tokio::sync::Mutex<TrayManager>;
 
+/// 刷新托盘菜单（在工作区列表变更后调用）。
+pub async fn refresh_tray_menu(app: &AppHandle) {
+    if let Some(state) = app.try_state::<TrayManagerState>() {
+        let mgr = state.lock().await;
+        mgr.refresh_menu().await;
+    }
+}
+
 // ── 私有辅助 ──
 
 async fn toggle_sync(app: &AppHandle) {
@@ -283,7 +404,7 @@ async fn toggle_sync(app: &AppHandle) {
         drop(guard); // 释放锁后再更新托盘
         let _ = app.emit("node-stopped", ());
         if let Some(state) = app.try_state::<TrayManagerState>() {
-            state.lock().await.set_status(TrayNodeStatus::Stopped);
+            state.lock().await.set_status(TrayNodeStatus::Stopped).await;
         }
         tracing::info!("P2P node stopped via tray");
     } else {

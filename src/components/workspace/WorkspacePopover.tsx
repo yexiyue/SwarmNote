@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 
 import {
   getRecentWorkspaces,
+  openWorkspaceManagerWindow,
   openWorkspaceWindow,
   type RecentWorkspace,
 } from "@/commands/workspace";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface WorkspacePopoverProps {
@@ -21,8 +21,6 @@ export function WorkspacePopover({ children, side = "bottom" }: WorkspacePopover
   const [open, setOpen] = useState(false);
   const [recents, setRecents] = useState<RecentWorkspace[]>([]);
   const workspace = useWorkspaceStore((s) => s.workspace);
-  const setWorkspacePickerOpen = useUIStore((s) => s.setWorkspacePickerOpen);
-
   useEffect(() => {
     if (open) {
       getRecentWorkspaces().then(setRecents);
@@ -34,9 +32,9 @@ export function WorkspacePopover({ children, side = "bottom" }: WorkspacePopover
     setOpen(false);
   }
 
-  function handleManage() {
+  async function handleManage() {
     setOpen(false);
-    setWorkspacePickerOpen(true);
+    await openWorkspaceManagerWindow();
   }
 
   return (

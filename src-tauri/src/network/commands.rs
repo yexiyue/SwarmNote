@@ -106,7 +106,8 @@ pub async fn do_start_p2p_node(
     if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
         tray.lock()
             .await
-            .set_status(crate::tray::TrayNodeStatus::Running { peer_count: 0 });
+            .set_status(crate::tray::TrayNodeStatus::Running { peer_count: 0 })
+            .await;
     }
 
     info!("P2P node started, PeerId: {peer_id}");
@@ -145,7 +146,8 @@ pub async fn stop_p2p_node(app: AppHandle, net_state: State<'_, NetManagerState>
         if let Some(tray) = app.try_state::<crate::tray::TrayManagerState>() {
             tray.lock()
                 .await
-                .set_status(crate::tray::TrayNodeStatus::Stopped);
+                .set_status(crate::tray::TrayNodeStatus::Stopped)
+                .await;
         }
 
         info!("P2P node stopped");

@@ -11,19 +11,7 @@
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "SwarmNote",
-        "width": 800,
-        "height": 600,
-        "minWidth": 800,
-        "minHeight": 600,
-        "decorations": true,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "trafficLightPosition": { "x": 15, "y": 16 }
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null,
       "assetProtocol": {

@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Info, Minus, MonitorSmartphone, RefreshCw, Settings, X } from "lucide-react";
+import { Globe, Info, Minus, MonitorSmartphone, Settings, X } from "lucide-react";
 import { useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -24,7 +24,7 @@ function SettingsLayout() {
   const { t } = useLingui();
   const navItems = [
     { to: "/settings/general", icon: Settings, label: t`通用` },
-    { to: "/settings/sync", icon: RefreshCw, label: t`同步` },
+    { to: "/settings/network", icon: Globe, label: t`网络` },
     { to: "/settings/devices", icon: MonitorSmartphone, label: t`设备` },
     { to: "/settings/about", icon: Info, label: t`关于` },
   ] as const;

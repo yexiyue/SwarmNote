@@ -8,7 +8,7 @@
 
 @source "../node_modules/@blocknote/shadcn";
 
-@plugin 'tailwind-scrollbar';
+@plugin "tailwind-scrollbar";
 
 @custom-variant hover-none (@media (hover: none));
 
