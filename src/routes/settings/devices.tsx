@@ -7,7 +7,7 @@ import { CodePairingCard } from "@/components/pairing/CodePairingCard";
 import { NearbyDeviceCard } from "@/components/pairing/NearbyDeviceCard";
 import { PairedDeviceCard } from "@/components/pairing/PairedDeviceCard";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { setupPairingListeners, usePairingStore } from "@/stores/pairingStore";
 
 function DeviceCountLabel({ count }: { count: number }) {
@@ -54,38 +54,40 @@ function DevicesPage() {
 
       <div className="space-y-4">
         {/* My Device Card */}
-        <div className="rounded-xl border bg-card">
-          <div className="flex items-center gap-4 px-5 py-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-              <Monitor className="h-5.5 w-5.5 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-medium text-foreground">
-                {myDevice?.device_name ?? "—"}
+        <Card>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Monitor className="h-5.5 w-5.5 text-primary" />
               </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                {myDevice ? `${myDevice.os} · ${myDevice.platform}` : "—"}
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium text-foreground">
+                  {myDevice?.device_name ?? "—"}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {myDevice ? `${myDevice.os} · ${myDevice.platform}` : "—"}
+                </div>
               </div>
+              {myDevice && (
+                <code className="shrink-0 rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                  {myDevice.peer_id.slice(0, 20)}…
+                </code>
+              )}
             </div>
-            {myDevice && (
-              <code className="shrink-0 rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                {myDevice.peer_id.slice(0, 20)}…
-              </code>
-            )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
         {/* Paired Devices */}
-        <div className="rounded-xl border bg-card">
-          <div className="flex items-center justify-between px-5 py-3">
-            <h3 className="text-sm font-medium">
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>
               <Trans>已配对设备</Trans>
-            </h3>
-            <span className="text-xs text-muted-foreground">
+            </CardTitle>
+            <CardDescription>
               <DeviceCountLabel count={pairedDevices.length} />
-            </span>
-          </div>
-          <Separator />
-          <div className="px-5 py-3">
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             {pairedDevices.length > 0 ? (
               <div className="space-y-2">
                 {pairedDevices.map((device) => (
@@ -97,21 +99,20 @@ function DevicesPage() {
                 <Trans>通过配对码连接其他设备</Trans>
               </p>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Nearby Devices */}
-        <div className="rounded-xl border bg-card">
-          <div className="flex items-center justify-between px-5 py-3">
-            <h3 className="text-sm font-medium">
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>
               <Trans>附近设备</Trans>
-            </h3>
-            <span className="text-xs text-muted-foreground">
+            </CardTitle>
+            <CardDescription>
               <DeviceCountLabel count={nearbyDevices.length} />
-            </span>
-          </div>
-          <Separator />
-          <div className="px-5 py-3">
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             {nearbyDevices.length > 0 ? (
               <div className="space-y-2">
                 {nearbyDevices.map((device) => (
@@ -123,24 +124,23 @@ function DevicesPage() {
                 <Trans>在局域网中发现可配对设备</Trans>
               </p>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Code Pairing */}
-        <div className="rounded-xl border bg-card">
-          <div className="px-5 py-3">
-            <h3 className="text-sm font-medium">
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>
               <Trans>配对码连接</Trans>
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            </CardTitle>
+            <CardDescription>
               <Trans>使用配对码与远程设备配对</Trans>
-            </p>
-          </div>
-          <Separator />
-          <div className="px-5 py-3">
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <CodePairingCard />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

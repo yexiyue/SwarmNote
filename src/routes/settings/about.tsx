@@ -17,6 +17,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { DeviceInfo } from "@/commands/identity";
 import { getDeviceInfo } from "@/commands/identity";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useUpgradeStore } from "@/stores/upgradeStore";
 
@@ -85,73 +86,71 @@ function AboutPage() {
 
       <div className="space-y-4">
         {/* App Info */}
-        <div className="rounded-xl border bg-card">
-          <div className="flex items-center gap-4 px-5 py-5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <span className="text-lg font-bold text-primary">SN</span>
+        <Card>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <span className="text-lg font-bold text-primary">SN</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">SwarmNote</h3>
+                <p className="text-xs text-muted-foreground">
+                  <UpdateStatusText status={status} />
+                </p>
+              </div>
+              <div className="ml-auto flex items-center gap-3">
+                {displayVersion && (
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                    v{displayVersion}
+                  </span>
+                )}
+                <UpdateButton
+                  status={status}
+                  latestVersion={latestVersion}
+                  onCheck={() => checkForUpdate(true)}
+                  onUpdate={startDownload}
+                />
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold">SwarmNote</h3>
-              <p className="text-xs text-muted-foreground">
-                <UpdateStatusText status={status} />
-              </p>
-            </div>
-            <div className="ml-auto flex items-center gap-3">
-              {displayVersion && (
-                <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
-                  v{displayVersion}
-                </span>
-              )}
-              <UpdateButton
-                status={status}
-                latestVersion={latestVersion}
-                onCheck={() => checkForUpdate(true)}
-                onUpdate={startDownload}
-              />
-            </div>
-          </div>
+          </CardContent>
 
           {/* 下载进度 */}
           {(status === "downloading" || status === "ready") && progress && (
-            <>
-              <Separator />
-              <div className="px-5 py-4 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    <Trans>正在下载 v{latestVersion ?? "?"}</Trans>
-                  </span>
-                  <span className="font-medium text-primary">{progress.percent}%</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-300"
-                    style={{ width: `${progress.percent}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    {formatBytes(progress.downloaded)} / {formatBytes(progress.total)}
-                  </span>
-                  <span>{formatBytes(progress.speed)}/s</span>
-                </div>
+            <CardContent className="space-y-2 border-t pt-4">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  <Trans>正在下载 v{latestVersion ?? "?"}</Trans>
+                </span>
+                <span className="font-medium text-primary">{progress.percent}%</span>
               </div>
-            </>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${progress.percent}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  {formatBytes(progress.downloaded)} / {formatBytes(progress.total)}
+                </span>
+                <span>{formatBytes(progress.speed)}/s</span>
+              </div>
+            </CardContent>
           )}
-        </div>
+        </Card>
 
         {/* Device Info */}
         {deviceInfo && (
-          <div className="rounded-xl border bg-card">
-            <div className="px-5 py-4">
-              <h3 className="text-sm font-medium">
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle>
                 <Trans>设备信息</Trans>
-              </h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              </CardTitle>
+              <CardDescription>
                 <Trans>当前运行设备的详细信息</Trans>
-              </p>
-            </div>
-            <Separator />
-            <div className="px-5 py-3">
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-1">
                 <InfoRow icon={Monitor} label={t`设备名称`} value={deviceInfo.device_name} />
                 <Separator />
@@ -163,19 +162,18 @@ function AboutPage() {
                   value={`${deviceInfo.os} · ${deviceInfo.platform} · ${deviceInfo.arch}`}
                 />
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Links */}
-        <div className="rounded-xl border bg-card">
-          <div className="px-5 py-4">
-            <h3 className="text-sm font-medium">
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>
               <Trans>更多</Trans>
-            </h3>
-          </div>
-          <Separator />
-          <div className="px-5 py-3">
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <button
               type="button"
               onClick={() => openUrl("https://github.com/yexiyue/SwarmNote")}
@@ -191,8 +189,8 @@ function AboutPage() {
               </div>
               <span className="text-xs">GitHub →</span>
             </button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

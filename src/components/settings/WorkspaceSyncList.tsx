@@ -3,7 +3,7 @@ import { CheckCircle2, Circle, FolderSync, Loader2, WifiOff } from "lucide-react
 import { useEffect, useState } from "react";
 import type { RecentWorkspace } from "@/commands/workspace";
 import { getRecentWorkspaces } from "@/commands/workspace";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSyncDisplayState } from "@/hooks/useSyncDisplayState";
 import { cn } from "@/lib/utils";
 import { useNetworkStore } from "@/stores/networkStore";
@@ -93,17 +93,16 @@ export function WorkspaceSyncList() {
   }, []);
 
   return (
-    <div className="rounded-xl border bg-card">
-      <div className="px-5 py-4">
-        <h3 className="text-sm font-medium">
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>
           <Trans>工作区同步</Trans>
-        </h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        </CardTitle>
+        <CardDescription>
           <Trans>各工作区的同步状态</Trans>
-        </p>
-      </div>
-      <Separator />
-      <div className="px-5 py-3">
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
         {status !== "running" ? (
           <div className="flex flex-col items-center gap-2 py-4">
             <WifiOff className="h-8 w-8 text-muted-foreground/40" />
@@ -122,7 +121,7 @@ export function WorkspaceSyncList() {
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

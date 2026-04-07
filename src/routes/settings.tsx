@@ -5,16 +5,23 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Info, Minus, MonitorSmartphone, RefreshCw, Settings, X } from "lucide-react";
 import { useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAppVersion } from "@/hooks/useAppVersion";
-import { cn, isMac } from "@/lib/utils";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
+import { isMac } from "@/lib/utils";
 
 function SettingsLayout() {
   const router = useRouter();
   const { pathname } = useLocation();
   const appWindow = getCurrentWindow();
   const { t } = useLingui();
-  const appVersion = useAppVersion();
-
   const navItems = [
     { to: "/settings/general", icon: Settings, label: t`通用` },
     { to: "/settings/sync", icon: RefreshCw, label: t`同步` },
@@ -32,23 +39,24 @@ function SettingsLayout() {
   }, [router]);
 
   return (
-    <div className="flex h-screen flex-col bg-muted/30">
-      {/* Title Bar — drag region only; title is rendered consistently in the
-          sidebar header below on every platform to avoid per-platform layouts. */}
+    <div className="flex h-screen flex-col">
+      {/* Title Bar */}
       <header
         data-tauri-drag-region
-        className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background/60 px-4"
+        className="flex h-10 shrink-0 items-center justify-between border-b border-sidebar-border bg-sidebar px-4"
       >
-        {/* macOS traffic lights spacer keeps the drag region clickable on mac;
-            on Windows/Linux we just leave it empty. */}
-        <div className={isMac ? "w-17.5" : ""} data-tauri-drag-region />
+        <div className={`flex items-center ${isMac ? "pl-17.5" : ""}`} data-tauri-drag-region>
+          <h2 className="pl-1 text-sm font-semibold tracking-tight">
+            <Trans>设置</Trans>
+          </h2>
+        </div>
         <div className="flex items-center gap-1">
           {!isMac && (
             <>
               <button
                 type="button"
                 onClick={() => appWindow.minimize()}
-                className="flex h-7 w-9 items-center justify-center text-muted-foreground hover:bg-muted"
+                className="flex h-7 w-9 items-center justify-center text-muted-foreground hover:bg-sidebar-accent"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -65,56 +73,40 @@ function SettingsLayout() {
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <nav className="flex w-55 flex-col border-r bg-background/60">
-          <div className="p-5 pb-2">
-            <h2 className="text-base font-semibold tracking-tight">
-              <Trans>设置</Trans>
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              <Trans>管理应用偏好与设备</Trans>
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-0.5 px-3 pt-2">
-            {navItems.map((item) => {
-              const isActive = pathname.startsWith(item.to);
-              return (
-                <button
-                  key={item.to}
-                  type="button"
-                  onClick={() => router.navigate({ to: item.to })}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
-                    isActive
-                      ? "bg-background font-medium text-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
-                  )}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Bottom branding */}
-          <div className="mt-auto border-t px-5 py-4">
-            <div className="text-xs text-muted-foreground">SwarmNote</div>
-            <div className="text-[11px] text-muted-foreground/60">
-              {appVersion ? `v${appVersion}` : ""}
-            </div>
-          </div>
-        </nav>
+      <SidebarProvider
+        defaultOpen
+        className="min-h-0 flex-1 overflow-hidden"
+        style={{ "--sidebar-width": "13.75rem" } as React.CSSProperties}
+      >
+        <Sidebar collapsible="none" className="border-r">
+          <SidebarContent className="pt-2">
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {navItems.map((item) => (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton
+                        isActive={pathname.startsWith(item.to)}
+                        onClick={() => router.navigate({ to: item.to })}
+                      >
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
 
         {/* Content */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 bg-muted/30">
           <main className="mx-auto max-w-2xl px-8 py-8">
             <Outlet />
           </main>
         </ScrollArea>
-      </div>
+      </SidebarProvider>
     </div>
   );
 }
