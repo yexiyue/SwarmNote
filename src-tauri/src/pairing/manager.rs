@@ -100,9 +100,10 @@ impl PairingManager {
     /// 构建包含当前设备自定义名称的 OsInfo。
     /// `device_name` 已在构造时经过 hostname 去重判断（None = 与 hostname 相同）。
     fn local_os_info(&self) -> OsInfo {
-        let mut info = OsInfo::default();
-        info.name = self.device_name.clone();
-        info
+        OsInfo {
+            name: self.device_name.clone(),
+            ..Default::default()
+        }
     }
 
     /// 从数据库加载已配对设备到内存缓存。
