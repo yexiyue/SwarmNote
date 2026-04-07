@@ -46,6 +46,7 @@ export interface Device {
   latency?: number;
   isPaired: boolean;
   pairedAt?: string;
+  lastSeen?: string;
 }
 
 export interface DeviceListResult {

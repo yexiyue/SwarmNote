@@ -1,10 +1,10 @@
 import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
-import type { Device, PairedDeviceInfo } from "@/commands/pairing";
-import { getNearbyDevices, getPairedDevices } from "@/commands/pairing";
+import type { Device } from "@/commands/pairing";
+import { getNearbyDevices, listDevices } from "@/commands/pairing";
 
 interface PairingState {
-  pairedDevices: PairedDeviceInfo[];
+  pairedDevices: Device[];
   nearbyDevices: Device[];
   isLoading: boolean;
 }
@@ -22,8 +22,8 @@ export const usePairingStore = create<PairingState & PairingActions>()((set, get
 
   async loadPairedDevices() {
     try {
-      const devices = await getPairedDevices();
-      set({ pairedDevices: devices });
+      const result = await listDevices("paired");
+      set({ pairedDevices: result.devices });
     } catch (e) {
       console.error("Failed to load paired devices:", e);
     }
@@ -45,7 +45,6 @@ export const usePairingStore = create<PairingState & PairingActions>()((set, get
   },
 }));
 
-// Tauri event listeners (module-level, auto-runs once)
 let listenersSetup = false;
 
 export function setupPairingListeners() {

@@ -206,6 +206,7 @@ impl DeviceManager {
                         latency,
                         is_paired: true,
                         paired_at: Some(info.paired_at),
+                        last_seen: info.last_seen,
                     })
                 })
                 .collect(),
@@ -238,7 +239,8 @@ impl DeviceManager {
             connection,
             latency,
             is_paired: paired.is_some(),
-            paired_at: paired.map(|entry| entry.paired_at),
+            paired_at: paired.as_ref().map(|entry| entry.paired_at),
+            last_seen: paired.as_ref().and_then(|entry| entry.last_seen),
         }
     }
 

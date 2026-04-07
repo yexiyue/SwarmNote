@@ -15,6 +15,27 @@ use crate::config::GlobalConfigState;
 use crate::error::{AppError, AppResult};
 use crate::identity::IdentityState;
 
+/// 应用平台相关的窗口装饰配置。
+/// macOS: Overlay 标题栏 + 隐藏标题 + 红绿灯定位；其他平台: 无装饰（自定义标题栏）。
+fn with_platform_decorations<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: WebviewWindowBuilder<'a, R, M>,
+) -> WebviewWindowBuilder<'a, R, M> {
+    #[cfg(target_os = "macos")]
+    let builder = {
+        use tauri::TitleBarStyle;
+        builder
+            .decorations(true)
+            .title_bar_style(TitleBarStyle::Overlay)
+            .hidden_title(true)
+            .traffic_light_position(tauri::LogicalPosition::new(15.0, 16.0))
+    };
+
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.decorations(false);
+
+    builder
+}
+
 /// 返回给前端的工作区信息，组合数据库记录 + 运行时路径。
 #[derive(Debug, Clone, Serialize)]
 pub struct WorkspaceInfo {
@@ -331,19 +352,14 @@ pub async fn open_workspace_window(
     .await;
 
     // 状态就绪后再创建窗口
-    let new_window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
-        .title("SwarmNote")
-        .inner_size(800.0, 600.0)
-        .min_inner_size(800.0, 600.0)
-        .decorations(cfg!(target_os = "macos"))
-        .build()
-        .map_err(|e| AppError::InvalidPath(format!("failed to create window: {e}")))?;
-
-    #[cfg(target_os = "macos")]
-    {
-        use tauri::TitleBarStyle;
-        let _ = new_window.set_title_bar_style(TitleBarStyle::Overlay);
-    }
+    let new_window = with_platform_decorations(
+        WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+            .title("SwarmNote")
+            .inner_size(800.0, 600.0)
+            .min_inner_size(800.0, 600.0),
+    )
+    .build()
+    .map_err(|e| AppError::InvalidPath(format!("failed to create window: {e}")))?;
 
     // 推送工作区信息给新窗口，前端可通过事件直接获取而无需轮询
     if let Err(e) = new_window.emit("workspace:ready", &info) {
@@ -511,20 +527,14 @@ pub async fn open_settings_window(app: tauri::AppHandle, route: Option<String>) 
         return Ok(());
     }
 
-    let _settings_window =
+    let _settings_window = with_platform_decorations(
         WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(target_route.into()))
             .title("SwarmNote 设置")
             .inner_size(720.0, 520.0)
-            .resizable(false)
-            .decorations(cfg!(target_os = "macos"))
-            .build()
-            .map_err(|e| AppError::Window(format!("Failed to create settings window: {e}")))?;
-
-    #[cfg(target_os = "macos")]
-    {
-        use tauri::TitleBarStyle;
-        let _ = _settings_window.set_title_bar_style(TitleBarStyle::Overlay);
-    }
+            .resizable(false),
+    )
+    .build()
+    .map_err(|e| AppError::Window(format!("Failed to create settings window: {e}")))?;
 
     Ok(())
 }

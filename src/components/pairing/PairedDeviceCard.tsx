@@ -1,7 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import { Unlink } from "lucide-react";
 import { useState } from "react";
-import type { PairedDeviceInfo } from "@/commands/pairing";
+import type { Device } from "@/commands/pairing";
 import { ConnectionBadge } from "@/components/pairing/ConnectionBadge";
 import { formatRelativeTime } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
@@ -9,14 +9,14 @@ import { DeviceAvatar } from "./DeviceAvatar";
 import { UnpairConfirmDialog } from "./UnpairConfirmDialog";
 
 interface PairedDeviceCardProps {
-  device: PairedDeviceInfo;
+  device: Device;
   onUnpaired?: () => void;
   isLast?: boolean;
 }
 
 export function PairedDeviceCard({ device, onUnpaired, isLast }: PairedDeviceCardProps) {
   const { t } = useLingui();
-  const isOnline = device.isOnline ?? false;
+  const isOnline = device.status === "online";
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
@@ -32,13 +32,13 @@ export function PairedDeviceCard({ device, onUnpaired, isLast }: PairedDeviceCar
           <div className="flex items-center gap-1.5">
             <span className="text-[13px] font-medium">{device.hostname}</span>
             {isOnline && device.connection && (
-              <ConnectionBadge type={device.connection} latency={device.rttMs} />
+              <ConnectionBadge type={device.connection} latency={device.latency} />
             )}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {isOnline
               ? `${device.os} · ${device.platform}`
-              : `${device.os} · ${device.platform} · ${t`最后在线 ${formatRelativeTime(device.lastSeen)}`}`}
+              : `${device.os} · ${device.platform} · ${t`最后在线 ${formatRelativeTime(device.lastSeen ?? null)}`}`}
           </div>
         </div>
         <button

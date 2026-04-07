@@ -41,6 +41,7 @@ pub struct Device {
     pub latency: Option<u64>,
     pub is_paired: bool,
     pub paired_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_seen: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// 设备列表查询结果
