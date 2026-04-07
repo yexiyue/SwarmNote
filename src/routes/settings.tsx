@@ -101,8 +101,8 @@ function SettingsLayout() {
         </Sidebar>
 
         {/* Content */}
-        <ScrollArea className="flex-1 bg-muted/30">
-          <main className="mx-auto max-w-2xl px-8 py-8">
+        <ScrollArea className="flex-1 bg-muted/30 [&_[data-slot=scroll-area-viewport]>div]:flex! [&_[data-slot=scroll-area-viewport]>div]:flex-col [&_[data-slot=scroll-area-viewport]>div]:min-h-full">
+          <main className="mx-auto flex flex-1 max-w-2xl flex-col px-8 py-8">
             <Outlet />
           </main>
         </ScrollArea>
