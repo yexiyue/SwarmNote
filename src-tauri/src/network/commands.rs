@@ -68,6 +68,11 @@ pub async fn do_start_p2p_node(
         .sync_manager
         .start_sv_compensation(cancel_token.clone());
 
+    // Subscribe to global ctrl topic for workspace open notifications
+    if let Err(e) = client.subscribe(crate::sync::CTRL_TOPIC).await {
+        tracing::warn!("Failed to subscribe to ctrl topic: {e}");
+    }
+
     // 在线宣告 + DHT bootstrap + 已配对设备重连（后台任务）
     let announcer = net_manager.online_announcer.clone();
     let bootstrap_client = client.clone();

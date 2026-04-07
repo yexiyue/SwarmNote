@@ -241,10 +241,12 @@ pub async fn open_workspace(
     )
     .await;
 
-    // Subscribe to workspace-level GossipSub topic for real-time sync
+    // Subscribe to workspace-level GossipSub topic for real-time sync,
+    // then broadcast to connected peers so they can subscribe + sync too.
     if let Some(net_state) = app_handle.try_state::<crate::network::NetManagerState>() {
         if let Ok(sync_mgr) = net_state.sync().await {
             sync_mgr.subscribe_workspace(info.id).await;
+            sync_mgr.publish_workspace_opened(info.id).await;
         }
     }
 

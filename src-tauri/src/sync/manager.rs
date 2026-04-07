@@ -68,6 +68,20 @@ impl SyncManager {
         }
     }
 
+    /// Handle an incoming ctrl-topic message from a peer.
+    pub async fn handle_ctrl_message(self: &Arc<Self>, source: PeerId, msg: super::CtrlMessage) {
+        match msg {
+            super::CtrlMessage::WorkspaceOpened { uuid } => {
+                let ws_state = self.app.state::<WorkspaceState>();
+                if ws_state.get(&uuid).await.is_some() {
+                    info!("Peer {source} opened workspace {uuid} which is also open locally — subscribing + syncing");
+                    self.subscribe_workspace(uuid).await;
+                    self.spawn_full_sync(source, uuid).await;
+                }
+            }
+        }
+    }
+
     /// Spawn a full sync task if not already running for this (peer, workspace).
     pub async fn spawn_full_sync(self: &Arc<Self>, peer_id: PeerId, workspace_uuid: Uuid) {
         let key = (peer_id, workspace_uuid);
@@ -390,6 +404,16 @@ impl SyncManager {
         match self.client.subscribe(&topic).await {
             Ok(_) => info!("Subscribed to workspace GossipSub topic: {topic}"),
             Err(e) => warn!("Failed to subscribe to {topic}: {e}"),
+        }
+    }
+
+    /// Broadcast a WorkspaceOpened ctrl message so connected peers can subscribe + sync.
+    pub async fn publish_workspace_opened(&self, workspace_uuid: Uuid) {
+        let payload = super::encode_ctrl_message(&super::CtrlMessage::WorkspaceOpened {
+            uuid: workspace_uuid,
+        });
+        if let Err(e) = self.client.publish(super::CTRL_TOPIC, payload).await {
+            warn!("Failed to publish WorkspaceOpened for {workspace_uuid}: {e}");
         }
     }
 

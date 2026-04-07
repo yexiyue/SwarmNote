@@ -166,7 +166,13 @@ async fn handle_event(
             topic,
             data,
         } => {
-            if let Some(ws_uuid) = parse_ws_topic(&topic) {
+            if topic == crate::sync::CTRL_TOPIC {
+                if let (Some(peer), Some(msg)) = (source, crate::sync::decode_ctrl_message(&data)) {
+                    if device_manager.is_paired(&peer) {
+                        sync_manager.handle_ctrl_message(peer, msg).await;
+                    }
+                }
+            } else if let Some(ws_uuid) = parse_ws_topic(&topic) {
                 // Workspace-level topic: decode doc_uuid from payload
                 if let Some((doc_uuid, update)) = decode_ws_gossip(&data) {
                     sync_manager

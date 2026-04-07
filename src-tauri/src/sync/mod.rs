@@ -25,6 +25,26 @@ pub enum DocSyncStatus {
     LocalOnly,
 }
 
+// ── GossipSub control topic ──
+
+/// Global control topic for broadcasting workspace state changes.
+pub const CTRL_TOPIC: &str = "swarmnote/ctrl";
+
+/// Control-plane messages broadcast via GossipSub (not request-response).
+#[derive(Debug, Serialize, Deserialize)]
+pub enum CtrlMessage {
+    /// A peer opened a workspace — receivers with the same workspace should subscribe + sync.
+    WorkspaceOpened { uuid: Uuid },
+}
+
+pub fn encode_ctrl_message(msg: &CtrlMessage) -> Vec<u8> {
+    serde_json::to_vec(msg).expect("CtrlMessage serialization cannot fail")
+}
+
+pub fn decode_ctrl_message(data: &[u8]) -> Option<CtrlMessage> {
+    serde_json::from_slice(data).ok()
+}
+
 // ── GossipSub workspace topic payload encoding ──
 
 /// GossipSub topic format for workspace-level document updates.
