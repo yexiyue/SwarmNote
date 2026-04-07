@@ -69,6 +69,8 @@ pub struct PairingManager {
     db: DatabaseConnection,
     /// 运行时已配对设备缓存（与 DeviceManager 共享）
     paired_devices: Arc<DashMap<PeerId, PairedDeviceInfo>>,
+    /// 当前用户自定义设备名称（节点生命周期内不变，改名会重启节点）
+    device_name: Option<String>,
     /// 当前生效的配对码（同一时间只允许一个）
     active_code: Mutex<Option<PairingCodeInfo>>,
     /// 等待用户确认的入站配对请求
@@ -82,15 +84,25 @@ impl PairingManager {
         peer_id: PeerId,
         db: DatabaseConnection,
         paired_devices: Arc<DashMap<PeerId, PairedDeviceInfo>>,
+        device_name: Option<String>,
     ) -> Self {
         Self {
             client,
             peer_id,
             db,
             paired_devices,
+            device_name,
             active_code: Mutex::new(None),
             pending_inbound: DashMap::new(),
         }
+    }
+
+    /// 构建包含当前设备自定义名称的 OsInfo。
+    /// `device_name` 已在构造时经过 hostname 去重判断（None = 与 hostname 相同）。
+    fn local_os_info(&self) -> OsInfo {
+        let mut info = OsInfo::default();
+        info.name = self.device_name.clone();
+        info
     }
 
     /// 从数据库加载已配对设备到内存缓存。
@@ -139,7 +151,7 @@ impl PairingManager {
 
         // 构建 DHT 记录
         let record_data = ShareCodeRecord {
-            os_info: OsInfo::default(),
+            os_info: self.local_os_info(),
             listen_addrs,
             timestamp: chrono::Utc::now().timestamp(),
         };
@@ -229,7 +241,7 @@ impl PairingManager {
         let peer_id = parse_peer_id(peer_id_str)?;
 
         let request = PairingRequest {
-            os_info: OsInfo::default(),
+            os_info: self.local_os_info(),
             timestamp: chrono::Utc::now().timestamp(),
             method,
         };

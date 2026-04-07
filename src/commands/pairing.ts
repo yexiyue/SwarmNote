@@ -106,7 +106,7 @@ export async function getDeviceByCode(code: string): Promise<ShareCodeDeviceInfo
 export async function requestPairing(
   peerId: string,
   method: PairingMethod,
-  remoteOsInfo?: { hostname: string; os: string; platform: string; arch: string },
+  remoteOsInfo?: { name?: string; hostname: string; os: string; platform: string; arch: string },
 ): Promise<PairingResponse> {
   return invoke("request_pairing", { peerId, method, remoteOsInfo });
 }

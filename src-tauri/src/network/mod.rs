@@ -49,6 +49,7 @@ impl NetManager {
         client: AppNetClient,
         peer_id: PeerId,
         db: DatabaseConnection,
+        device_name: Option<String>,
     ) -> Self {
         let paired_devices = Arc::new(dashmap::DashMap::new());
         let device_manager = Arc::new(DeviceManager::new(paired_devices.clone()));
@@ -58,6 +59,7 @@ impl NetManager {
             peer_id,
             db,
             paired_devices,
+            device_name,
         ));
         let sync_manager = Arc::new(SyncManager::new(app, client.clone()));
         let cancel_token = CancellationToken::new();

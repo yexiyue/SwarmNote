@@ -28,21 +28,20 @@ pub async fn do_start_p2p_node(
 
     let peer_id = keypair.public().to_peer_id();
 
-    // 构建 agent_version（包含用户自定义设备名称）
-    let mut os_info = OsInfo::default();
+    // 读取用户自定义设备名称
     let identity_state = app.state::<IdentityState>();
     let device_name = identity_state
         .device_info
         .read()
         .map(|info| info.device_name.clone())
         .unwrap_or_default();
-    // 只有当 device_name 与系统 hostname 不同时才设置 name 字段
+
+    // 构建 agent_version（PairingManager 也使用 device_name 构建一致的 OsInfo）
+    let mut os_info = OsInfo::default();
     if device_name != os_info.hostname {
-        os_info.name = Some(device_name);
+        os_info.name = Some(device_name.clone());
     }
     let agent_version = os_info.to_agent_version(env!("CARGO_PKG_VERSION"));
-
-    // 创建节点配置
     let config = create_node_config(agent_version);
 
     // 启动 P2P 节点
@@ -50,8 +49,7 @@ pub async fn do_start_p2p_node(
         swarm_p2p_core::start::<AppRequest, AppResponse>(keypair, config)
             .map_err(|e| AppError::Network(format!("Failed to start P2P: {e}")))?;
 
-    // 创建 NetManager（传入 devices_db 供 PairingManager 使用）
-    let net_manager = NetManager::new(app.clone(), client.clone(), peer_id, db);
+    let net_manager = NetManager::new(app.clone(), client.clone(), peer_id, db, os_info.name);
     let cancel_token = net_manager.cancel_token();
 
     // 启动事件循环

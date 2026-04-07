@@ -24,6 +24,7 @@ export function NearbyDeviceCard({ device, onPaired, isLast }: NearbyDeviceCardP
         device.peerId,
         { type: "Direct" },
         {
+          name: device.name,
           hostname: device.hostname,
           os: device.os,
           platform: device.platform,
