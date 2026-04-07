@@ -10,7 +10,7 @@ export function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between py-2">
+    <div className="flex items-center justify-between px-3.5 py-2.5">
       <div className="flex items-center gap-3">
         {Icon && (
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">

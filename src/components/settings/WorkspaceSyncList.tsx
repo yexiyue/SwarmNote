@@ -3,7 +3,6 @@ import { CheckCircle2, Circle, FolderSync, Loader2, WifiOff } from "lucide-react
 import { useEffect, useState } from "react";
 import type { RecentWorkspace } from "@/commands/workspace";
 import { getRecentWorkspaces } from "@/commands/workspace";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSyncDisplayState } from "@/hooks/useSyncDisplayState";
 import { cn } from "@/lib/utils";
 import { useNetworkStore } from "@/stores/networkStore";
@@ -63,7 +62,6 @@ function WorkspaceSyncItem({ workspace }: { workspace: RecentWorkspace }) {
     );
   }
 
-  // local-only
   return (
     <div className="flex items-center gap-3 py-2.5">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -92,36 +90,40 @@ export function WorkspaceSyncList() {
       .catch(() => null);
   }, []);
 
+  if (status !== "running") {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-6">
+        <WifiOff className="h-5 w-5 text-muted-foreground/40" />
+        <p className="text-xs font-medium text-muted-foreground">
+          <Trans>网络未启动</Trans>
+        </p>
+        <p className="text-[11px] text-muted-foreground/60">
+          <Trans>启动 P2P 网络后即可同步工作区</Trans>
+        </p>
+      </div>
+    );
+  }
+
+  if (recentWorkspaces.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 rounded-lg border border-dashed py-6">
+        <FolderSync className="h-5 w-5 text-muted-foreground/40" />
+        <p className="text-xs font-medium text-muted-foreground">
+          <Trans>暂无工作区</Trans>
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>
-          <Trans>工作区同步</Trans>
-        </CardTitle>
-        <CardDescription>
-          <Trans>各工作区的同步状态</Trans>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {status !== "running" ? (
-          <div className="flex flex-col items-center gap-2 py-4">
-            <WifiOff className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-center text-sm text-muted-foreground">
-              <Trans>启动 P2P 网络后即可同步工作区</Trans>
-            </p>
-          </div>
-        ) : recentWorkspaces.length === 0 ? (
-          <p className="py-3 text-center text-xs text-muted-foreground">
-            <Trans>暂无工作区</Trans>
-          </p>
-        ) : (
-          <div className={cn("space-y-0", recentWorkspaces.length > 1 && "divide-y divide-border")}>
-            {recentWorkspaces.map((ws) => (
-              <WorkspaceSyncItem key={ws.path} workspace={ws} />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="overflow-hidden rounded-lg border">
+      <div
+        className={cn("space-y-0 px-3.5", recentWorkspaces.length > 1 && "divide-y divide-border")}
+      >
+        {recentWorkspaces.map((ws) => (
+          <WorkspaceSyncItem key={ws.path} workspace={ws} />
+        ))}
+      </div>
+    </div>
   );
 }

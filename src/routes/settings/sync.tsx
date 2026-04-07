@@ -4,7 +4,6 @@ import { Zap } from "lucide-react";
 import { NetworkStatusCard } from "@/components/settings/NetworkStatusCard";
 import { SettingRow } from "@/components/settings/SettingRow";
 import { WorkspaceSyncList } from "@/components/settings/WorkspaceSyncList";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { usePreferencesStore } from "@/stores/preferencesStore";
 
@@ -16,36 +15,34 @@ function SyncSettingsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">
+        <h1 className="text-base font-semibold tracking-tight">
           <Trans>同步</Trans>
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          <Trans>P2P 网络状态与工作区同步</Trans>
-        </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* P2P Network Status */}
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle>
-              <Trans>P2P 网络</Trans>
-            </CardTitle>
-            <CardDescription>
-              <Trans>节点运行状态与连接信息</Trans>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <NetworkStatusCard />
-          </CardContent>
-        </Card>
+        <section className="space-y-2">
+          <h2 className="text-[13px] font-medium">
+            <Trans>P2P 网络</Trans>
+          </h2>
+          <NetworkStatusCard />
+        </section>
 
         {/* Workspace Sync List */}
-        <WorkspaceSyncList />
+        <section className="space-y-2">
+          <h2 className="text-[13px] font-medium">
+            <Trans>工作区同步</Trans>
+          </h2>
+          <WorkspaceSyncList />
+        </section>
 
-        {/* Auto-start Setting */}
-        <Card>
-          <CardContent>
+        {/* Settings */}
+        <section className="space-y-2">
+          <h2 className="text-[13px] font-medium">
+            <Trans>设置</Trans>
+          </h2>
+          <div className="overflow-hidden rounded-lg border">
             <SettingRow
               icon={Zap}
               label={t`开机自动启动网络`}
@@ -53,8 +50,8 @@ function SyncSettingsPage() {
             >
               <Switch checked={autoStartP2P} onCheckedChange={setAutoStartP2P} />
             </SettingRow>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     </div>
   );

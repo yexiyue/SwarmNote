@@ -2,7 +2,6 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute } from "@tanstack/react-router";
 import { FolderOpen, Globe, Palette, WrapText } from "lucide-react";
 import { SettingRow } from "@/components/settings/SettingRow";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -10,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import type { Locale } from "@/i18n";
 import { usePreferencesStore } from "@/stores/preferencesStore";
@@ -32,22 +30,19 @@ function GeneralSettingsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">
+        <h1 className="text-base font-semibold tracking-tight">
           <Trans>通用</Trans>
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          <Trans>管理界面外观和语言偏好</Trans>
-        </p>
       </div>
 
-      <div className="space-y-4">
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle>{t`外观`}</CardTitle>
-            <CardDescription>{t`自定义应用的显示方式`}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
+      <div className="space-y-5">
+        {/* Appearance Section */}
+        <section className="space-y-2">
+          <h2 className="text-[13px] font-medium">
+            <Trans>外观</Trans>
+          </h2>
+          <div className="overflow-hidden rounded-lg border">
+            <div className="border-b">
               <SettingRow icon={Globe} label={t`语言`} description={t`选择界面显示语言`}>
                 <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
                   <SelectTrigger>
@@ -59,7 +54,8 @@ function GeneralSettingsPage() {
                   </SelectContent>
                 </Select>
               </SettingRow>
-              <Separator />
+            </div>
+            <div className="border-b">
               <SettingRow icon={Palette} label={t`外观`} description={t`选择明亮或暗色主题`}>
                 <Select
                   value={theme}
@@ -75,24 +71,23 @@ function GeneralSettingsPage() {
                   </SelectContent>
                 </Select>
               </SettingRow>
-              <Separator />
-              <SettingRow
-                icon={WrapText}
-                label={t`可读行宽`}
-                description={t`限制编辑器内容宽度以提升阅读体验`}
-              >
-                <Switch checked={readableLineLength} onCheckedChange={setReadableLineLength} />
-              </SettingRow>
             </div>
-          </CardContent>
-        </Card>
+            <SettingRow
+              icon={WrapText}
+              label={t`可读行宽`}
+              description={t`限制编辑器内容宽度以提升阅读体验`}
+            >
+              <Switch checked={readableLineLength} onCheckedChange={setReadableLineLength} />
+            </SettingRow>
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle>{t`启动行为`}</CardTitle>
-            <CardDescription>{t`控制应用启动时的默认行为`}</CardDescription>
-          </CardHeader>
-          <CardContent>
+        {/* Startup Section */}
+        <section className="space-y-2">
+          <h2 className="text-[13px] font-medium">
+            <Trans>启动行为</Trans>
+          </h2>
+          <div className="overflow-hidden rounded-lg border">
             <SettingRow
               icon={FolderOpen}
               label={t`恢复上次工作区`}
@@ -100,8 +95,8 @@ function GeneralSettingsPage() {
             >
               <Switch checked={restoreLastWorkspace} onCheckedChange={setRestoreLastWorkspace} />
             </SettingRow>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     </div>
   );
