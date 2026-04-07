@@ -20,6 +20,7 @@ interface InputCodeDialogProps {
   onDeviceFound: (
     peerId: string,
     osInfo: { hostname: string; os: string; platform: string; arch: string },
+    code: string,
   ) => void;
 }
 
@@ -36,7 +37,7 @@ export function InputCodeDialog({ open, onOpenChange, onDeviceFound }: InputCode
     if (code.length < 6) return;
     await run(async () => {
       const result = await getDeviceByCode(code);
-      onDeviceFound(result.peerId, result.osInfo);
+      onDeviceFound(result.peerId, result.osInfo, code);
     });
   }
 
