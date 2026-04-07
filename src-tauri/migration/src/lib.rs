@@ -6,6 +6,7 @@ mod m20260330_000003_uuid_stabilization;
 mod m20260331_000004_rel_path_unique;
 mod m20260401_000005_datetime_text_workspace;
 mod m20260401_000006_datetime_text_devices;
+mod m20260407_000007_add_device_name;
 
 pub struct DevicesMigrator;
 
@@ -15,6 +16,7 @@ impl MigratorTrait for DevicesMigrator {
         vec![
             Box::new(m20260321_000001_init_devices::Migration),
             Box::new(m20260401_000006_datetime_text_devices::Migration),
+            Box::new(m20260407_000007_add_device_name::Migration),
         ]
     }
 }

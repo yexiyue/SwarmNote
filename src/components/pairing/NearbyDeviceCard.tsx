@@ -31,7 +31,7 @@ export function NearbyDeviceCard({ device, onPaired, isLast }: NearbyDeviceCardP
         },
       );
       if (resp.status === "Success") {
-        toast.success(t`已与 ${device.hostname} 配对`);
+        toast.success(t`已与 ${device.name ?? device.hostname} 配对`);
         onPaired?.();
       } else {
         toast.error(resp.reason ?? t`配对被拒绝`);

@@ -80,6 +80,7 @@ export async function listDevices(filter?: DeviceFilter): Promise<DeviceListResu
 export interface ShareCodeDeviceInfo {
   peerId: string;
   osInfo: {
+    name?: string;
     hostname: string;
     os: string;
     platform: string;

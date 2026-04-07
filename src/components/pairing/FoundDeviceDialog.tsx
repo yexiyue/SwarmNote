@@ -18,7 +18,7 @@ interface FoundDeviceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   peerId: string;
-  osInfo: { hostname: string; os: string; platform: string; arch: string };
+  osInfo: { name?: string; hostname: string; os: string; platform: string; arch: string };
   code: string;
   onSuccess: () => void;
 }
@@ -54,7 +54,12 @@ export function FoundDeviceDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <DeviceInfoCard hostname={osInfo.hostname} os={osInfo.os} platform={osInfo.platform} />
+        <DeviceInfoCard
+          name={osInfo.name}
+          hostname={osInfo.hostname}
+          os={osInfo.os}
+          platform={osInfo.platform}
+        />
 
         <DialogDescription>
           <Trans>确认与此设备配对？</Trans>

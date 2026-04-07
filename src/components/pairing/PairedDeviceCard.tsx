@@ -54,7 +54,7 @@ export function PairedDeviceCard({ device, onUnpaired, isLast }: PairedDeviceCar
       <UnpairConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        deviceName={device.hostname}
+        deviceName={device.name ?? device.hostname}
         peerId={device.peerId}
         onConfirm={() => {
           setConfirmOpen(false);

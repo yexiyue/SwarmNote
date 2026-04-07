@@ -48,6 +48,8 @@ struct PendingInbound {
 #[serde(rename_all = "camelCase")]
 pub struct PairedDeviceInfo {
     pub peer_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     pub hostname: String,
     pub os: String,
     pub platform: String,
@@ -101,6 +103,7 @@ impl PairingManager {
 
             let info = PairedDeviceInfo {
                 peer_id: model.peer_id,
+                name: model.name,
                 hostname: model.hostname,
                 os: model.os.unwrap_or_default(),
                 platform: model.platform.unwrap_or_default(),
@@ -409,6 +412,7 @@ impl PairingManager {
 
         let info = PairedDeviceInfo {
             peer_id: peer_id_str.clone(),
+            name: os_info.name.clone(),
             hostname: os_info.hostname.clone(),
             os: os_info.os.clone(),
             platform: os_info.platform.clone(),
@@ -421,6 +425,7 @@ impl PairingManager {
 
         let model = paired_devices::Model {
             peer_id: peer_id_str,
+            name: os_info.name.clone(),
             hostname: os_info.hostname.clone(),
             os: Some(os_info.os.clone()),
             platform: Some(os_info.platform.clone()),

@@ -125,7 +125,7 @@ function DevicesPage() {
   const [inputCodeOpen, setInputCodeOpen] = useState(false);
   const [foundDevice, setFoundDevice] = useState<{
     peerId: string;
-    osInfo: { hostname: string; os: string; platform: string; arch: string };
+    osInfo: { name?: string; hostname: string; os: string; platform: string; arch: string };
     code: string;
   } | null>(null);
 

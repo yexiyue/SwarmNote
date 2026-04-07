@@ -120,6 +120,13 @@ impl DeviceManager {
                 if let Some(mut entry) = self.peers.get_mut(peer_id) {
                     entry.agent_version = Some(agent_version.clone());
                 }
+                // Update paired device cache with latest name/hostname from agent_version
+                if let Some(mut paired) = self.paired_devices.get_mut(peer_id) {
+                    if let Some(os_info) = OsInfo::from_agent_version(agent_version) {
+                        paired.name = os_info.name;
+                        paired.hostname = os_info.hostname;
+                    }
+                }
             }
 
             NodeEvent::PingSuccess { peer_id, rtt_ms } => {
@@ -206,7 +213,7 @@ impl DeviceManager {
                     let (name, hostname, os, platform, arch) = match live_os {
                         Some(oi) => (oi.name, oi.hostname, oi.os, oi.platform, oi.arch),
                         None => (
-                            None,
+                            info.name.clone(),
                             info.hostname.clone(),
                             info.os.clone(),
                             info.platform.clone(),
