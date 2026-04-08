@@ -73,6 +73,17 @@ pub async fn do_start_p2p_node(
         tracing::warn!("Failed to subscribe to ctrl topic: {e}");
     }
 
+    // Retroactively subscribe to GossipSub topics for workspaces opened before P2P started.
+    {
+        let ws_state = app.state::<crate::workspace::state::WorkspaceState>();
+        for ws_info in ws_state.list_bound().await {
+            net_manager
+                .sync_manager
+                .subscribe_workspace(ws_info.id)
+                .await;
+        }
+    }
+
     // 在线宣告 + DHT bootstrap + 已配对设备重连（后台任务）
     let announcer = net_manager.online_announcer.clone();
     let bootstrap_client = client.clone();

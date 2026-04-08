@@ -180,7 +180,6 @@ impl WorkspaceState {
     }
 
     /// 返回有窗口绑定的工作区列表（不包含 sync-only 工作区）
-    #[expect(dead_code)]
     pub async fn list_bound(&self) -> Vec<WorkspaceInfo> {
         let workspaces = self.workspaces.read().await;
         let bindings = self.bindings.read().await;
