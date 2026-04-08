@@ -180,6 +180,14 @@ async fn bind_workspace_to_window(
         });
     }
 
+    // Subscribe to workspace GossipSub topic and notify peers.
+    if let Some(net_state) = app_handle.try_state::<crate::network::NetManagerState>() {
+        if let Ok(sync_mgr) = net_state.sync().await {
+            sync_mgr.subscribe_workspace(info.id).await;
+            sync_mgr.publish_workspace_opened(info.id).await;
+        }
+    }
+
     info
 }
 
@@ -240,15 +248,6 @@ pub async fn open_workspace(
         &app_handle,
     )
     .await;
-
-    // Subscribe to workspace-level GossipSub topic for real-time sync,
-    // then broadcast to connected peers so they can subscribe + sync too.
-    if let Some(net_state) = app_handle.try_state::<crate::network::NetManagerState>() {
-        if let Ok(sync_mgr) = net_state.sync().await {
-            sync_mgr.subscribe_workspace(info.id).await;
-            sync_mgr.publish_workspace_opened(info.id).await;
-        }
-    }
 
     Ok(info)
 }
