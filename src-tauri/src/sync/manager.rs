@@ -53,7 +53,7 @@ impl SyncManager {
     }
 
     /// Called when a paired peer comes online. Spawns full-sync for each
-    /// locally opened workspace.
+    /// locally registered workspace.
     pub async fn on_paired_peer_connected(self: &Arc<Self>, peer_id: PeerId) {
         info!("Paired peer connected: {peer_id}, will trigger full sync");
 
@@ -61,10 +61,7 @@ impl SyncManager {
         let workspaces = ws_state.list_all().await;
 
         for ws_info in &workspaces {
-            // Ensure workspace topic is subscribed (may have been skipped if
-            // the workspace was opened before the network started).
-            self.subscribe_workspace(ws_info.id).await;
-            self.spawn_full_sync(peer_id, ws_info.id).await;
+            self.sync_workspace(peer_id, ws_info.id).await;
         }
     }
 
@@ -74,12 +71,23 @@ impl SyncManager {
             super::CtrlMessage::WorkspaceOpened { uuid } => {
                 let ws_state = self.app.state::<WorkspaceState>();
                 if ws_state.get(&uuid).await.is_some() {
-                    info!("Peer {source} opened workspace {uuid} which is also open locally — subscribing + syncing");
-                    self.subscribe_workspace(uuid).await;
-                    self.spawn_full_sync(source, uuid).await;
+                    info!("Peer {source} opened workspace {uuid} which is also open locally — syncing");
+                    self.sync_workspace(source, uuid).await;
                 }
             }
         }
+    }
+
+    /// Subscribe (if window-bound) + full sync (always) for a workspace.
+    ///
+    /// Sync-only workspaces (no window) only participate in full sync,
+    /// skipping GossipSub subscription to avoid unnecessary real-time I/O.
+    async fn sync_workspace(self: &Arc<Self>, peer_id: PeerId, workspace_uuid: Uuid) {
+        let ws_state = self.app.state::<WorkspaceState>();
+        if ws_state.is_bound(&workspace_uuid).await {
+            self.subscribe_workspace(workspace_uuid).await;
+        }
+        self.spawn_full_sync(peer_id, workspace_uuid).await;
     }
 
     /// Spawn a full sync task if not already running for this (peer, workspace).

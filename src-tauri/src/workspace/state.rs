@@ -54,7 +54,14 @@ impl DbState {
         self.workspace_dbs.read().await.keys().copied().collect()
     }
 
-    /// 注册工作区数据库连接。
+    /// 注册工作区数据库连接（无窗口，仅按 UUID 索引）。
+    ///
+    /// 用于 sync-only 场景：sync 层只按 UUID 访问 DB，不需要 label 映射。
+    pub async fn register_db(&self, uuid: Uuid, conn: DatabaseConnection) {
+        self.workspace_dbs.write().await.insert(uuid, conn);
+    }
+
+    /// 注册工作区数据库连接（有窗口，建立 label → UUID 映射）。
     pub async fn insert_workspace_db(&self, label: &str, uuid: Uuid, conn: DatabaseConnection) {
         self.workspace_dbs.write().await.insert(uuid, conn);
         self.label_to_uuid
@@ -122,6 +129,13 @@ impl WorkspaceState {
         }
     }
 
+    /// 注册工作区元信息（无窗口，仅按 UUID 索引）。
+    ///
+    /// 用于 sync-only 场景：sync 层通过 `get(&uuid)` 获取路径等信息。
+    pub async fn register(&self, info: WorkspaceInfo) {
+        self.workspaces.write().await.insert(info.id, info);
+    }
+
     /// 绑定工作区到窗口（初始化和运行时共用）
     pub async fn bind(&self, label: &str, info: WorkspaceInfo) {
         let uuid = info.id;
@@ -158,6 +172,24 @@ impl WorkspaceState {
     /// 获取所有已打开的工作区信息（同步层用）
     pub async fn list_all(&self) -> Vec<WorkspaceInfo> {
         self.workspaces.read().await.values().cloned().collect()
+    }
+
+    /// 检查指定工作区是否有真实窗口绑定
+    pub async fn is_bound(&self, uuid: &Uuid) -> bool {
+        self.bindings.read().await.values().any(|v| v == uuid)
+    }
+
+    /// 返回有窗口绑定的工作区列表（不包含 sync-only 工作区）
+    #[expect(dead_code)]
+    pub async fn list_bound(&self) -> Vec<WorkspaceInfo> {
+        let workspaces = self.workspaces.read().await;
+        let bindings = self.bindings.read().await;
+        let bound_uuids: std::collections::HashSet<&Uuid> = bindings.values().collect();
+        workspaces
+            .iter()
+            .filter(|(uuid, _)| bound_uuids.contains(uuid))
+            .map(|(_, info)| info.clone())
+            .collect()
     }
 
     /// 查找已打开指定路径的窗口 label

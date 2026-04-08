@@ -516,12 +516,12 @@ pub async fn create_workspace_for_sync(
         }
     };
 
-    // Register in DbState and WorkspaceState using sync-{uuid} as label
-    let label = format!("sync-{ws_uuid}");
-    db_state.insert_workspace_db(&label, ws_uuid, conn).await;
+    // Register in DbState and WorkspaceState without a window label.
+    // Sync-only: sync layer accesses by UUID, no window exists.
+    db_state.register_db(ws_uuid, conn).await;
 
     let info = WorkspaceInfo::from_model(&workspace_result, &ws_path_str);
-    ws_state.bind(&label, info).await;
+    ws_state.register(info).await;
 
     // Update recent workspaces in global config
     {
