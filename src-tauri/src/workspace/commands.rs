@@ -27,7 +27,7 @@ fn with_platform_decorations<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
             .decorations(true)
             .title_bar_style(TitleBarStyle::Overlay)
             .hidden_title(true)
-            .traffic_light_position(tauri::LogicalPosition::new(15.0, 16.0))
+            .traffic_light_position(tauri::LogicalPosition::new(15.0, 22.0))
     };
 
     #[cfg(not(target_os = "macos"))]

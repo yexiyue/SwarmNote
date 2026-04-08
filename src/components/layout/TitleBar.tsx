@@ -31,7 +31,7 @@ export function TitleBar() {
   const setSidebarTab = useUIStore((s) => s.setSidebarTab);
   const workspace = useWorkspaceStore((s) => s.workspace);
 
-  const needsTrafficLightPadding = isMac && !sidebarOpen;
+  const needsTrafficLightPadding = isMac;
 
   return (
     <header

@@ -7,7 +7,6 @@ import { FileTree } from "@/components/filetree/FileTree";
 import { SyncStatusBar } from "@/components/layout/SyncStatusBar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { isMac } from "@/lib/utils";
 import { useFileTreeStore } from "@/stores/fileTreeStore";
 import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, useUIStore } from "@/stores/uiStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
@@ -109,9 +108,6 @@ export function Sidebar() {
       style={{ width: sidebarOpen ? sidebarWidth : 0 }}
     >
       <div className="flex h-full flex-col" style={{ minWidth: sidebarWidth }}>
-        {/* macOS traffic light spacer */}
-        {isMac && <div className="h-6 shrink-0" data-tauri-drag-region />}
-
         {/* File tree header: search + actions (only in filetree mode) */}
         {sidebarTab === "filetree" && (
           <div className="flex shrink-0 items-center gap-1 px-2 py-1.5">
