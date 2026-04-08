@@ -9,15 +9,14 @@ use tracing::{info, warn};
 use uuid::Uuid;
 use yrs::updates::decoder::Decode;
 use yrs::updates::encoder::Encode;
-use yrs::{Doc, Options, ReadTxn, StateVector, Transact, Update};
+use yrs::{ReadTxn, StateVector, Transact};
 
 use crate::error::{AppError, AppResult};
 use crate::network::online::AppNetClient;
 use crate::protocol::{AppRequest, AppResponse, SyncRequest, SyncResponse};
 use crate::workspace::state::DbState;
 use crate::yjs::manager::YDocManager;
-
-const FRAGMENT_NAME: &str = "document-store";
+use crate::yjs::{apply_update_to_doc, content_hash, create_temp_doc, FRAGMENT_NAME};
 
 /// Apply a remote update to a document, routing through YDocManager if open
 /// or falling back to the temporary-Doc DB path.
@@ -80,7 +79,7 @@ async fn sync_closed_doc(
     tokio::fs::write(&file_path, &markdown).await?;
 
     // Persist back to DB
-    let file_hash = blake3::hash(markdown.as_bytes()).as_bytes().to_vec();
+    let file_hash = content_hash(&markdown);
     let mut model: documents::ActiveModel = doc_model.into();
     model.yjs_state = Set(Some(new_state));
     model.state_vector = Set(Some(new_sv));
@@ -173,7 +172,7 @@ pub async fn sync_via_full_pull(
     }
     tokio::fs::write(&file_path, &markdown).await?;
 
-    let file_hash = blake3::hash(markdown.as_bytes()).as_bytes().to_vec();
+    let file_hash = content_hash(&markdown);
 
     // Create DB record
     let db_state = app.state::<DbState>();
@@ -438,26 +437,6 @@ fn find_available_name(rel_path: &str, workspace_path: &std::path::Path) -> Stri
 }
 
 // ── Helpers ──
-
-/// Create a temporary Y.Doc with Utf16 offset (matching frontend JS yjs).
-fn create_temp_doc() -> Doc {
-    let doc = Doc::with_options(Options {
-        offset_kind: yrs::OffsetKind::Utf16,
-        ..Default::default()
-    });
-    doc.get_or_insert_xml_fragment(FRAGMENT_NAME);
-    doc
-}
-
-/// Apply a binary yrs update to a Doc, returning a mapped AppError on failure.
-fn apply_update_to_doc(doc: &Doc, data: &[u8], context: &str) -> AppResult<()> {
-    let update =
-        Update::decode_v1(data).map_err(|e| AppError::Yjs(format!("decode {context}: {e}")))?;
-    let mut txn = doc.transact_mut();
-    txn.apply_update(update)
-        .map_err(|e| AppError::Yjs(format!("apply {context}: {e}")))?;
-    Ok(())
-}
 
 /// Derive asset directory from document rel_path.
 /// `notes/my-note.md` → `notes/my-note.assets`

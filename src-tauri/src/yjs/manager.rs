@@ -9,18 +9,17 @@ use sea_orm::{ActiveModelBehavior, ActiveModelTrait, ColumnTrait, EntityTrait, Q
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
-use yrs::updates::decoder::Decode;
 use yrs::updates::encoder::Encode;
-use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, Transact, Update};
+use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, Transact};
 
 use crate::error::{AppError, AppResult};
 use crate::workspace::state::{DbState, WorkspaceState};
 
-const FRAGMENT_NAME: &str = "document-store";
+use super::FRAGMENT_NAME;
 const DEBOUNCE_MS: u64 = 1500;
 const POLL_INTERVAL_MS: u64 = 500;
 
-// ── Return type for open_ydoc ─────────────────────────────────
+// ── Return types ─────────────────────────────────────────────
 
 /// Returned by `open_ydoc` so the frontend knows the stable UUID.
 #[derive(serde::Serialize)]
@@ -29,6 +28,19 @@ pub struct OpenDocResult {
     pub doc_uuid: Uuid,
     /// Full Y.Doc state as binary v1 update.
     pub yjs_state: Vec<u8>,
+}
+
+/// Outcome of [`YDocManager::reload_from_file`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReloadStatus {
+    /// Document was open and content was replaced from disk.
+    Reloaded,
+    /// Document was open but file hash matched (self-write), no action taken.
+    Skipped,
+    /// Document is not loaded in any window.
+    NotOpen,
+    /// Document has unsaved edits; `yjs:external-conflict` event emitted.
+    Conflict,
 }
 
 // ── DocEntry ──────────────────────────────────────────────────
@@ -64,7 +76,7 @@ struct DocEntry {
 impl DocEntry {
     async fn apply_update(&self, update: &[u8]) -> AppResult<()> {
         let doc = self.doc.lock().await;
-        apply_binary_update(&doc, update)
+        super::apply_update_to_doc(&doc, update, "DocEntry apply")
     }
 
     fn mark_dirty(&self) {
@@ -248,7 +260,7 @@ impl YDocManager {
         });
 
         let has_yjs_state = yjs_state
-            .map(|yjs_state| apply_binary_update(&doc, yjs_state))
+            .map(|yjs_state| super::apply_update_to_doc(&doc, yjs_state, "open_doc restore"))
             .transpose()?
             .is_some();
 
@@ -267,7 +279,7 @@ impl YDocManager {
             let init_state = init_doc
                 .transact()
                 .encode_state_as_update_v1(&StateVector::default());
-            apply_binary_update(&doc, &init_state)?;
+            super::apply_update_to_doc(&doc, &init_state, "open_doc init from md")?;
         }
 
         let state = doc
@@ -497,23 +509,25 @@ impl YDocManager {
         app: &AppHandle,
         label: &str,
         rel_path: &str,
-    ) -> AppResult<()> {
+    ) -> AppResult<ReloadStatus> {
         let Some((doc_uuid, entry)) = self.find_entry_by_rel_path(label, rel_path) else {
-            return Ok(()); // not open — next open_ydoc will load from disk
+            return Ok(ReloadStatus::NotOpen);
         };
 
         // Read the new file content and compute hash
         let full_path = PathBuf::from(&entry.workspace_path).join(rel_path);
         let new_content = match tokio::fs::read_to_string(&full_path).await {
             Ok(c) => c,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(ReloadStatus::Skipped);
+            }
             Err(e) => return Err(AppError::Io(e)),
         };
         let new_hash = blake3::hash(new_content.as_bytes());
 
         // Self-write detection: if hash matches what we last wrote, skip
         if new_hash.as_bytes() == entry.file_hash().as_slice() {
-            return Ok(());
+            return Ok(ReloadStatus::Skipped);
         }
 
         if entry.dirty.load(Ordering::Acquire) {
@@ -527,13 +541,14 @@ impl YDocManager {
                     "relPath": rel_path,
                 }),
             );
-            return Ok(());
+            return Ok(ReloadStatus::Conflict);
         }
 
         // Silent reload
         tracing::info!("External reload for {rel_path} (doc {doc_uuid})");
         self.do_reload(app, label, doc_uuid, &entry, &new_content)
-            .await
+            .await?;
+        Ok(ReloadStatus::Reloaded)
     }
 
     /// Called after the user confirms reload in the conflict dialog.
@@ -642,15 +657,6 @@ impl YDocManager {
 }
 
 // ── Free helper functions ──
-
-fn apply_binary_update(doc: &Doc, data: &[u8]) -> AppResult<()> {
-    let update =
-        Update::decode_v1(data).map_err(|e| AppError::Yjs(format!("decode update: {e}")))?;
-    let mut txn = doc.transact_mut();
-    txn.apply_update(update)
-        .map_err(|e| AppError::Yjs(format!("apply update: {e}")))?;
-    Ok(())
-}
 
 fn spawn_writeback_task(
     app: AppHandle,

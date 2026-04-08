@@ -4,9 +4,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use notify_debouncer_mini::{new_debouncer, DebouncedEventKind, Debouncer};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
-use crate::yjs::manager::YDocManager;
+use crate::yjs::doc_state;
 
 type FsNotifyWatcher = notify::RecommendedWatcher;
 
@@ -106,10 +106,10 @@ pub fn start_watching(
                 let app = app.clone();
                 let label = target_label.clone();
                 tauri::async_runtime::spawn(async move {
-                    let ydoc_mgr = app.state::<YDocManager>();
                     for rel_path in md_paths {
-                        if let Err(e) = ydoc_mgr.reload_from_file(&app, &label, &rel_path).await {
-                            tracing::warn!("reload_from_file failed for {rel_path}: {e}");
+                        if let Err(e) = doc_state::handle_file_change(&app, &label, &rel_path).await
+                        {
+                            tracing::warn!("handle_file_change failed for {rel_path}: {e}");
                         }
                     }
                 });

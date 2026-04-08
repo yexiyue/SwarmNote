@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 export interface WorkspaceInfo {
   id: string;
@@ -77,6 +77,33 @@ export async function createWorkspaceForSync(
   basePath: string,
 ): Promise<string> {
   return invoke<string>("create_workspace_for_sync", { uuid, name, basePath });
+}
+
+export interface HydrateProgress {
+  current: number;
+  total: number;
+}
+
+export interface HydrateResult {
+  generated: number;
+  merged: number;
+  skipped: number;
+  failed: number;
+}
+
+/** 为工作区所有文档确保 yjs_state 有效，通过 Channel 回报进度。 */
+export async function hydrateWorkspace(
+  workspaceUuid: string,
+  onProgress?: (progress: HydrateProgress) => void,
+): Promise<HydrateResult> {
+  const channel = new Channel<HydrateProgress>();
+  if (onProgress) {
+    channel.onmessage = onProgress;
+  }
+  return invoke<HydrateResult>("hydrate_workspace", {
+    workspaceUuid,
+    onProgress: channel,
+  });
 }
 
 /** 手动触发对指定 peer 的指定工作区的 full sync。 */

@@ -1,9 +1,12 @@
+use tauri::ipc::Channel;
 use tauri::{Manager, State};
 use uuid::Uuid;
 
+use super::doc_state::{HydrateProgress, HydrateResult};
 use super::manager::{OpenDocResult, YDocManager};
 use crate::error::{AppError, AppResult};
 use crate::network::NetManagerState;
+use crate::workspace::state::WorkspaceState;
 
 fn parse_doc_uuid(doc_uuid: &str) -> AppResult<Uuid> {
     doc_uuid
@@ -84,4 +87,19 @@ pub async fn reload_ydoc_confirmed(
     ydoc_mgr
         .reload_confirmed(window.app_handle(), window.label(), uuid)
         .await
+}
+
+#[tauri::command]
+pub async fn hydrate_workspace(
+    app: tauri::AppHandle,
+    workspace_uuid: Uuid,
+    on_progress: Channel<HydrateProgress>,
+    ws_state: State<'_, WorkspaceState>,
+) -> AppResult<HydrateResult> {
+    let ws_info = ws_state
+        .get(&workspace_uuid)
+        .await
+        .ok_or(AppError::NoWorkspaceOpen)?;
+
+    super::doc_state::hydrate_workspace(&app, workspace_uuid, &ws_info.path, &on_progress).await
 }

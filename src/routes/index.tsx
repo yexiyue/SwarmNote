@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
@@ -11,8 +12,30 @@ export const Route = createFileRoute("/")({
   component: IndexPage,
 });
 
+function HydrateOverlay() {
+  const progress = useWorkspaceStore((s) => s.hydrateProgress);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          {progress ? (
+            <Trans>
+              正在同步文档 {progress.current}/{progress.total}...
+            </Trans>
+          ) : (
+            <Trans>正在准备工作区...</Trans>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function IndexPage() {
-  const { workspace, isLoading } = useWorkspaceStore();
+  const workspace = useWorkspaceStore((s) => s.workspace);
+  const isLoading = useWorkspaceStore((s) => s.isLoading);
+  const hydrating = useWorkspaceStore((s) => s.hydrating);
   const workspacePickerOpen = useUIStore((s) => s.workspacePickerOpen);
   const setWorkspacePickerOpen = useUIStore((s) => s.setWorkspacePickerOpen);
 
@@ -31,6 +54,7 @@ function IndexPage() {
       <AppLayout>
         <EditorPane />
       </AppLayout>
+      {hydrating && <HydrateOverlay />}
       <WorkspacePicker open={workspacePickerOpen} onOpenChange={setWorkspacePickerOpen} />
     </>
   );
