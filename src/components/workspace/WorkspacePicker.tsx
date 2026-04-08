@@ -121,11 +121,7 @@ export function WorkspacePicker({ open: dialogOpen, onOpenChange }: WorkspacePic
           {content}
         </DialogContent>
       </Dialog>
-      <WorkspaceSyncDialog
-        open={syncDialogOpen}
-        onOpenChange={setSyncDialogOpen}
-        pickerMode="dialog"
-      />
+      <WorkspaceSyncDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen} />
     </>
   );
 }

@@ -302,10 +302,14 @@ pub async fn open_workspace_window(
     ws_state: State<'_, WorkspaceState>,
     watcher_state: State<'_, crate::fs::watcher::FsWatcherState>,
 ) -> AppResult<OpenWorkspaceWindowResult> {
+    tracing::info!("open_workspace_window called: path={path}, bind_to_window={bind_to_window:?}");
     let ws_path = PathBuf::from(&path);
 
     // 优先级 1：如果该路径已在某个窗口中打开，直接 focus 那个窗口
     if let Some(existing_label) = ws_state.find_label_by_path(&path).await {
+        tracing::info!(
+            "open_workspace_window: FocusedExisting via find_label_by_path, label={existing_label}"
+        );
         if let Some(win) = app.get_webview_window(&existing_label) {
             let _ = win.set_focus();
         }
@@ -314,6 +318,7 @@ pub async fn open_workspace_window(
     }
     let hashed_label = workspace_window_label(&path);
     if let Some(existing) = app.get_webview_window(&hashed_label) {
+        tracing::info!("open_workspace_window: FocusedExisting via hashed_label={hashed_label}");
         existing
             .set_focus()
             .map_err(|e| AppError::InvalidPath(format!("failed to focus window: {e}")))?;

@@ -299,11 +299,7 @@ function WorkspaceManagerPage() {
         </div>
       </div>
 
-      <WorkspaceSyncDialog
-        open={syncDialogOpen}
-        onOpenChange={setSyncDialogOpen}
-        pickerMode="fullscreen"
-      />
+      <WorkspaceSyncDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen} />
     </div>
   );
 }

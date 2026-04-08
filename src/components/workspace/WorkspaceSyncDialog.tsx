@@ -1,6 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { documentDir } from "@tauri-apps/api/path";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { CheckCircle, Circle, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -37,7 +36,6 @@ interface WorkspaceSyncItem {
 interface WorkspaceSyncDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pickerMode: "fullscreen" | "dialog";
 }
 
 // ── Helpers ──
@@ -153,7 +151,7 @@ function SyncProgressRow({
 
 // ── Main Component ──
 
-export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: WorkspaceSyncDialogProps) {
+export function WorkspaceSyncDialog({ open, onOpenChange }: WorkspaceSyncDialogProps) {
   const { t } = useLingui();
   const [phase, setPhase] = useState<Phase>("loading");
   const [remoteWorkspaces, setRemoteWorkspaces] = useState<RemoteWorkspaceInfo[]>([]);
@@ -245,9 +243,7 @@ export function WorkspaceSyncDialog({ open, onOpenChange, pickerMode }: Workspac
   }
 
   async function handleOpenSyncedWorkspace(path: string) {
-    const callerLabel = getCurrentWindow().label;
-    const bindToWindow = pickerMode === "fullscreen" ? callerLabel : undefined;
-    await openWorkspaceWindow(path, { bindToWindow });
+    await openWorkspaceWindow(path);
     onOpenChange(false);
   }
 
