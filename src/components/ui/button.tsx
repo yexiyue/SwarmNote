@@ -63,8 +63,8 @@ function Button({
         data-variant={variant}
         data-size={size}
         className={cn(buttonVariants({ variant, size, className }))}
-        disabled={disabled || loading}
-        {...props}
+        {...(props as React.HTMLAttributes<HTMLElement>)}
+        aria-disabled={disabled || loading || undefined}
       >
         {children}
       </Slot.Root>
