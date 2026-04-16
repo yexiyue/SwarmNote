@@ -6,6 +6,7 @@ mod fs;
 mod identity;
 mod network;
 mod pairing;
+mod platform;
 mod protocol;
 mod sync;
 #[cfg(desktop)]
@@ -133,8 +134,24 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            use std::sync::Arc;
             use tauri::Manager;
 
+            // ── swarmnote-core AppCore (PR #1) ──
+            // Bootstrap the platform-independent core. Other (not-yet-ported)
+            // modules continue to use their own Tauri State for now — they
+            // coexist peacefully until PR #2/#3 migrates them over.
+            let app_data_dir = config::swarmnote_global_dir()?;
+            let keychain = Arc::new(platform::DesktopKeychain::new());
+            let event_bus = Arc::new(platform::TauriEventBus::new(app.handle().clone()));
+            let app_core = tauri::async_runtime::block_on(swarmnote_core::AppCore::new(
+                keychain,
+                event_bus,
+                app_data_dir,
+            ))?;
+            app.manage(app_core);
+
+            // ── legacy per-module init (kept until PR #2/#3 ports them) ──
             identity::init(app.handle())?;
             app.manage(fs::watcher::FsWatcherState::new());
             workspace::init(app.handle())?;

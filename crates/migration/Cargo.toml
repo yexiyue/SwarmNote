@@ -1,9 +1,9 @@
 [package]
 name = "migration"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 
 [dependencies]
 sea-orm = { workspace = true }
-sea-orm-migration = { version = "~2.0.0-rc", features = [] }
+sea-orm-migration = { workspace = true }
 entity = { path = "../entity" }

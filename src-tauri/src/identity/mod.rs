@@ -3,10 +3,14 @@
 pub mod commands;
 pub mod keychain;
 
-use serde::{Deserialize, Serialize};
 use std::sync::RwLock;
 use swarm_p2p_core::libp2p::identity::Keypair;
 use tauri::Manager;
+
+// Canonical DeviceInfo lives in `swarmnote_core`. Re-exported here so existing
+// `crate::identity::DeviceInfo` imports keep resolving to the same nominal
+// type used by `AppCore`.
+pub use swarmnote_core::DeviceInfo;
 
 /// 身份操作相关的错误类型。
 #[derive(Debug, thiserror::Error)]
@@ -36,18 +40,6 @@ impl IdentityState {
             .map_err(|e| IdentityError::Config(format!("lock error: {e}")))?;
         Ok(info.peer_id.clone())
     }
-}
-
-/// 返回给前端的设备信息。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeviceInfo {
-    pub peer_id: String,
-    pub device_name: String,
-    pub hostname: String,
-    pub os: String,
-    pub platform: String,
-    pub arch: String,
-    pub created_at: String,
 }
 
 /// 在 Tauri 启动阶段初始化设备身份。
@@ -83,7 +75,8 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), crate::error::AppError> {
         device_info: RwLock::new(device_info),
     });
 
-    app.manage(crate::config::GlobalConfigState::new(config));
+    let config_path = crate::config::swarmnote_global_dir()?.join("config.json");
+    app.manage(crate::config::GlobalConfigState::new(config, config_path));
 
     Ok(())
 }

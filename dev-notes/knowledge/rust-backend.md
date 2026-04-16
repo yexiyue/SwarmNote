@@ -2,24 +2,123 @@
 
 ## 架构概览
 
-Cargo workspace 位于 `src-tauri/`，包含 root + `entity` + `migration` 三个 crate。`swarm-p2p-core` 通过 path 依赖（submodule `libs/core/`）引入。
+Cargo workspace 根在仓库根 `Cargo.toml`，成员：
 
-### 模块职责
+- `crates/core` — `swarmnote-core`（跨平台业务层，零 Tauri 依赖）
+- `crates/entity`、`crates/migration` — SeaORM entity + 迁移（独立 crate，两端共用）
+- `src-tauri` — 桌面端 Tauri 壳（commands / platform impls / tray）
+- `libs/core`、`libs/bootstrap` — submodule 引入的 `swarm-p2p-core` + bootstrap 二进制
+
+进行中的 change `extract-swarmnote-core`：把业务层从 `src-tauri/src/` 逐步搬到 `crates/core/`，桌面壳只留 IPC + 平台 impl。Phase 1 PR 已落地 identity + config + fs traits + 事件骨架。
+
+### `crates/core/` 模块（平台无关）
 
 | 模块 | 职责 |
 | ---- | ---- |
-| `identity/` | 设备身份（PeerId）、OS keychain、设备名 |
-| `workspace/` | 多窗口工作区管理、per-window DB 绑定 |
+| `app.rs` | `AppCore` 设备级单例（identity + keychain + event_bus + config） |
+| `workspace.rs` + `workspace/db.rs` | `WorkspaceInfo` DTO + DB 初始化；PR #2 加 `WorkspaceCore` |
+| `identity.rs` | `IdentityManager`、`DeviceInfo` |
+| `config.rs` | `GlobalConfig`、`GlobalConfigState`、持久化 |
+| `fs.rs` | `FileSystem` trait、`LocalFs` 实现、`FileWatcher` trait、`FileTreeNode`、`FileEvent` |
+| `events.rs` | `EventBus` trait、`AppEvent` enum（15 个变体）、`NetworkStatus` |
+| `keychain.rs` | `KeychainProvider` trait |
+| `protocol.rs` + `protocol/{os_info,pairing,sync,workspace}.rs` | P2P 协议定义 |
+| `error.rs` | `AppError` / `AppResult` |
+
+### `src-tauri/src/` 模块（桌面壳 + 未迁移业务）
+
+| 模块 | 职责 |
+| ---- | ---- |
+| `platform/` | `TauriEventBus`、`DesktopKeychain`（实现 core trait） |
+| `identity/` | 旧 `IdentityState`（PR #3 删）+ 命令 wrapper |
+| `workspace/` | 多窗口工作区管理、per-window DB 绑定（PR #2 迁移中） |
 | `document/` | 文档/文件夹 CRUD（SeaORM） |
-| `fs/` | 文件系统 I/O、notify debounce、媒体保存 |
-| `network/` | P2P 节点生命周期、事件循环分发、DHT 宣告 |
-| `pairing/` | 设备配对码、请求/响应流程 |
-| `protocol/` | AppRequest / AppResponse、OsInfo |
-| `device/` | 在线设备追踪 |
-| `yjs/` | Y.Doc 生命周期、yrs ↔ DB 持久化、auto-save、外部 .md 变更检测 |
-| `config/` | 全局配置持久化 |
-| `tray.rs` | 系统托盘（桌面端） |
-| `error.rs` | `AppError` 统一错误类型 |
+| `fs/` | notify debounce、媒体保存（PR #2 迁移到 WorkspaceCore） |
+| `network/` | P2P 节点生命周期、事件循环分发、DHT 宣告（PR #3 迁移） |
+| `pairing/` | 设备配对（PR #3 迁移） |
+| `sync/` | 同步逻辑（PR #3 迁移到 WorkspaceSync） |
+| `yjs/` | Y.Doc 生命周期（PR #2 迁移到 WorkspaceCore） |
+| `config/` | 路径解析 wrapper（核心类型已 re-export 自 core） |
+| `tray.rs` | 系统托盘（桌面端 only，不迁移） |
+| `error.rs` | 旧 `AppError` + `From<swarmnote_core::AppError>` 桥接（PR #3 删） |
+
+## Rust 模块组织规范
+
+SwarmNote 遵循 Rust 2018+ 社区惯例（对照 tokio / reqwest / sea-orm 等成熟 crate）：
+
+### 单文件用 `foo.rs` 平铺，多文件用 `foo.rs + foo/bar.rs`
+
+```text
+✗ 避免                          ✓ 推荐
+─────────                      ──────────
+identity/mod.rs                identity.rs
+config/mod.rs                  config.rs
+
+protocol/mod.rs   (500 行)     protocol.rs      (薄顶层)
+                               protocol/
+                                 ├── os_info.rs
+                                 ├── pairing.rs
+                                 └── sync.rs
+```
+
+- **不要**：为单文件模块创建 `foo/mod.rs` 目录（编辑器 tab 一堆 `mod.rs` 混乱）
+- **推荐**：`foo/mod.rs` 模式只在 Rust 2015 edition 合法且目录多文件时用
+- **拆分阈值**：单模块超过 300 行考虑拆子模块；`protocol.rs` 按子协议拆是典型例子
+
+### 按领域组织，不按机制
+
+```text
+✗ 机制导向（Java/OOP 风）      ✓ 领域导向（std / tokio 风）
+─────────────────────────     ──────────────────────────
+traits/                        fs.rs         (FileSystem + LocalFs + FileTreeNode)
+  ├── filesystem.rs            events.rs     (EventBus + AppEvent)
+  ├── event_bus.rs             keychain.rs   (KeychainProvider)
+  ├── keychain.rs
+  └── file_watcher.rs
+
+model.rs                       identity.rs   (DeviceInfo 归 identity)
+  ├── DeviceInfo               workspace.rs  (WorkspaceInfo 归 workspace)
+  └── WorkspaceInfo
+```
+
+- `std::io::Read` 不在 `std::traits::Read`；`tokio::io::AsyncRead` 不在 `tokio::traits::*`
+- DTO 归所属领域模块，不要集中在 `model.rs` / `types.rs`（Django/Rails 风在 Rust 不常见）
+- trait + 它的 DTO 放同文件：`fs.rs` 里同时定义 `FileSystem` + `FileTreeNode` + `FileEvent`
+
+### `lib.rs` 顶层 flat re-export 面向消费者
+
+```rust
+// crates/core/src/lib.rs
+pub mod app;
+pub mod fs;
+pub mod events;
+// ...
+
+// 消费者高频 API 顶层扁平 re-export
+pub use app::AppCore;
+pub use error::{AppError, AppResult};
+pub use events::{AppEvent, EventBus, NetworkStatus};
+pub use fs::{FileSystem, LocalFs, FileWatcher, FileTreeNode, FileEvent};
+pub use identity::{DeviceInfo, IdentityManager};
+pub use keychain::KeychainProvider;
+```
+
+host 用 `use swarmnote_core::{AppCore, FileSystem, EventBus};` 而不是 `swarmnote_core::traits::FileSystem`。对照 `tokio::spawn` 和 `reqwest::Client` 这样的扁平入口。
+
+### 跨 crate 迁移时的 nominal type 去重
+
+把模块从 `src-tauri/src/foo/` 搬到 `crates/core/src/foo.rs` 时，**不要保留两份**——Rust 视为不同 nominal type，会在后续 PR 编译炸锅。正确做法：
+
+```rust
+// src-tauri/src/protocol/mod.rs（shim）
+pub use swarmnote_core::protocol::*;
+```
+
+把旧位置改成薄 re-export shim，所有 `use crate::protocol::X` 调用点零改动继续工作。`DeviceInfo` / `GlobalConfig` / DB helpers 同理。
+
+### `mod.rs` 里不要堆逻辑
+
+`mod.rs` / `foo.rs`（作为模块入口）应该只含：`pub mod`、`pub use`、少量顶层声明（`pub const`）。具体实现放子模块。例子：`protocol.rs` 只 20 行声明 + re-export，所有 struct 在子模块。
 
 ## Tauri command 约定
 

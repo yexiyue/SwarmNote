@@ -1,9 +1,16 @@
+//! Unified error type for swarmnote-core.
+//!
+//! `AppError` is serialized as `{ kind, message }` when it crosses the Tauri
+//! IPC boundary (the `Serialize` impl lives in the desktop shell to avoid a
+//! `serde` hard dependency here — but the `kind` discriminants are stable
+//! across the layer).
+
 use std::borrow::Cow;
 
 use serde::ser::SerializeStruct;
 use serde::Serialize;
 
-/// 所有 Tauri 命令的统一应用错误类型。
+/// Core-layer error type. Every `AppResult<T>` returns this.
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Database error: {0}")]
@@ -11,7 +18,9 @@ pub enum AppError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Identity error: {0}")]
-    Identity(#[from] crate::identity::IdentityError),
+    Identity(String),
+    #[error("Keychain error: {0}")]
+    Keychain(String),
     #[error("Config error: {0}")]
     Config(String),
     #[error("No workspace database open")]
@@ -46,40 +55,9 @@ impl AppError {
     }
 }
 
-/// Bridge core-layer errors into the desktop-layer error type during the
-/// `extract-swarmnote-core` PR #1 transition. Once all desktop code moves to
-/// `swarmnote_core::AppError` (PR #3), this type disappears entirely.
-impl From<swarmnote_core::AppError> for AppError {
-    fn from(e: swarmnote_core::AppError) -> Self {
-        use swarmnote_core::AppError as CoreErr;
-        match e {
-            CoreErr::Database(e) => AppError::Database(e),
-            CoreErr::Io(e) => AppError::Io(e),
-            CoreErr::Identity(msg) => {
-                AppError::Identity(crate::identity::IdentityError::Config(msg))
-            }
-            CoreErr::Keychain(msg) => {
-                AppError::Identity(crate::identity::IdentityError::Keychain(msg))
-            }
-            CoreErr::Config(msg) => AppError::Config(msg),
-            CoreErr::NoWorkspaceDb => AppError::NoWorkspaceDb,
-            CoreErr::NoAppDataDir => AppError::NoAppDataDir,
-            CoreErr::FolderNotEmpty(msg) => AppError::FolderNotEmpty(msg),
-            CoreErr::InvalidPath(msg) => AppError::InvalidPath(msg),
-            CoreErr::PathTraversal(msg) => AppError::PathTraversal(msg),
-            CoreErr::NameConflict(msg) => AppError::NameConflict(msg),
-            CoreErr::NoWorkspaceOpen => AppError::NoWorkspaceOpen,
-            CoreErr::Network(msg) => AppError::Network(msg),
-            CoreErr::Pairing(msg) => AppError::Pairing(msg),
-            CoreErr::Window(msg) => AppError::Window(msg),
-            CoreErr::Yjs(msg) => AppError::Yjs(msg),
-            CoreErr::DocNotOpen(msg) => AppError::DocNotOpen(msg),
-        }
-    }
-}
-
-/// 结构化序列化：为前端提供 `{ kind: "...", message: "..." }` 格式。
-/// 使用 `Cow` 避免对 String 变体的冗余 clone。
+/// Structured serialization for frontend consumption: `{ kind, message }`.
+///
+/// `Cow` avoids redundant cloning of `String` variant payloads.
 impl Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -90,7 +68,8 @@ impl Serialize for AppError {
         let (kind, message): (&str, Cow<'_, str>) = match self {
             AppError::Database(e) => ("Database", e.to_string().into()),
             AppError::Io(e) => ("Io", e.to_string().into()),
-            AppError::Identity(e) => ("Identity", e.to_string().into()),
+            AppError::Identity(msg) => ("Identity", Cow::Borrowed(msg)),
+            AppError::Keychain(msg) => ("Keychain", Cow::Borrowed(msg)),
             AppError::Config(msg) => ("Config", Cow::Borrowed(msg)),
             AppError::NoWorkspaceDb => {
                 ("NoWorkspaceDb", Cow::Borrowed("No workspace database open"))
