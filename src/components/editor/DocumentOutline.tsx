@@ -1,168 +1,139 @@
-import type { BlockNoteEditor } from "@blocknote/core";
 import { Trans } from "@lingui/react/macro";
+import { extractHeadings, type HeadingItem } from "@swarmnote/editor";
 import { ListTree } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { useEditorStore } from "@/stores/editorStore";
 
-interface HeadingItem {
-  id: string;
-  level: number;
-  text: string;
-}
-
-function extractHeadings(editor: BlockNoteEditor): HeadingItem[] {
-  const headings: HeadingItem[] = [];
-  for (const block of editor.document) {
-    if (block.type === "heading") {
-      const text = (block.content as { type: string; text?: string }[] | undefined)
-        ?.map((c) => c.text ?? "")
-        .join("")
-        .trim();
-      if (text) {
-        headings.push({
-          id: block.id,
-          level: (block.props as { level?: number })?.level ?? 1,
-          text,
-        });
-      }
-    }
-  }
-  return headings;
-}
+const OUTLINE_DEBOUNCE_MS = 300;
+const SCROLL_THROTTLE_MS = 16;
 
 interface DocumentOutlineProps {
   height: number;
 }
 
+function findActiveHeadingIndex(
+  headings: readonly HeadingItem[],
+  scrollTop: number,
+  offsetToTop: Map<number, number>,
+): number {
+  if (headings.length === 0) return -1;
+  // Find the last heading whose line top is at or above the current scroll.
+  let active = -1;
+  for (let i = 0; i < headings.length; i++) {
+    const top = offsetToTop.get(headings[i].offset);
+    if (top === undefined) continue;
+    if (top <= scrollTop + 4 /* small tolerance */) {
+      active = i;
+    } else {
+      break;
+    }
+  }
+  return active === -1 ? 0 : active;
+}
+
 export function DocumentOutline({ height }: DocumentOutlineProps) {
-  const editor = useEditorStore((s) => s.editorInstance);
-  const scrollContainer = useEditorStore((s) => s.scrollContainerRef);
+  const editorControl = useEditorStore((s) => s.editorControl);
+  const changeTick = useEditorStore((s) => s.editorChangeTick);
 
   const [headings, setHeadings] = useState<HeadingItem[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const headingElementsRef = useRef<Map<string, IntersectionObserverEntry>>(new Map());
-  const headingsRef = useRef(headings);
-  headingsRef.current = headings;
+  const [activeIndex, setActiveIndex] = useState(0);
   const isScrollingRef = useRef(false);
 
-  // Extract headings from editor document
-  const updateHeadings = useCallback(() => {
-    if (!editor) {
+  // Re-extract headings on content change (debounced).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: changeTick is the trigger signal; its value is intentionally unread in the body
+  useEffect(() => {
+    if (!editorControl) {
       setHeadings([]);
       return;
     }
-    setHeadings(extractHeadings(editor));
-  }, [editor]);
-
-  // Initial extraction + subscribe to DOM changes via MutationObserver
-  useEffect(() => {
-    updateHeadings();
-
-    if (!scrollContainer) return;
-
-    let timer: ReturnType<typeof setTimeout>;
-    const mutationObserver = new MutationObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(updateHeadings, 300);
-    });
-    mutationObserver.observe(scrollContainer, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      setHeadings(extractHeadings(editorControl.view.state));
+    }, OUTLINE_DEBOUNCE_MS);
     return () => {
-      clearTimeout(timer);
-      mutationObserver.disconnect();
+      cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [scrollContainer, updateHeadings]);
+  }, [editorControl, changeTick]);
 
-  // Stable key: only recreate IntersectionObserver when heading IDs change
-  const headingIds = useMemo(() => headings.map((h) => h.id).join(","), [headings]);
-
-  // IntersectionObserver for active heading tracking
+  // Initial extraction (no debounce) when the editor becomes available.
   useEffect(() => {
-    if (!scrollContainer || headingIds === "") return;
+    if (!editorControl) return;
+    setHeadings(extractHeadings(editorControl.view.state));
+  }, [editorControl]);
 
-    headingElementsRef.current.clear();
-    const currentHeadings = headingsRef.current;
+  // Track active heading via scroll position.
+  useEffect(() => {
+    if (!editorControl || headings.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+    const view = editorControl.view;
+    const scroller = view.scrollDOM;
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const id = entry.target.getAttribute("data-id");
-          if (id) {
-            headingElementsRef.current.set(id, entry);
-          }
-        }
-
-        const hs = headingsRef.current;
-        let firstVisibleId: string | null = null;
-        for (const heading of hs) {
-          const entry = headingElementsRef.current.get(heading.id);
-          if (entry?.isIntersecting) {
-            firstVisibleId = heading.id;
-            break;
-          }
-        }
-
-        if (!firstVisibleId) {
-          for (let i = hs.length - 1; i >= 0; i--) {
-            const entry = headingElementsRef.current.get(hs[i].id);
-            if (entry && entry.boundingClientRect.top < (entry.rootBounds?.top ?? 0)) {
-              firstVisibleId = hs[i].id;
-              break;
-            }
-          }
-        }
-
-        if (firstVisibleId && !isScrollingRef.current) {
-          setActiveId(firstVisibleId);
-        }
-      },
-      {
-        root: scrollContainer,
-        rootMargin: "-10% 0px -70% 0px",
-        threshold: [0, 0.5, 1],
-      },
-    );
-
-    for (const heading of currentHeadings) {
-      const el = scrollContainer.querySelector(
-        `[data-node-type="blockContainer"][data-id="${heading.id}"]`,
-      );
-      if (el) {
-        observerRef.current.observe(el);
+    // Pre-compute each heading's line-top in absolute document coordinates.
+    // Must recompute whenever headings change (new/removed lines shift positions).
+    const offsetToTop = new Map<number, number>();
+    for (const h of headings) {
+      try {
+        const block = view.lineBlockAt(h.offset);
+        offsetToTop.set(h.offset, block.top);
+      } catch {
+        // Heading offset may be stale between parse + event; skip.
       }
     }
 
-    return () => {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
+    let throttleTimer: number | null = null;
+    const onScroll = () => {
+      if (isScrollingRef.current) return;
+      if (throttleTimer !== null) return;
+      throttleTimer = window.setTimeout(() => {
+        throttleTimer = null;
+        const scrollTop = scroller.scrollTop;
+        setActiveIndex(findActiveHeadingIndex(headings, scrollTop, offsetToTop));
+      }, SCROLL_THROTTLE_MS);
     };
-  }, [headingIds, scrollContainer]);
+
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      scroller.removeEventListener("scroll", onScroll);
+      if (throttleTimer !== null) window.clearTimeout(throttleTimer);
+    };
+  }, [editorControl, headings]);
 
   const handleClick = useCallback(
-    (id: string) => {
-      if (!scrollContainer) return;
-      const el = scrollContainer.querySelector(
-        `[data-node-type="blockContainer"][data-id="${id}"]`,
-      );
-      if (el) {
-        isScrollingRef.current = true;
-        setActiveId(id);
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        setTimeout(() => {
-          isScrollingRef.current = false;
-        }, 600);
-      }
+    (index: number) => {
+      const control = editorControl;
+      const heading = headings[index];
+      if (!control || !heading) return;
+
+      isScrollingRef.current = true;
+      setActiveIndex(index);
+
+      const view = control.view;
+      const block = view.lineBlockAt(heading.offset);
+      // Scroll such that the heading sits roughly 1/4 from the top of the viewport.
+      const scroller = view.scrollDOM;
+      const scrollTargetOffset = scroller.clientHeight / 4;
+      scroller.scrollTo({ top: Math.max(0, block.top - scrollTargetOffset), behavior: "smooth" });
+
+      view.dispatch({
+        selection: { anchor: heading.offset },
+      });
+      view.focus();
+
+      window.setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 500);
     },
-    [scrollContainer],
+    [editorControl, headings],
   );
 
-  if (!editor) {
+  if (!editorControl) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
         <ListTree className="h-8 w-8 opacity-30" />
@@ -186,16 +157,22 @@ export function DocumentOutline({ height }: DocumentOutlineProps) {
 
   return (
     <nav className="flex flex-col overflow-y-auto" style={{ maxHeight: height }}>
-      {headings.map((h) => (
+      {headings.map((h, index) => (
         <button
-          key={h.id}
+          key={`${h.offset}-${h.level}-${h.text}`}
           type="button"
-          onClick={() => handleClick(h.id)}
+          onClick={() => handleClick(index)}
           title={h.text}
           className={cn(
-            "flex items-center truncate rounded px-2 text-left text-[13px] leading-[28px] transition-colors",
-            h.level === 1 ? "pl-2 font-medium" : h.level === 2 ? "pl-5" : "pl-8",
-            activeId === h.id
+            "flex items-center truncate rounded px-2 text-left text-[13px] leading-7 transition-colors",
+            h.level === 1
+              ? "pl-2 font-medium"
+              : h.level === 2
+                ? "pl-5"
+                : h.level === 3
+                  ? "pl-8"
+                  : "pl-11",
+            activeIndex === index
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground hover:bg-sidebar-accent/50",
           )}

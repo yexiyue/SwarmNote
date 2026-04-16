@@ -59,7 +59,7 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 regex-lite = "0.1"
 pathdiff = "0.2"
 yrs = { version = "0.25", features = ["sync"] }
-yrs-blocknote = { path = "../crates/yrs-blocknote", features = ["uuid"] }
+similar = "2"
 
 [dev-dependencies]
 tempfile = "3"

@@ -14,7 +14,7 @@ use yrs::{ReadTxn, StateVector, Transact};
 use crate::error::{AppError, AppResult};
 use crate::workspace::state::{DbState, WorkspaceState};
 use crate::yjs::manager::{ReloadStatus, YDocManager};
-use crate::yjs::{apply_update_to_doc, content_hash, create_temp_doc, FRAGMENT_NAME};
+use crate::yjs::{apply_update_to_doc, content_hash, create_doc, fill_doc_with_markdown};
 use entity::workspace::documents;
 
 // ── Public types ────────────────────────────────────────────
@@ -237,7 +237,8 @@ struct DocState {
 
 /// Generate yjs_state from markdown content (no prior CRDT history).
 fn generate_doc_state(md_content: &str, file_hash: Vec<u8>) -> DocState {
-    let doc = yrs_blocknote::markdown_to_doc(md_content, FRAGMENT_NAME);
+    let doc = create_doc();
+    fill_doc_with_markdown(&doc, md_content);
     let txn = doc.transact();
     let yjs_state = txn.encode_state_as_update_v1(&StateVector::default());
     let state_vector = txn.state_vector().encode_v1();
@@ -256,17 +257,22 @@ fn merge_external_change(
     new_md: &str,
     file_hash: Vec<u8>,
 ) -> AppResult<DocState> {
-    let doc = create_temp_doc();
+    let doc = create_doc();
 
     if let Some(ref existing) = doc_model.yjs_state {
-        apply_update_to_doc(&doc, existing, "existing yjs_state")?;
+        // Tolerate legacy BlockNote states — they decode cleanly but leave our
+        // Y.Text empty. `replace_doc_content` then diffs against an empty string,
+        // effectively rebuilding the doc from `new_md`.
+        if let Err(e) = apply_update_to_doc(&doc, existing, "existing yjs_state") {
+            tracing::warn!("legacy yjs_state decode failed, rebuilding from .md: {e}");
+        }
     }
 
     // Capture state vector before merge
     let sv_before = doc.transact().state_vector();
 
-    // CRDT merge: replace content, history stays continuous
-    yrs_blocknote::replace_doc_content(&doc, new_md, FRAGMENT_NAME);
+    // CRDT merge: text-diff replace so concurrent char-level edits are preserved.
+    super::replace_doc_content(&doc, new_md);
 
     let txn = doc.transact();
     let diff = txn.encode_state_as_update_v1(&sv_before);

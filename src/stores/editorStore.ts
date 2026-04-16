@@ -1,4 +1,4 @@
-import type { BlockNoteEditor } from "@blocknote/core";
+import type { EditorControl } from "@swarmnote/editor";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createTauriStorage, waitForHydration } from "@/lib/tauriStore";
@@ -24,10 +24,10 @@ interface EditorState {
   charCount: number;
   /** Recently opened documents, keyed by workspace id. Most-recent first, capped at 10 per workspace. */
   recentDocs: Record<string, RecentDoc[]>;
-  /** Transient: current BlockNote editor instance (not persisted). */
-  editorInstance: BlockNoteEditor | null;
-  /** Transient: scroll container ref for outline navigation (not persisted). */
-  scrollContainerRef: HTMLDivElement | null;
+  /** Transient: current CM6 EditorControl (not persisted). */
+  editorControl: EditorControl | null;
+  /** Counter bumped on every editor content change; drives outline re-parse. */
+  editorChangeTick: number;
 }
 
 interface EditorActions {
@@ -41,8 +41,8 @@ interface EditorActions {
   clear: () => void;
   /** Drop recentDocs entries for workspace ids not present in the given set. */
   pruneRecentDocs: (validWorkspaceIds: Set<string>) => void;
-  setEditorInstance: (editor: BlockNoteEditor | null) => void;
-  setScrollContainerRef: (ref: HTMLDivElement | null) => void;
+  setEditorControl: (control: EditorControl | null) => void;
+  bumpEditorChangeTick: () => void;
 }
 
 const ephemeralInitial = {
@@ -58,8 +58,8 @@ const ephemeralInitial = {
 const initialState: EditorState = {
   ...ephemeralInitial,
   recentDocs: {},
-  editorInstance: null,
-  scrollContainerRef: null,
+  editorControl: null,
+  editorChangeTick: 0,
 };
 
 export const useEditorStore = create<EditorState & EditorActions>()(
@@ -127,8 +127,9 @@ export const useEditorStore = create<EditorState & EditorActions>()(
           return { recentDocs: next };
         }),
 
-      setEditorInstance: (editor) => set({ editorInstance: editor }),
-      setScrollContainerRef: (ref) => set({ scrollContainerRef: ref }),
+      setEditorControl: (control) => set({ editorControl: control }),
+      bumpEditorChangeTick: () =>
+        set((state) => ({ editorChangeTick: state.editorChangeTick + 1 })),
     }),
     {
       name: "swarmnote-editor",

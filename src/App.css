@@ -1,12 +1,8 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
-@import "@blocknote/core/fonts/inter.css";
-@import "@blocknote/shadcn/style.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-
-@source "../node_modules/@blocknote/shadcn";
 
 @plugin "tailwind-scrollbar";
 
@@ -142,44 +138,29 @@ body {
   @apply scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50;
 }
 
-/* Editor background transparent — blend with page */
-.bn-editor {
+/* CM6 editor layout: fill available height, theme-aware background, comfortable padding */
+.cm-editor {
+  height: 100%;
   background-color: transparent;
-  padding-inline: 40px;
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-scroller {
+  padding: 2rem 40px 8rem;
+  font-family: "Inter Variable", system-ui, sans-serif;
 }
 
 @media (min-width: 1024px) {
-  .bn-editor {
+  .cm-scroller {
     padding-inline: 54px;
   }
 }
 
-/* Code block: theme-aware styling (override BlockNote's default dark bg) */
-.bn-block-content[data-content-type="codeBlock"] {
-  background-color: var(--muted);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-}
-
-.bn-block-content[data-content-type="codeBlock"] > pre {
-  color: var(--foreground);
-}
-
-/* Language selector: theme-aware color + always visible */
-body .bn-block-content[data-content-type="codeBlock"] > div > select {
-  color: var(--muted-foreground);
-  opacity: 0.6;
-  transition-delay: 0s;
-}
-
-body .bn-block-content[data-content-type="codeBlock"] > div > select > option {
-  color: var(--foreground);
-  background-color: var(--popover);
-}
-
-body .bn-block-content[data-content-type="codeBlock"]:hover > div > select,
-body .bn-block-content[data-content-type="codeBlock"] > div > select:focus {
-  opacity: 1;
+.cm-content {
+  caret-color: var(--foreground);
 }
 
 @layer base {

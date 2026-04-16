@@ -16,7 +16,7 @@ use crate::network::online::AppNetClient;
 use crate::protocol::{AppRequest, AppResponse, SyncRequest, SyncResponse};
 use crate::workspace::state::DbState;
 use crate::yjs::manager::YDocManager;
-use crate::yjs::{apply_update_to_doc, content_hash, create_temp_doc, FRAGMENT_NAME};
+use crate::yjs::{apply_update_to_doc, content_hash, create_doc, doc_to_markdown};
 
 /// Apply a remote update to a document, routing through YDocManager if open
 /// or falling back to the temporary-Doc DB path.
@@ -55,10 +55,14 @@ async fn sync_closed_doc(
         .await?
         .ok_or_else(|| AppError::Yjs(format!("Document {doc_uuid} not found in DB")))?;
 
-    let doc = create_temp_doc();
+    let doc = create_doc();
 
     if let Some(ref yjs_state) = doc_model.yjs_state {
-        apply_update_to_doc(&doc, yjs_state, "existing state")?;
+        // Legacy BlockNote states decode cleanly but leave our Y.Text empty.
+        // That's OK — the subsequent remote update will populate Y.Text directly.
+        if let Err(e) = apply_update_to_doc(&doc, yjs_state, "existing state") {
+            tracing::warn!("legacy yjs_state decode failed, using remote update only: {e}");
+        }
     }
     apply_update_to_doc(&doc, remote_update, "remote update")?;
 
@@ -69,8 +73,7 @@ async fn sync_closed_doc(
     drop(txn);
 
     // Convert to markdown and write file
-    let markdown = yrs_blocknote::doc_to_markdown(&doc, FRAGMENT_NAME)
-        .map_err(|e| AppError::Yjs(format!("doc_to_markdown: {e}")))?;
+    let markdown = doc_to_markdown(&doc);
     let workspace_path = get_workspace_path(app, workspace_uuid).await?;
     let file_path = workspace_path.join(&doc_model.rel_path);
     if let Some(parent) = file_path.parent() {
@@ -153,7 +156,7 @@ pub async fn sync_via_full_pull(
         }
     };
 
-    let doc = create_temp_doc();
+    let doc = create_doc();
     apply_update_to_doc(&doc, &updates, "full pull")?;
 
     let txn = doc.transact();
@@ -161,8 +164,7 @@ pub async fn sync_via_full_pull(
     let state_vector = txn.state_vector().encode_v1();
     drop(txn);
 
-    let markdown = yrs_blocknote::doc_to_markdown(&doc, FRAGMENT_NAME)
-        .map_err(|e| AppError::Yjs(format!("doc_to_markdown: {e}")))?;
+    let markdown = doc_to_markdown(&doc);
 
     // Write file
     let workspace_path = get_workspace_path(app, workspace_uuid).await?;
@@ -474,7 +476,7 @@ async fn load_local_state_vector(
 
     // Compute from yjs_state if state_vector not cached
     if let Some(ref yjs_state) = doc.yjs_state {
-        let tmp_doc = create_temp_doc();
+        let tmp_doc = create_doc();
         apply_update_to_doc(&tmp_doc, yjs_state, "load SV")?;
         let txn = tmp_doc.transact();
         return Ok(txn.state_vector().encode_v1());
@@ -512,7 +514,7 @@ async fn compute_update_for_peer(
         .ok_or_else(|| AppError::Yjs(format!("Doc {doc_id} not found")))?;
 
     if let Some(ref yjs_state) = doc_model.yjs_state {
-        let tmp_doc = create_temp_doc();
+        let tmp_doc = create_doc();
         apply_update_to_doc(&tmp_doc, yjs_state, "compute diff")?;
         let txn = tmp_doc.transact();
         return Ok(txn.encode_state_as_update_v1(&remote_sv));

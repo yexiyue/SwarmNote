@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 use yrs::updates::encoder::Encode;
-use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, Transact};
+use yrs::{Doc, ReadTxn, StateVector, Text, Transact};
 
 use crate::error::{AppError, AppResult};
 use crate::workspace::state::{DbState, WorkspaceState};
@@ -96,8 +96,7 @@ impl DocEntry {
         let yjs_state = txn.encode_state_as_update_v1(&StateVector::default());
         let state_vector = txn.state_vector().encode_v1();
         drop(txn);
-        let markdown = yrs_blocknote::doc_to_markdown(&doc, FRAGMENT_NAME)
-            .map_err(|e| AppError::Yjs(format!("doc_to_markdown: {e}")))?;
+        let markdown = super::doc_to_markdown(&doc);
         Ok(DocSnapshot {
             yjs_state,
             state_vector,
@@ -136,7 +135,7 @@ impl DocEntry {
             let txn = doc.transact();
             txn.state_vector()
         };
-        yrs_blocknote::replace_doc_content(&doc, md, FRAGMENT_NAME);
+        super::replace_doc_content(&doc, md);
         let txn = doc.transact();
         txn.encode_state_as_update_v1(&sv_before)
     }
@@ -242,29 +241,49 @@ impl YDocManager {
         }
         drop(guard);
 
-        // Use Utf16 offset kind to match frontend JS yjs — Bytes (yrs default) causes
-        // panics in block_offset when processing CJK characters.
-        let doc = Doc::with_options(Options {
-            offset_kind: OffsetKind::Utf16,
-            ..Options::default()
-        });
-        // Pre-register the fragment name so it exists even after applying updates
-        doc.get_or_insert_xml_fragment(FRAGMENT_NAME);
+        // Creates a Utf16-offset Y.Doc with the "document" Y.Text pre-registered
+        // so it exists even before any update arrives. Utf16 offset matches the
+        // frontend JS yjs — the yrs default (Bytes) panics on CJK in block_offset.
+        let doc = super::create_doc();
 
         // Migration: clear yjs_state if it contains old absolute asset URLs
         // (pre-sync era stored tauri:// or asset:// URLs in Y.Doc)
-        let yjs_state = doc_model.yjs_state.as_ref().filter(|state| {
+        let restorable_state = doc_model.yjs_state.as_ref().filter(|state| {
             !state
                 .windows(8)
                 .any(|w| w.starts_with(b"tauri://") || w.starts_with(b"asset://"))
         });
 
-        let has_yjs_state = yjs_state
-            .map(|yjs_state| super::apply_update_to_doc(&doc, yjs_state, "open_doc restore"))
-            .transpose()?
-            .is_some();
+        // Try to restore from persisted state. Falls back to .md if:
+        //  - decode fails, or
+        //  - decoded state leaves the Y.Text empty (legacy BlockNote schema stored
+        //    content under `XmlFragment("document-store")`, not `Y.Text("document")`).
+        let mut loaded_from_state = false;
+        if let Some(yjs_state) = restorable_state {
+            match super::apply_update_to_doc(&doc, yjs_state, "open_doc restore") {
+                Ok(()) => {
+                    let text = doc.get_or_insert_text(FRAGMENT_NAME);
+                    let txn = doc.transact();
+                    if text.len(&txn) > 0 {
+                        loaded_from_state = true;
+                    } else {
+                        drop(txn);
+                        tracing::info!(
+                            "yjs_state for {rel_path} decoded but Y.Text empty (legacy schema), rebuilding from .md"
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "yjs_state decode failed for {rel_path}, rebuilding from .md: {e}"
+                    );
+                }
+            }
+        }
 
-        if !has_yjs_state {
+        let doc = if loaded_from_state {
+            doc
+        } else {
             let full_path = PathBuf::from(&ws_path).join(rel_path);
             let md =
                 tokio::task::spawn_blocking(move || match std::fs::read_to_string(&full_path) {
@@ -275,12 +294,12 @@ impl YDocManager {
                 .await
                 .map_err(|e| AppError::Yjs(e.to_string()))??;
 
-            let init_doc = yrs_blocknote::markdown_to_doc(&md, FRAGMENT_NAME);
-            let init_state = init_doc
-                .transact()
-                .encode_state_as_update_v1(&StateVector::default());
-            super::apply_update_to_doc(&doc, &init_state, "open_doc init from md")?;
-        }
+            // Discard the partially-loaded doc (may still hold a legacy XmlFragment
+            // from a failed restore) and start fresh from the .md content.
+            let fresh = super::create_doc();
+            super::fill_doc_with_markdown(&fresh, &md);
+            fresh
+        };
 
         let state = doc
             .transact()
@@ -302,7 +321,9 @@ impl YDocManager {
             reload_lock: tokio::sync::Mutex::new(()),
         });
 
-        if !has_yjs_state {
+        if !loaded_from_state {
+            // Fresh state (initial or rebuilt from .md after a legacy schema fall-back).
+            // Persist so subsequent opens skip the fallback path.
             let snapshot = entry.snapshot().await?;
             Self::persist_snapshot(app, label, &entry, snapshot).await?;
         }
