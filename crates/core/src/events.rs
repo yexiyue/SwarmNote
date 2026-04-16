@@ -5,8 +5,13 @@
 //! each host implementation pattern-matches the `AppEvent` enum and translates
 //! it into its native form (Tauri IPC topic, uniffi callback, etc.).
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::device::Device;
+use crate::pairing::PairedDeviceInfo;
+use crate::protocol::{OsInfo, PairingMethod};
 
 /// Non-blocking event sink. `emit` MUST NOT acquire any core-layer locks —
 /// implementations may hop onto another thread if they need to.
@@ -47,42 +52,54 @@ pub enum AppEvent {
     },
 
     // ── Devices / discovery ──
-    PeerConnected {
-        peer_id: String,
-        device_name: String,
+    /// Full device list snapshot — front-end replaces its table atomically.
+    DevicesChanged {
+        devices: Vec<Device>,
     },
-    PeerDisconnected {
-        peer_id: String,
-    },
-    DevicesChanged,
 
     // ── Pairing ──
+    /// Inbound pairing request awaiting user confirmation.
     PairingRequestReceived {
+        pending_id: u64,
         peer_id: String,
-        device_name: String,
+        os_info: OsInfo,
+        method: PairingMethod,
+        expires_at: DateTime<Utc>,
     },
+    /// A device was successfully paired (outbound or inbound). `info` is
+    /// `None` for outbound pairing responses that don't echo the peer info.
     PairedDeviceAdded {
-        peer_id: String,
+        info: Option<PairedDeviceInfo>,
     },
     PairedDeviceRemoved {
         peer_id: String,
     },
 
     // ── Network / P2P node ──
+    /// NAT status changed (behind symmetric NAT, public reachable, etc.).
     NetworkStatusChanged {
-        status: NetworkStatus,
+        nat_status: String,
+        public_addr: Option<String>,
     },
     NodeStarted,
     NodeStopped,
 
-    // ── Sync ──
-    FullSyncProgress {
+    // ── Sync (per-peer, per-workspace session) ──
+    SyncStarted {
         workspace_id: Uuid,
+        peer_id: String,
+    },
+    SyncProgress {
+        workspace_id: Uuid,
+        peer_id: String,
         completed: u32,
         total: u32,
     },
-    FullSyncDone {
+    SyncCompleted {
         workspace_id: Uuid,
+        peer_id: String,
+        /// `true` if the session was cancelled mid-run; `false` = normal finish.
+        cancelled: bool,
     },
 
     // ── Navigation ──
@@ -92,13 +109,4 @@ pub enum AppEvent {
         target: String,
         route: String,
     },
-}
-
-/// Snapshot of network node status.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum NetworkStatus {
-    Stopped,
-    Running,
-    Error { message: String },
 }

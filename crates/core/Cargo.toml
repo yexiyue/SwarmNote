@@ -35,6 +35,10 @@ dashmap = { workspace = true }
 
 # Hashing
 blake3 = { workspace = true }
+sha2 = { workspace = true }
+
+# Random (pairing code)
+rand = "0.9"
 
 # Errors
 thiserror = { workspace = true }

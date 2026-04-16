@@ -47,12 +47,21 @@ impl WorkspaceMap {
         Some((workspace_id, !still_bound))
     }
 
-    /// Look up the `Arc<WorkspaceCore>` for a window label. Consumed by the
-    /// command cut-over follow-up (once fs / document / yjs commands
-    /// switch off the legacy Tauri State path).
-    #[allow(dead_code)] // read by the command cut-over change
+    /// Look up the `Arc<WorkspaceCore>` for a window label.
     pub async fn get(&self, label: &str) -> Option<Arc<WorkspaceCore>> {
         self.0.lock().await.get(label).cloned()
+    }
+
+    /// Full `(label, Arc<WorkspaceCore>)` snapshot. Used by commands that
+    /// need to search across all bound workspaces (e.g.
+    /// `open_workspace_window` matching on `path`).
+    pub async fn snapshot(&self) -> Vec<(String, Arc<WorkspaceCore>)> {
+        self.0
+            .lock()
+            .await
+            .iter()
+            .map(|(k, v)| (k.clone(), Arc::clone(v)))
+            .collect()
     }
 }
 

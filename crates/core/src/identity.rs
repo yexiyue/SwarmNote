@@ -31,9 +31,9 @@ pub struct DeviceInfo {
 ///
 /// Constructed once during [`crate::AppCore::new`], shared via `Arc`.
 pub struct IdentityManager {
-    /// Ed25519 keypair used for libp2p authentication. Consumed by
-    /// `NetManager` when the network layer lands in PR #3.
-    #[allow(dead_code)] // read in PR #3 via crate-private accessor
+    /// Ed25519 keypair used for libp2p authentication.
+    /// Read via [`IdentityManager::keypair_protobuf`] when bootstrapping
+    /// the P2P swarm.
     keypair: Keypair,
     /// Device metadata snapshot. Only `device_name` mutates at runtime.
     device_info: RwLock<DeviceInfo>,
@@ -100,6 +100,15 @@ impl IdentityManager {
             .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
         info.device_name = name;
         Ok(())
+    }
+
+    /// Serialize the held keypair into its libp2p protobuf encoding.
+    /// Used by [`crate::AppCore::start_network`] to bootstrap the libp2p
+    /// swarm without exposing the raw `Keypair` field.
+    pub(crate) fn keypair_protobuf(&self) -> AppResult<Vec<u8>> {
+        self.keypair
+            .to_protobuf_encoding()
+            .map_err(|e| AppError::Identity(format!("keypair encode: {e}")))
     }
 }
 

@@ -25,12 +25,15 @@
 
 pub mod app;
 pub mod config;
+pub mod device;
 pub mod document;
 pub mod error;
 pub mod events;
 pub mod fs;
 pub mod identity;
 pub mod keychain;
+pub mod network;
+pub mod pairing;
 pub mod protocol;
 pub mod workspace;
 pub mod yjs;
@@ -39,11 +42,16 @@ pub mod yjs;
 //   use swarmnote_core::{AppCore, FileSystem, EventBus, AppEvent, ...};
 // without having to chase down internal module paths.
 pub use app::AppCore;
+pub use device::{
+    ConnectionType, Device, DeviceFilter, DeviceListResult, DeviceManager, DeviceStatus,
+};
 pub use document::{title_from_rel_path, CreateFolderInput, DocumentCrud, UpsertDocumentInput};
 pub use error::{AppError, AppResult};
-pub use events::{AppEvent, EventBus, NetworkStatus};
+pub use events::{AppEvent, EventBus};
 pub use fs::{FileEvent, FileEventCallback, FileSystem, FileTreeNode, FileWatcher, LocalFs};
 pub use identity::{DeviceInfo, IdentityManager};
 pub use keychain::KeychainProvider;
+pub use network::{AppNetClient, NetManager, NodeStatus};
+pub use pairing::{PairedDeviceInfo, PairingCodeInfo, PairingManager, ShareCodeRecord};
 pub use workspace::{WorkspaceCore, WorkspaceInfo};
 pub use yjs::manager::{OpenDocResult, ReloadStatus, YDocManager};

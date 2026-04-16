@@ -2,7 +2,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager,
+    AppHandle, Manager,
 };
 use tracing::warn;
 
@@ -151,7 +151,7 @@ impl TrayManager {
         // 没有可恢复的窗口，打开工作区管理窗口
         let handle = self.app.clone();
         tauri::async_runtime::spawn(async move {
-            if let Err(e) = crate::workspace::commands::open_workspace_manager_window(handle).await
+            if let Err(e) = crate::commands::workspace::open_workspace_manager_window(handle).await
             {
                 warn!("Failed to open workspace manager from tray: {e}");
             }
@@ -159,12 +159,14 @@ impl TrayManager {
     }
 
     /// 同步版本：init 阶段（setup 中，无 tokio context）使用。
-    fn load_recent_workspaces_sync(app: &AppHandle) -> Vec<crate::config::RecentWorkspace> {
-        let Some(config_state) = app.try_state::<crate::config::GlobalConfigState>() else {
+    fn load_recent_workspaces_sync(
+        app: &AppHandle,
+    ) -> Vec<swarmnote_core::config::RecentWorkspace> {
+        let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::AppCore>>() else {
             return Vec::new();
         };
         tauri::async_runtime::block_on(async {
-            config_state
+            core.config
                 .read()
                 .await
                 .recent_workspaces
@@ -176,11 +178,13 @@ impl TrayManager {
     }
 
     /// 异步版本：运行时刷新（已在 tokio context 中）使用。
-    async fn load_recent_workspaces(app: &AppHandle) -> Vec<crate::config::RecentWorkspace> {
-        let Some(config_state) = app.try_state::<crate::config::GlobalConfigState>() else {
+    async fn load_recent_workspaces(
+        app: &AppHandle,
+    ) -> Vec<swarmnote_core::config::RecentWorkspace> {
+        let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::AppCore>>() else {
             return Vec::new();
         };
-        let config = config_state.read().await;
+        let config = core.config.read().await;
         let result = config
             .recent_workspaces
             .iter()
@@ -194,7 +198,7 @@ impl TrayManager {
     fn build_menu(
         app: &AppHandle,
         status: TrayNodeStatus,
-        recent: &[crate::config::RecentWorkspace],
+        recent: &[swarmnote_core::config::RecentWorkspace],
     ) -> tauri::Result<Menu<tauri::Wry>> {
         let menu = Menu::new(app)?;
 
@@ -284,21 +288,19 @@ impl TrayManager {
             let path = path.to_string();
             let handle = app.clone();
             tauri::async_runtime::spawn(async move {
-                let db_state = handle.state::<crate::workspace::state::DbState>();
-                let identity = handle.state::<crate::identity::IdentityState>();
-                let config_state = handle.state::<crate::config::GlobalConfigState>();
-                let ws_state = handle.state::<crate::workspace::state::WorkspaceState>();
-                let watcher_state = handle.state::<crate::fs::watcher::FsWatcherState>();
-                if let Err(e) = crate::workspace::commands::open_workspace_window(
+                let Some(core) = handle.try_state::<std::sync::Arc<swarmnote_core::AppCore>>()
+                else {
+                    warn!("open_workspace_window: AppCore not registered");
+                    return;
+                };
+                let ws_map = handle.state::<crate::platform::WorkspaceMap>();
+                if let Err(e) = crate::commands::workspace::open_workspace_window(
                     handle.clone(),
                     path,
                     None,
                     None,
-                    db_state,
-                    identity,
-                    config_state,
-                    ws_state,
-                    watcher_state,
+                    core,
+                    ws_map,
                 )
                 .await
                 {
@@ -323,7 +325,7 @@ impl TrayManager {
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Err(e) =
-                        crate::workspace::commands::open_workspace_manager_window(handle).await
+                        crate::commands::workspace::open_workspace_manager_window(handle).await
                     {
                         warn!("Failed to open workspace manager: {e}");
                     }
@@ -338,7 +340,7 @@ impl TrayManager {
             MenuAction::Settings => {
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) = crate::workspace::commands::open_settings_window(
+                    if let Err(e) = crate::commands::workspace::open_settings_window(
                         handle,
                         Some("network".into()),
                     )
@@ -351,12 +353,11 @@ impl TrayManager {
             MenuAction::Quit => {
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    let net_state = handle.state::<crate::network::NetManagerState>();
-                    let mut guard = net_state.lock().await;
-                    if let Some(manager) = guard.take() {
-                        manager.shutdown().await;
+                    if let Some(core) =
+                        handle.try_state::<std::sync::Arc<swarmnote_core::AppCore>>()
+                    {
+                        let _ = core.stop_network().await;
                     }
-                    drop(guard);
                     handle.exit(0);
                 });
             }
@@ -395,32 +396,23 @@ pub async fn refresh_tray_menu(app: &AppHandle) {
 // ── 私有辅助 ──
 
 async fn toggle_sync(app: &AppHandle) {
-    let net_state = app.state::<crate::network::NetManagerState>();
-    let mut guard = net_state.lock().await;
+    let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::AppCore>>() else {
+        warn!("toggle_sync: AppCore not registered");
+        return;
+    };
 
-    if let Some(manager) = guard.take() {
-        // 节点正在运行 → 停止
-        manager.shutdown().await;
-        drop(guard); // 释放锁后再更新托盘
-        let _ = app.emit("node-stopped", ());
+    if core.net().await.is_some() {
+        if let Err(e) = core.stop_network().await {
+            warn!("Failed to stop P2P node from tray: {e}");
+            return;
+        }
         if let Some(state) = app.try_state::<TrayManagerState>() {
             state.lock().await.set_status(TrayNodeStatus::Stopped).await;
         }
         tracing::info!("P2P node stopped via tray");
     } else {
-        // 节点未运行 → 启动（释放锁，启动过程需要时间）
-        drop(guard);
-        let keypair = app
-            .state::<crate::identity::IdentityState>()
-            .keypair
-            .clone();
-        let db = app
-            .state::<crate::workspace::state::DbState>()
-            .devices_db
-            .clone();
-        if let Err(e) =
-            crate::network::commands::do_start_p2p_node(app, &net_state, keypair, db).await
-        {
+        let core_arc = core.inner().clone();
+        if let Err(e) = core_arc.start_network().await {
             warn!("Failed to start P2P node from tray: {e}");
         }
     }
