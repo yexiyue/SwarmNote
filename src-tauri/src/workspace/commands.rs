@@ -188,6 +188,16 @@ async fn bind_workspace_to_window(
         }
     }
 
+    // Stand up a swarmnote-core `WorkspaceCore` alongside the legacy
+    // per-module state. The legacy IPC surface still runs unchanged; the
+    // command cut-over that moves fs / document / yjs onto `WorkspaceCore`
+    // happens in the next change.
+    if let Err(e) =
+        crate::platform::workspace_map::start_core_workspace(app_handle, ws_path, label).await
+    {
+        tracing::warn!("start_core_workspace failed for '{label}' (legacy path still works): {e}");
+    }
+
     info
 }
 

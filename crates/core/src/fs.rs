@@ -4,6 +4,11 @@
 //! forward-slash separators (`"notes/a.md"`), regardless of OS. The workspace
 //! root is baked into the implementation at construction time — core code
 //! never sees absolute paths.
+//!
+//! Higher-level business helpers (auto-numbered create, sidecar-aware rename,
+//! folder move with descendant rejection) live in [`ops`].
+
+pub mod ops;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -48,6 +53,10 @@ pub trait FileSystem: Send + Sync + 'static {
 
     async fn exists(&self, rel_path: &str) -> bool;
 
+    /// Return `true` if the path exists and is a directory. Missing paths
+    /// return `false` (not an error).
+    async fn is_dir(&self, rel_path: &str) -> bool;
+
     /// Remove a file. Idempotent — missing file is NOT an error.
     async fn remove_file(&self, rel_path: &str) -> AppResult<()>;
 
@@ -75,12 +84,7 @@ pub trait FileSystem: Send + Sync + 'static {
     ///
     /// If `data` hashes to the same prefix as an existing file at the target
     /// path, the write is skipped (content-addressed dedup).
-    async fn save_media(
-        &self,
-        note_rel: &str,
-        file_name: &str,
-        data: &[u8],
-    ) -> AppResult<String>;
+    async fn save_media(&self, note_rel: &str, file_name: &str, data: &[u8]) -> AppResult<String>;
 }
 
 /// `FileSystem` implementation backed by `tokio::fs`, shared by both desktop
@@ -158,6 +162,16 @@ impl FileSystem for LocalFs {
         tokio::fs::try_exists(&full).await.unwrap_or(false)
     }
 
+    async fn is_dir(&self, rel_path: &str) -> bool {
+        let Ok(full) = self.resolve(rel_path) else {
+            return false;
+        };
+        tokio::fs::metadata(&full)
+            .await
+            .map(|m| m.is_dir())
+            .unwrap_or(false)
+    }
+
     async fn remove_file(&self, rel_path: &str) -> AppResult<()> {
         let full = self.resolve(rel_path)?;
         match tokio::fs::remove_file(&full).await {
@@ -200,12 +214,7 @@ impl FileSystem for LocalFs {
             .map_err(|e| AppError::Io(std::io::Error::other(e.to_string())))?
     }
 
-    async fn save_media(
-        &self,
-        note_rel: &str,
-        file_name: &str,
-        data: &[u8],
-    ) -> AppResult<String> {
+    async fn save_media(&self, note_rel: &str, file_name: &str, data: &[u8]) -> AppResult<String> {
         // Resource dir: "notes/photo.md" → "notes/photo.assets/"
         let note_path = self.resolve(note_rel)?;
         let resource_dir = self
@@ -327,9 +336,15 @@ pub enum FileEvent {
 
 pub type FileEventCallback = Arc<dyn Fn(Vec<FileEvent>) + Send + Sync + 'static>;
 
-/// Recursive directory watcher. Implementations MUST debounce rapid events
-/// (≥100ms recommended), filter hidden entries, and deliver workspace-relative
-/// paths with forward slashes.
+/// Recursive directory watcher. Implementations MUST:
+///
+/// - Debounce rapid events (≥100ms recommended).
+/// - Filter hidden entries + `.assets/` subtrees + non-`.md` files.
+/// - Deliver workspace-relative paths with forward slashes.
+/// - **Invoke the callback from within a tokio runtime context**, so that
+///   consumers may use `tokio::spawn` / `tokio::sync::*` freely. Native
+///   backends (e.g. `notify-rs`) that deliver events on dedicated OS
+///   threads are responsible for bridging into tokio themselves.
 #[async_trait]
 pub trait FileWatcher: Send + Sync + 'static {
     async fn watch(&self, callback: FileEventCallback) -> AppResult<()>;
@@ -410,7 +425,11 @@ mod tests {
     #[tokio::test]
     async fn absolute_path_rejected() {
         let (_tmp, fs) = tmp_fs();
-        let abs = if cfg!(windows) { "C:/absolute.md" } else { "/absolute.md" };
+        let abs = if cfg!(windows) {
+            "C:/absolute.md"
+        } else {
+            "/absolute.md"
+        };
         let err = fs.read_text(abs).await.unwrap_err();
         assert!(matches!(err, AppError::PathTraversal(_)));
     }

@@ -25,6 +25,7 @@
 
 pub mod app;
 pub mod config;
+pub mod document;
 pub mod error;
 pub mod events;
 pub mod fs;
@@ -32,14 +33,17 @@ pub mod identity;
 pub mod keychain;
 pub mod protocol;
 pub mod workspace;
+pub mod yjs;
 
 // Top-level re-exports — host code can write
 //   use swarmnote_core::{AppCore, FileSystem, EventBus, AppEvent, ...};
 // without having to chase down internal module paths.
 pub use app::AppCore;
+pub use document::{title_from_rel_path, CreateFolderInput, DocumentCrud, UpsertDocumentInput};
 pub use error::{AppError, AppResult};
 pub use events::{AppEvent, EventBus, NetworkStatus};
 pub use fs::{FileEvent, FileEventCallback, FileSystem, FileTreeNode, FileWatcher, LocalFs};
 pub use identity::{DeviceInfo, IdentityManager};
 pub use keychain::KeychainProvider;
-pub use workspace::WorkspaceInfo;
+pub use workspace::{WorkspaceCore, WorkspaceInfo};
+pub use yjs::manager::{OpenDocResult, ReloadStatus, YDocManager};

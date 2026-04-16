@@ -28,7 +28,9 @@ fn is_relevant_change(path: &Path, workspace: &Path) -> bool {
 
     for component in rel.components() {
         let s = component.as_os_str().to_string_lossy();
-        if s.starts_with('.') {
+        // Hidden (`.swarmnote/`, `.git/`, `.DS_Store`) + content-addressed
+        // asset sidecars (`note.assets/`) never contribute tree changes.
+        if s.starts_with('.') || s.ends_with(".assets") {
             return false;
         }
     }

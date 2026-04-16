@@ -31,10 +31,10 @@ pub struct DeviceInfo {
 ///
 /// Constructed once during [`crate::AppCore::new`], shared via `Arc`.
 pub struct IdentityManager {
-    /// Ed25519 keypair used for libp2p authentication. Accessor added in
-    /// PR #3 when `NetManager` consumes it — kept private here so the API
-    /// surface stays honest about current usage.
-    _keypair: Keypair,
+    /// Ed25519 keypair used for libp2p authentication. Consumed by
+    /// `NetManager` when the network layer lands in PR #3.
+    #[allow(dead_code)] // read in PR #3 via crate-private accessor
+    keypair: Keypair,
     /// Device metadata snapshot. Only `device_name` mutates at runtime.
     device_info: RwLock<DeviceInfo>,
 }
@@ -69,7 +69,7 @@ impl IdentityManager {
         info!("Device identity initialized: PeerId={}", peer_id);
 
         Ok(Self {
-            _keypair: keypair,
+            keypair,
             device_info: RwLock::new(device_info),
         })
     }

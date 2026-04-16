@@ -49,6 +49,22 @@ pub async fn cleanup_window(
     let ydoc_mgr = app.state::<crate::yjs::manager::YDocManager>();
     ydoc_mgr.close_all_for_window(app, label).await;
 
+    // ── swarmnote-core WorkspaceCore teardown (PR #2) ──
+    // Unbind the label from the WorkspaceMap; if this was the last window
+    // holding the workspace, authoritatively close it so the core flushes
+    // YDocManager + unwatches the directory.
+    if let Some(ws_map) = app.try_state::<crate::platform::WorkspaceMap>() {
+        if let Some((workspace_uuid, last)) = ws_map.unbind(label).await {
+            if last {
+                if let Some(app_core) = app.try_state::<std::sync::Arc<swarmnote_core::AppCore>>() {
+                    if let Err(e) = app_core.close_workspace(workspace_uuid).await {
+                        tracing::warn!("AppCore::close_workspace({workspace_uuid}) failed: {e}");
+                    }
+                }
+            }
+        }
+    }
+
     crate::fs::watcher::stop_watching(label, watcher_state);
 
     // Unsubscribe from workspace GossipSub topic before unbinding (need UUID)

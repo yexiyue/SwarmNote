@@ -150,6 +150,7 @@ pub fn run() {
                 app_data_dir,
             ))?;
             app.manage(app_core);
+            app.manage(platform::WorkspaceMap::new());
 
             // ── legacy per-module init (kept until PR #2/#3 ports them) ──
             identity::init(app.handle())?;
