@@ -16,13 +16,15 @@
 //! one `Arc<WorkspaceCore>` → one `YDocManager` → one `DocEntry` per doc).
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use std::time::Duration;
 
 use dashmap::DashMap;
 use entity::workspace::documents;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use tokio::sync::Notify;
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use yrs::updates::encoder::Encode;
 use yrs::{Doc, ReadTxn, StateVector, Text, Transact};
@@ -35,7 +37,9 @@ use crate::fs::FileSystem;
 use super::FRAGMENT_NAME;
 
 const DEBOUNCE_MS: u64 = 1500;
-const POLL_INTERVAL_MS: u64 = 500;
+/// Fallback tick for the writeback loop when `Notify` misses a signal.
+/// Not a polling interval — idle loop is parked on `Notify::notified()`.
+const FALLBACK_TICK_MS: u64 = 500;
 
 // ── Return types ─────────────────────────────────────────────
 
@@ -79,7 +83,6 @@ struct DocEntry {
     doc_db_id: Uuid,
     dirty: AtomicBool,
     last_update_ms: AtomicU64,
-    writeback_handle: tokio::sync::Mutex<Option<JoinHandle<()>>>,
     /// Blake3 hash of the last `.md` file we wrote — used to skip self-writes
     /// from the file watcher.
     file_hash: RwLock<Vec<u8>>,
@@ -165,6 +168,18 @@ pub struct YDocManager {
     db: Arc<DatabaseConnection>,
     /// Local device PeerId, stamped on newly-created document rows.
     peer_id: String,
+    /// Kick signal from `apply_update` / `apply_sync_update` — wakes the
+    /// writeback loop without the need for per-doc polling. Idle loop is
+    /// parked on [`Notify::notified`], so zero wake-ups when no one edits.
+    writeback_notify: Arc<Notify>,
+    /// Cooperative cancel token for the writeback loop. `close_all` cancels
+    /// it, which triggers a final flush-all-dirty before the loop exits.
+    writeback_cancel: CancellationToken,
+    /// Handle for the single writeback loop task. `close_all` takes and
+    /// awaits it so we observe the final flush completing before returning.
+    /// Uses `std::sync::Mutex` because it's only touched twice (install in
+    /// `new`, take in `close_all`) and never across an `await`.
+    writeback_loop: StdMutex<Option<JoinHandle<()>>>,
 }
 
 impl YDocManager {
@@ -175,14 +190,25 @@ impl YDocManager {
         db: Arc<DatabaseConnection>,
         peer_id: String,
     ) -> Arc<Self> {
-        Arc::new(Self {
+        let mgr = Arc::new(Self {
             docs: DashMap::new(),
             workspace_id,
             fs,
             event_bus,
             db,
             peer_id,
-        })
+            writeback_notify: Arc::new(Notify::new()),
+            writeback_cancel: CancellationToken::new(),
+            writeback_loop: StdMutex::new(None),
+        });
+
+        // Eager spawn — one loop per YDocManager, lives until `close_all`
+        // cancels the token.
+        let loop_mgr = Arc::clone(&mgr);
+        let handle = tokio::spawn(async move { loop_mgr.writeback_loop().await });
+        *mgr.writeback_loop.lock().expect("writeback_loop mutex") = Some(handle);
+
+        mgr
     }
 
     // ── Open / Close / Update ────────────────────────────────
@@ -321,7 +347,6 @@ impl YDocManager {
             doc_db_id: doc_uuid,
             dirty: AtomicBool::new(false),
             last_update_ms: AtomicU64::new(now_ms()),
-            writeback_handle: tokio::sync::Mutex::new(None),
             file_hash: RwLock::new(init_hash),
             reload_lock: tokio::sync::Mutex::new(()),
         });
@@ -332,9 +357,8 @@ impl YDocManager {
             self.persist_snapshot(&entry, snapshot).await?;
         }
 
-        let handle = spawn_writeback_task(self.clone(), doc_uuid, Arc::clone(&entry));
-        *entry.writeback_handle.lock().await = Some(handle);
-
+        // No per-doc task spawn — the manager-level writeback loop picks up
+        // this entry via `self.docs` on its next tick or `notify_one()` kick.
         self.docs.insert(doc_uuid, entry);
         Ok(OpenDocResult {
             doc_uuid,
@@ -351,24 +375,29 @@ impl YDocManager {
 
         entry.apply_update(update).await?;
         entry.mark_dirty();
+        self.writeback_notify.notify_one();
         Ok(())
     }
 
-    /// Close a document: flush if dirty, stop writeback task, remove.
+    /// Close a document: flush if dirty and drop from the registry. Does
+    /// NOT touch the manager-level writeback loop (it keeps running for
+    /// other docs).
     pub async fn close_doc(&self, doc_uuid: Uuid) -> AppResult<()> {
         let Some((_, entry)) = self.docs.remove(&doc_uuid) else {
             return Ok(());
         };
 
-        if let Some(handle) = entry.writeback_handle.lock().await.take() {
-            handle.abort();
-        }
-
         if entry.dirty.load(Ordering::Acquire) {
-            let snapshot = entry.snapshot().await?;
-            self.persist_snapshot(&entry, snapshot).await?;
+            // Take `reload_lock` so we don't race the loop on the same entry.
+            let _guard = entry.reload_lock.lock().await;
+            if entry.dirty.load(Ordering::Acquire) {
+                let snapshot = entry.snapshot().await?;
+                self.persist_snapshot(&entry, snapshot).await?;
+                entry.dirty.store(false, Ordering::Release);
+                self.event_bus
+                    .emit(AppEvent::DocFlushed { doc_id: doc_uuid });
+            }
         }
-
         Ok(())
     }
 
@@ -389,6 +418,7 @@ impl YDocManager {
         let result = entry.apply_update(update).await;
         if result.is_ok() {
             entry.mark_dirty();
+            self.writeback_notify.notify_one();
             self.event_bus.emit(AppEvent::ExternalUpdate {
                 doc_id: *doc_uuid,
                 update: update.to_vec(),
@@ -436,15 +466,33 @@ impl YDocManager {
         self.workspace_id
     }
 
-    /// Close every doc still open (flushes if dirty). Called by
-    /// `WorkspaceCore::close`.
+    /// Shut down the writeback loop, flush every dirty doc, and drop the
+    /// in-memory registry. Called by `WorkspaceCore::close`.
+    ///
+    /// The sequence is:
+    /// 1. Signal the writeback loop to exit via `writeback_cancel`.
+    /// 2. Wait for it to drain — the loop's cancel arm runs one final
+    ///    `flush_all_dirty` before breaking, so **all unsaved edits are
+    ///    persisted before this method returns** (the core invariant this
+    ///    refactor gives us — previously `handle.abort()` could drop a
+    ///    half-completed `.md` write).
+    /// 3. Clear the docs map.
     pub async fn close_all(&self) {
-        let uuids: Vec<Uuid> = self.docs.iter().map(|e| *e.key()).collect();
-        for uuid in uuids {
-            if let Err(e) = self.close_doc(uuid).await {
-                tracing::warn!("Failed to close doc {uuid}: {e}");
+        self.writeback_cancel.cancel();
+
+        let handle = self
+            .writeback_loop
+            .lock()
+            .expect("writeback_loop mutex")
+            .take();
+        if let Some(h) = handle {
+            if let Err(e) = h.await {
+                tracing::warn!("writeback loop join error: {e}");
             }
         }
+
+        self.docs.clear();
+        tracing::info!("YDocManager closed for workspace {}", self.workspace_id);
     }
 
     // ── External file reload ─────────────────────────────────
@@ -547,56 +595,100 @@ impl YDocManager {
 
         Ok(())
     }
-}
 
-// ── Free helper functions ──
+    // ── Writeback loop (single-task, Notify-driven) ──────────
 
-fn spawn_writeback_task(
-    mgr: Arc<YDocManager>,
-    doc_uuid: Uuid,
-    entry: Arc<DocEntry>,
-) -> JoinHandle<()> {
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_millis(POLL_INTERVAL_MS));
+    /// Long-running task spawned once in [`YDocManager::new`]. Parked on
+    /// [`Notify::notified`] by default, woken by `apply_update` /
+    /// `apply_sync_update` via `writeback_notify.notify_one()`; also has a
+    /// `FALLBACK_TICK_MS` sleep arm as a safety net in case a signal gets
+    /// lost. Exits when `writeback_cancel` is tripped by `close_all`,
+    /// doing one last `flush_all_dirty` so nothing in flight is lost.
+    async fn writeback_loop(self: Arc<Self>) {
         loop {
-            interval.tick().await;
-
-            if !entry.dirty.load(Ordering::Acquire) {
-                continue;
-            }
-
-            let last = entry.last_update_ms.load(Ordering::Acquire);
-            if now_ms() - last < DEBOUNCE_MS {
-                continue;
-            }
-
-            // Acquire reload_lock to prevent racing with external reload.
-            let _guard = entry.reload_lock.lock().await;
-
-            if !entry.dirty.load(Ordering::Acquire) {
-                continue;
-            }
-
-            let snapshot = match entry.snapshot().await {
-                Ok(s) => s,
-                Err(e) => {
-                    tracing::warn!("snapshot failed for doc {doc_uuid}: {e}");
-                    continue;
+            tokio::select! {
+                biased;
+                _ = self.writeback_cancel.cancelled() => {
+                    self.flush_all_dirty("final flush before cancel").await;
+                    break;
                 }
-            };
-
-            entry.dirty.store(false, Ordering::Release);
-
-            if let Err(e) = mgr.persist_snapshot(&entry, snapshot).await {
-                tracing::warn!("writeback failed for doc {doc_uuid}: {e}");
-                entry.dirty.store(true, Ordering::Release);
-                continue;
+                _ = self.writeback_notify.notified() => {
+                    // Dirty kick — fall through to the debounced sweep.
+                }
+                _ = tokio::time::sleep(Duration::from_millis(FALLBACK_TICK_MS)) => {
+                    // Fallback tick — Notify only buffers one permit, so a
+                    // dropped signal won't starve writeback forever.
+                }
             }
 
-            mgr.event_bus
-                .emit(AppEvent::DocFlushed { doc_id: doc_uuid });
+            self.flush_dirty_debounced().await;
         }
-    })
+    }
+
+    /// Flush every dirty doc whose last edit is older than `DEBOUNCE_MS`.
+    /// Entries still inside the debounce window are left for the next
+    /// tick.
+    async fn flush_dirty_debounced(&self) {
+        let now = now_ms();
+        let targets: Vec<(Uuid, Arc<DocEntry>)> = self
+            .docs
+            .iter()
+            .filter(|r| {
+                r.value().dirty.load(Ordering::Acquire)
+                    && now.saturating_sub(r.value().last_update_ms.load(Ordering::Acquire))
+                        >= DEBOUNCE_MS
+            })
+            .map(|r| (*r.key(), Arc::clone(r.value())))
+            .collect();
+
+        for (uuid, entry) in targets {
+            if let Err(e) = self.flush_entry(uuid, &entry).await {
+                tracing::warn!("writeback failed for doc {uuid}: {e}");
+            }
+        }
+    }
+
+    /// Flush every dirty doc regardless of debounce window. Used by the
+    /// cancel path so `close_all` never drops unsaved edits.
+    async fn flush_all_dirty(&self, ctx: &'static str) {
+        let targets: Vec<(Uuid, Arc<DocEntry>)> = self
+            .docs
+            .iter()
+            .filter(|r| r.value().dirty.load(Ordering::Acquire))
+            .map(|r| (*r.key(), Arc::clone(r.value())))
+            .collect();
+
+        if !targets.is_empty() {
+            tracing::info!("writeback: {ctx}: {} dirty doc(s)", targets.len());
+        }
+        for (uuid, entry) in targets {
+            if let Err(e) = self.flush_entry(uuid, &entry).await {
+                tracing::warn!("{ctx} failed for doc {uuid}: {e}");
+            }
+        }
+    }
+
+    /// Snapshot, persist, and emit `DocFlushed` for a single dirty entry.
+    /// Acquires `reload_lock` to serialise with external reload.
+    async fn flush_entry(&self, doc_uuid: Uuid, entry: &Arc<DocEntry>) -> AppResult<()> {
+        let _guard = entry.reload_lock.lock().await;
+        if !entry.dirty.load(Ordering::Acquire) {
+            return Ok(());
+        }
+
+        let snapshot = entry.snapshot().await?;
+        entry.dirty.store(false, Ordering::Release);
+
+        if let Err(e) = self.persist_snapshot(entry, snapshot).await {
+            // Leave the entry marked dirty so the next tick retries.
+            entry.dirty.store(true, Ordering::Release);
+            return Err(e);
+        }
+
+        self.event_bus
+            .emit(AppEvent::DocFlushed { doc_id: doc_uuid });
+        Ok(())
+    }
 }
 
 fn now_ms() -> u64 {

@@ -237,9 +237,28 @@ while let Some(event) = receiver.recv().await {
 
 ## YDocManager — Y.Doc 生命周期
 
-### per-doc 单例 + auto-save debounce
+### per-manager 单 loop writeback（Notify-driven）
 
-`YDocManager` 维护 `HashMap<DocUuid, DocState>`，每个 Y.Doc 对应一个 `Y.Doc` 实例 + debounce timer（默认 1.5s）+ fs watcher。
+`YDocManager` 维护 `DashMap<DocUuid, Arc<DocEntry>>`，**全 manager 共享一个 writeback loop**，在 `YDocManager::new` 里 eager spawn。不用 per-doc `interval(500ms)`——那样开 50 tab 就有 50 个独立 wake-up 且 `DocEntry` 被 `JoinHandle` 反向持有，形成循环引用。
+
+**调度机制**：
+
+- `apply_update` / `apply_sync_update` 调 `entry.mark_dirty()` 后 `writeback_notify.notify_one()` 唤醒 loop
+- loop 用 `tokio::select!` 在 `cancelled() | notified() | sleep(FALLBACK_TICK_MS=500ms)` 之间切换，`biased` 让 cancel 优先
+- `FALLBACK_TICK_MS` 是**信号丢失兜底**，不是轮询节拍——idle 时 loop 阻塞在 `notified()` 上，零 wake-up
+- 防抖：loop 被唤醒后 `flush_dirty_debounced()` 只刷 `now - last_update_ms >= DEBOUNCE_MS(1500)` 的 entry，窗口内的留到下次
+
+### 关窗完整 flush 保证
+
+`WorkspaceCore::close()` → `YDocManager::close_all()` 的三步序列**保证所有 dirty doc 在返回前落盘完整**：
+
+1. `writeback_cancel.cancel()` 通知 loop 退出
+2. `await writeback_loop` JoinHandle——loop 的 cancel 分支跑 `flush_all_dirty`（**无视防抖窗口**）后才 break
+3. `docs.clear()`
+
+**不要做**：`JoinHandle::abort()` 取消 writeback task。abort 只在下个 `.await` 点生效，可能打断 `fs.write_text` / `db.update` 造成 `.md` 半写入。曾经用过 `per-doc handle.abort()`，在 close_doc 里偶尔丢最后一次编辑。
+
+**相关文件**：`crates/core/src/yjs/manager.rs` 的 `writeback_loop` / `flush_entry` / `close_all`
 
 ### 外部 .md 变更检测
 
@@ -250,13 +269,15 @@ while let Some(event) = receiver.recv().await {
 
 **自写检测**：写完 .md 后记录 blake3，notify 触发时如果 hash 一致则忽略。
 
-**相关文件**：`src-tauri/src/yjs/manager.rs`、`src-tauri/src/fs/watcher.rs`
+**reload_lock**：`DocEntry.reload_lock: tokio::sync::Mutex<()>` 互斥 writeback 和外部 reload——loop 的 `flush_entry` 和 `do_reload` 都会 acquire。本次重构保留该锁，新增的 `flush_all_dirty`（cancel 路径）同样 per-entry 获取，不会死锁。
+
+**相关文件**：`crates/core/src/yjs/manager.rs`、`src-tauri/src/platform/file_watcher.rs`
 
 ### Schema 容错 restore
 
 `open_doc()` 先 apply 持久化的 `yjs_state` bytes，如果 Y.Text 为空（老版本 BlockNote schema，字段名不同），fallback 用 .md 文件内容 seed Y.Text 并重写 yjs_state。
 
-**相关文件**：`src-tauri/src/yjs/manager.rs` 的 `open_doc`
+**相关文件**：`crates/core/src/yjs/manager.rs` 的 `open_doc`
 
 ## 错误处理
 
