@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 开发工作流
+
+**IMPORTANT**：执行任何开发任务（编写代码、修改配置、添加依赖）前，必须先调用 `/dev-workflow` skill。它会加载项目知识库（`dev-notes/knowledge/`）中的最佳实践和踩坑记录，并在开发完成后引导更新知识库。
+
+知识库主题：
+
+- `dev-notes/knowledge/theme-and-styling.md` — shadcn/ui、主题变量、窗口装饰
+- `dev-notes/knowledge/editor.md` — CM6、Y.Doc、y-codemirror.next、@swarmnote/editor submodule
+- `dev-notes/knowledge/rust-backend.md` — Tauri command、SeaORM、YDocManager、P2P
+- `dev-notes/knowledge/toolchain.md` — Biome、Lefthook、Lingui、Cargo workspace、Vite
+
 ## Project Overview
 
 SwarmNote is a decentralized, local-first, peer-to-peer note-taking app built with Tauri v2 + React 19 + Rust. Notes sync between devices via P2P networking (libp2p) without a central server. Targets desktop (Windows/macOS/Linux) and Android.
