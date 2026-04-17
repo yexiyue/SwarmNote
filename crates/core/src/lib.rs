@@ -78,8 +78,9 @@ pub use pairing::{PairedDeviceInfo, PairingCodeInfo, PairingManager, ShareCodeRe
 // ── Network ────────────────────────────────────────────────────────────────
 pub use network::{AppNetClient, NetManager, NodeStatus};
 
-// ── Libp2p primitives (re-exported so wrap layers don't depend on swarm-p2p-core) ──
-pub use swarm_p2p_core::libp2p::{Multiaddr, PeerId};
+// ── Libp2p (re-exported whole module so wrap layers don't depend on swarm-p2p-core) ──
+// Consumers: `use swarmnote_core::libp2p::{PeerId, Multiaddr, identity::Keypair};`
+pub use swarm_p2p_core::libp2p;
 
 // ── Documents ──────────────────────────────────────────────────────────────
 pub use document::{title_from_rel_path, CreateFolderInput, DocumentCrud, UpsertDocumentInput};
