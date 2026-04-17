@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use keyring::Entry;
 use swarm_p2p_core::libp2p::identity::Keypair;
-use swarmnote_core::{AppError, AppResult, KeychainProvider};
+use swarmnote_core::api::{AppError, AppResult, KeychainProvider};
 use tracing::{info, warn};
 
 const SERVICE: &str = "com.swarmnote";
@@ -34,7 +34,7 @@ impl KeychainProvider for DesktopKeychain {
         // don't stall the executor.
         tokio::task::spawn_blocking(load_or_generate_keypair_bytes)
             .await
-            .map_err(|e| AppError::Keychain(format!("join error: {e}")))?
+            .map_err(|e| AppError::KeychainUnavailable(format!("join error: {e}")))?
     }
 }
 
@@ -50,7 +50,7 @@ fn load_or_generate_keypair_bytes() -> AppResult<Vec<u8>> {
             let keypair = Keypair::generate_ed25519();
             let bytes = keypair
                 .to_protobuf_encoding()
-                .map_err(|e| AppError::Keychain(format!("encode: {e}")))?;
+                .map_err(|e| AppError::KeychainUnavailable(format!("encode: {e}")))?;
             save_to_keychain(&bytes)?;
             info!("New keypair saved to system keychain");
             Ok(bytes)
@@ -62,27 +62,27 @@ fn load_or_generate_keypair_bytes() -> AppResult<Vec<u8>> {
             let keypair = Keypair::generate_ed25519();
             keypair
                 .to_protobuf_encoding()
-                .map_err(|e| AppError::Keychain(format!("encode: {e}")))
+                .map_err(|e| AppError::KeychainUnavailable(format!("encode: {e}")))
         }
     }
 }
 
 fn load_from_keychain() -> AppResult<Option<Vec<u8>>> {
-    let entry =
-        Entry::new(SERVICE, KEYPAIR_KEY).map_err(|e| AppError::Keychain(format!("entry: {e}")))?;
+    let entry = Entry::new(SERVICE, KEYPAIR_KEY)
+        .map_err(|e| AppError::KeychainUnavailable(format!("entry: {e}")))?;
 
     match entry.get_secret() {
         Ok(bytes) => Ok(Some(bytes)),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(AppError::Keychain(e.to_string())),
+        Err(e) => Err(AppError::KeychainUnavailable(e.to_string())),
     }
 }
 
 fn save_to_keychain(bytes: &[u8]) -> AppResult<()> {
-    let entry =
-        Entry::new(SERVICE, KEYPAIR_KEY).map_err(|e| AppError::Keychain(format!("entry: {e}")))?;
+    let entry = Entry::new(SERVICE, KEYPAIR_KEY)
+        .map_err(|e| AppError::KeychainUnavailable(format!("entry: {e}")))?;
     entry
         .set_secret(bytes)
-        .map_err(|e| AppError::Keychain(e.to_string()))?;
+        .map_err(|e| AppError::KeychainUnavailable(e.to_string()))?;
     Ok(())
 }

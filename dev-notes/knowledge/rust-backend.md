@@ -300,11 +300,105 @@ while let Some(event) = receiver.recv().await {
 ## 错误处理
 
 - Rust 端统一 `AppResult<T>` + `AppError { kind, message }`
+- `AppError` 用结构化变体（`YjsDecode { context, reason }` / `SwarmIo { context, reason }` / `DocRowMissing(Uuid)` 等），不要新增 `Xxx(String)` 扁平变体——前端要能按 `kind` 做分支
+- `AppError::Yjs` / `Identity` / `Network` / `Pairing` / `Config` 等旧扁平变体**已删除**，不要回退
 - 不要 `.unwrap()` / `.expect()` 在 production path（测试除外）
-- 外部 I/O 错误用 `?` + `From` 实现自动转换
-- 业务错误用 `AppError::new(kind, msg)` 显式构造
+- 外部 I/O 错误用 `?` + `From` 实现自动转换（`sea_orm::DbErr` / `std::io::Error` 已有 `#[from]`）
 
-**相关文件**：`src-tauri/src/error.rs`
+**相关文件**：`crates/core/src/error.rs`、`src-tauri/src/error.rs`（只是 re-export）
+
+### thiserror 的 `source` 字段是保留名
+
+结构化错误变体里的自由文本字段**不要命名为 `source`**：
+
+```rust
+// ❌ 编译失败 —— thiserror 推断 source 字段为 #[source]，要求实现 Error
+#[error("yjs decode ({context}): {source}")]
+YjsDecode { context: &'static str, source: String },
+
+// ✅ 用 reason（或 detail / message / info）
+#[error("yjs decode ({context}): {reason}")]
+YjsDecode { context: &'static str, reason: String },
+```
+
+thiserror 会把名为 `source` 的字段自动视为 `#[source]` 并要求它实现 `std::error::Error`——`String` 不满足，编译报 `method as_dyn_error not found`。SwarmNote 约定用 `reason: String` 统一存原始错误 `to_string()`，不保留 `Error::source()` 链（FFI 侧拿不到 source chain）。
+
+**相关文件**：`crates/core/src/error.rs`
+
+## API surface 分层：`api::` vs `internal::`
+
+`swarmnote_core` 的 `lib.rs` 把 re-export 分两层：
+
+- **`pub mod api`** — host 面向 API（`AppCore` / `AppCoreBuilder` / `WorkspaceCore` / `YDocManager` / `EventBus` / `AppEvent` / `AppError` 等）。桌面 + mobile-core 都从这里 import
+- **`pub mod internal`** — 仅桌面 command 层用的深层访问（`AppNetClient` / `NetManager` / `PairingManager` / `AppSyncCoordinator` / `WorkspaceSync` / `fs::ops` / `yjs::doc_state` / `ensure_workspace_row`）。mobile-core 不应依赖
+
+根级**没有**扁平 re-export，强制 src-tauri 显式写 `use swarmnote_core::api::...` / `internal::...`，让 FFI 层接入时能清楚看到边界。
+
+**相关文件**：`crates/core/src/lib.rs`
+
+## AppCore 通过 `AppCoreBuilder` 构造 + factory 注入
+
+host 通过 factory 闭包注入 per-workspace 的 fs / watcher，而不是在每个 `open_workspace` 调用点手工构造：
+
+```rust
+// 桌面
+AppCoreBuilder::new(keychain, event_bus, app_data_dir)
+    .with_watcher_factory(|p| Arc::new(NotifyFileWatcher::new(p)))
+    .build().await?
+// 之后:
+core.open_workspace(path).await?  // 单参数, fs/watcher 自动用 factory
+```
+
+`fs_factory` 默认是 `LocalFs`；`watcher_factory` 默认 `None`（mobile 沙盒不用 watcher）。桌面调用 `.with_watcher_factory` 注册 `NotifyFileWatcher`。
+
+**不要做**：给 `open_workspace` 传 `fs: Arc<dyn FileSystem>, watcher: Option<Arc<dyn FileWatcher>>` 参数——那是旧签名，每个 command 调用点都会重复 `Arc::new(LocalFs::new(path))` 样板，mobile wrapper 会痛苦。
+
+**相关文件**：`crates/core/src/app.rs` 的 `AppCoreBuilder`、`src-tauri/src/lib.rs` setup、`src-tauri/src/platform/workspace_map.rs` 的 `start_core_workspace`
+
+## `AppCore::start_network` / `stop_network` 不跨 await 持锁
+
+`net: Mutex<Option<Arc<NetManager>>>` 锁**不允许**跨 `libp2p` 启动 / GossipSub subscribe / `NetManager::shutdown()` 这种几百毫秒的 await 持有——否则 `network_status()` / `pairing()` / `devices()` 等只读调用全部被阻塞。
+
+正确形态（三段式 CAS）：
+
+```rust
+// 1. 短持锁存在性检查
+if self.net.lock().await.is_some() { return Err(NetworkAlreadyRunning); }
+
+// 2. I/O 跑在无锁状态
+let (client, receiver) = swarm_p2p_core::start(...)?;
+let net_manager = Arc::new(NetManager::new(...));
+// ... spawn_event_loop / subscribe ...
+
+// 3. 再次拿锁 CAS 安装
+{
+    let mut guard = self.net.lock().await;
+    if guard.is_some() {
+        // 竞态输 — shutdown 刚建的 NetManager
+        drop(guard);
+        net_manager.shutdown().await;
+        return Err(NetworkAlreadyRunning);
+    }
+    *guard = Some(net_manager.clone());
+}
+```
+
+`stop_network` 同理——先短持锁 `take()` 出 `net_manager`，释放锁后再 `manager.shutdown().await`。
+
+**相关文件**：`crates/core/src/app.rs` 的 `start_network` / `stop_network`
+
+## `WorkspaceCore::close` / `YDocManager::close_all` 结构化错误
+
+两者都不吞错：
+
+- `YDocManager::close_all(&self) -> Vec<(Uuid, AppError)>`：cancel → await loop → `flush_all_dirty` 做 authoritative 最终 sweep → 返回每个 dirty doc 的持久化错误列表
+- `WorkspaceCore::close(&self) -> AppResult<()>`：若 ydoc 返回非空 failures，聚合为 `AppError::WorkspaceCloseFailed { workspace_id, failures }`
+
+host（桌面 `cleanup_window` / `AppCore::close_workspace`）拿到 `Err` 后 tracing::warn! + toast 提示用户，不允许继续静默——之前的设计会丢数据。
+
+**不要做**：`close_all` 返回 `()` 然后用 tracing::warn 吞错。那种实现让用户无感知的失败不可接受。
+
+**相关文件**：`crates/core/src/yjs/manager.rs` 的 `close_all` / `flush_all_dirty`、`crates/core/src/workspace/mod.rs` 的 `close`
 
 ## Tauri IPC 推送
 

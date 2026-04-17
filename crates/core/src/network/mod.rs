@@ -43,11 +43,11 @@ pub enum NodeStatus {
 /// 每次 `AppCore::start_network` 构造一个新实例；`stop_network` 时整体丢弃。
 /// 不跨网络生命周期存活（`active_code` / `pending_inbound` 随之清零）。
 pub struct NetManager {
-    pub client: AppNetClient,
-    pub peer_id: PeerId,
-    pub device_manager: Arc<DeviceManager>,
-    pub online_announcer: Arc<OnlineAnnouncer>,
-    pub pairing_manager: Arc<PairingManager>,
+    pub(crate) client: AppNetClient,
+    pub(crate) peer_id: PeerId,
+    pub(crate) device_manager: Arc<DeviceManager>,
+    pub(crate) online_announcer: Arc<OnlineAnnouncer>,
+    pub(crate) pairing_manager: Arc<PairingManager>,
     cancel_token: CancellationToken,
 }
 
@@ -84,6 +84,28 @@ impl NetManager {
 
     pub fn cancel_token(&self) -> CancellationToken {
         self.cancel_token.clone()
+    }
+
+    // ── Accessors ─────────────────────────────────────────────
+
+    pub fn client(&self) -> &AppNetClient {
+        &self.client
+    }
+
+    pub fn peer_id(&self) -> PeerId {
+        self.peer_id
+    }
+
+    pub fn device_manager(&self) -> &Arc<DeviceManager> {
+        &self.device_manager
+    }
+
+    pub fn online_announcer(&self) -> &Arc<OnlineAnnouncer> {
+        &self.online_announcer
+    }
+
+    pub fn pairing_manager(&self) -> &Arc<PairingManager> {
+        &self.pairing_manager
     }
 
     /// 优雅关闭：通知 DHT 下线 → 取消后台任务。

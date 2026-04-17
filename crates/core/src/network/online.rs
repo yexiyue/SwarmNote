@@ -45,7 +45,10 @@ impl OnlineAnnouncer {
             .client
             .get_addrs()
             .await
-            .map_err(|e| crate::error::AppError::Network(format!("get_addrs: {e}")))?;
+            .map_err(|e| crate::error::AppError::SwarmIo {
+                context: "get_addrs",
+                reason: e.to_string(),
+            })?;
 
         let record_data = OnlineRecord {
             os_info: OsInfo::default(),
@@ -54,8 +57,11 @@ impl OnlineAnnouncer {
         };
 
         let key = dht_key::online_key(&self.peer_id.to_bytes());
-        let value = serde_json::to_vec(&record_data)
-            .map_err(|e| crate::error::AppError::Network(format!("serialize: {e}")))?;
+        let value =
+            serde_json::to_vec(&record_data).map_err(|e| crate::error::AppError::SwarmIo {
+                context: "serialize OnlineRecord",
+                reason: e.to_string(),
+            })?;
 
         let record = Record {
             key,
@@ -69,7 +75,10 @@ impl OnlineAnnouncer {
         self.client
             .put_record(record)
             .await
-            .map_err(|e| crate::error::AppError::Network(format!("put_record: {e}")))?;
+            .map_err(|e| crate::error::AppError::SwarmIo {
+                context: "put_record online",
+                reason: e.to_string(),
+            })?;
 
         info!("Published online announcement to DHT");
         Ok(())
@@ -81,7 +90,10 @@ impl OnlineAnnouncer {
         self.client
             .remove_record(key)
             .await
-            .map_err(|e| crate::error::AppError::Network(format!("remove_record: {e}")))?;
+            .map_err(|e| crate::error::AppError::SwarmIo {
+                context: "remove_record online",
+                reason: e.to_string(),
+            })?;
         info!("Removed online announcement from DHT");
         Ok(())
     }

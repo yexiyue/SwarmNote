@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use serde::Serialize;
+use swarmnote_core::api::{AppCore, WorkspaceInfo};
 use swarmnote_core::config::{save_config, RecentWorkspace};
-use swarmnote_core::{AppCore, WorkspaceInfo};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use uuid::Uuid;
 
@@ -64,7 +64,7 @@ async fn update_last_workspace(
     name: &str,
     uuid: Option<&str>,
 ) -> AppResult<()> {
-    let mut cfg = core.config.write().await;
+    let mut cfg = core.config().write().await;
     cfg.last_workspace_path = Some(path.to_owned());
     cfg.recent_workspaces.retain(|w| w.path != path);
     cfg.recent_workspaces.insert(
@@ -77,7 +77,7 @@ async fn update_last_workspace(
         },
     );
     cfg.recent_workspaces.truncate(MAX_RECENT);
-    save_config(core.config.path(), &cfg)?;
+    save_config(core.config().path(), &cfg)?;
     Ok(())
 }
 
@@ -96,7 +96,7 @@ async fn bind_workspace_to_window(
     core: &Arc<AppCore>,
 ) -> AppResult<WorkspaceInfo> {
     let ws_core = start_core_workspace(app, path, label).await?;
-    let info = ws_core.info.clone();
+    let info = ws_core.info().clone();
 
     let dir_name = workspace_name_from_path(path);
     let path_str = info.path.clone();
@@ -171,14 +171,14 @@ pub async fn get_workspace_info(
     window: tauri::Window,
     ws_map: State<'_, WorkspaceMap>,
 ) -> AppResult<Option<WorkspaceInfo>> {
-    Ok(ws_map.get(window.label()).await.map(|ws| ws.info.clone()))
+    Ok(ws_map.get(window.label()).await.map(|ws| ws.info().clone()))
 }
 
 #[tauri::command]
 pub async fn get_recent_workspaces(
     core: State<'_, Arc<AppCore>>,
 ) -> AppResult<Vec<RecentWorkspace>> {
-    let cfg = core.config.read().await;
+    let cfg = core.config().read().await;
     Ok(cfg.recent_workspaces.clone())
 }
 
@@ -199,7 +199,7 @@ fn maybe_close_window(app: &AppHandle, label: &Option<String>) {
 async fn find_label_for_path(ws_map: &WorkspaceMap, path: &str) -> Option<String> {
     let map = ws_map.snapshot().await;
     map.into_iter()
-        .find_map(|(label, ws)| (ws.info.path == path).then_some(label))
+        .find_map(|(label, ws)| (ws.info().path == path).then_some(label))
 }
 
 /// Open a workspace window: reuse existing / bind to caller / create new.
@@ -296,7 +296,7 @@ pub async fn create_workspace_for_sync(
     core: State<'_, Arc<AppCore>>,
 ) -> AppResult<String> {
     let ws_uuid =
-        Uuid::parse_str(&uuid).map_err(|e| AppError::Config(format!("Invalid UUID: {e}")))?;
+        Uuid::parse_str(&uuid).map_err(|e| AppError::InvalidPath(format!("Invalid UUID: {e}")))?;
 
     // Validate workspace name — prevent path traversal
     if name.is_empty()
@@ -335,7 +335,7 @@ pub async fn create_workspace_for_sync(
         }
     };
 
-    let peer_id = match core.identity.peer_id() {
+    let peer_id = match core.identity().peer_id() {
         Ok(p) => p,
         Err(e) => {
             let _ = tokio::fs::remove_dir_all(&ws_path).await;
@@ -344,7 +344,7 @@ pub async fn create_workspace_for_sync(
     };
 
     if let Err(e) =
-        swarmnote_core::workspace::ensure_workspace_row(&conn, ws_uuid, &name, &peer_id).await
+        swarmnote_core::internal::ensure_workspace_row(&conn, ws_uuid, &name, &peer_id).await
     {
         let _ = tokio::fs::remove_dir_all(&ws_path).await;
         return Err(e);
@@ -353,12 +353,7 @@ pub async fn create_workspace_for_sync(
 
     // Register in AppCore by opening. This doesn't bind to any window —
     // caller drops the Arc and AppCore.workspaces keeps only the Weak.
-    let fs: Arc<dyn swarmnote_core::FileSystem> = Arc::new(swarmnote_core::LocalFs::new(&ws_path));
-    let _ws_core = core
-        .inner()
-        .clone()
-        .open_workspace(ws_path.clone(), fs, None)
-        .await?;
+    let _ws_core = core.inner().clone().open_workspace(ws_path.clone()).await?;
 
     // Record in recent_workspaces.
     if let Err(e) = update_last_workspace(
@@ -405,12 +400,12 @@ pub async fn remove_recent_workspace(
     path: String,
     core: State<'_, Arc<AppCore>>,
 ) -> AppResult<()> {
-    let mut cfg = core.config.write().await;
+    let mut cfg = core.config().write().await;
     cfg.recent_workspaces.retain(|w| w.path != path);
     if cfg.last_workspace_path.as_deref() == Some(&path) {
         cfg.last_workspace_path = cfg.recent_workspaces.first().map(|w| w.path.clone());
     }
-    save_config(core.config.path(), &cfg)?;
+    save_config(core.config().path(), &cfg)?;
     drop(cfg);
 
     #[cfg(desktop)]
@@ -499,7 +494,7 @@ pub fn determine_startup_window(app: &AppHandle, core: &Arc<AppCore>) -> Startup
 
     if restore_last {
         let last_path = tauri::async_runtime::block_on(async {
-            core.config.read().await.last_workspace_path.clone()
+            core.config().read().await.last_workspace_path.clone()
         });
         if let Some(path) = last_path {
             if !path.is_empty() && PathBuf::from(&path).is_dir() {

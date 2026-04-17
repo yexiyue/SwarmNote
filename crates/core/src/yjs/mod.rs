@@ -31,12 +31,18 @@ pub fn create_doc() -> Doc {
 }
 
 /// Decode a v1 binary update and apply it to a Y.Doc.
-pub fn apply_update_to_doc(doc: &Doc, data: &[u8], context: &str) -> AppResult<()> {
-    let update = yrs::updates::decoder::Decode::decode_v1(data)
-        .map_err(|e| AppError::Yjs(format!("decode {context}: {e}")))?;
+pub fn apply_update_to_doc(doc: &Doc, data: &[u8], context: &'static str) -> AppResult<()> {
+    let update =
+        yrs::updates::decoder::Decode::decode_v1(data).map_err(|e| AppError::YjsDecode {
+            context,
+            reason: e.to_string(),
+        })?;
     doc.transact_mut()
         .apply_update(update)
-        .map_err(|e| AppError::Yjs(format!("apply {context}: {e}")))?;
+        .map_err(|e| AppError::YjsApply {
+            context,
+            reason: e.to_string(),
+        })?;
     Ok(())
 }
 

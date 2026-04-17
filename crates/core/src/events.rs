@@ -101,12 +101,4 @@ pub enum AppEvent {
         /// `true` if the session was cancelled mid-run; `false` = normal finish.
         cancelled: bool,
     },
-
-    // ── Navigation ──
-    /// Host should route to `route` in the window identified by `target`.
-    /// Only meaningful on desktop; mobile implementations MAY ignore.
-    NavigateTo {
-        target: String,
-        route: String,
-    },
 }

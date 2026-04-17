@@ -5,4 +5,4 @@
 //! The core `AppError` implements `Serialize` to `{ kind, message }`, which
 //! Tauri consumes when marshalling command errors to the frontend.
 
-pub use swarmnote_core::{AppError, AppResult};
+pub use swarmnote_core::api::{AppError, AppResult};

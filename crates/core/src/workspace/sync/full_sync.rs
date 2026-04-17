@@ -102,14 +102,21 @@ pub async fn request_doc_list(
         client.send_request(peer_id, request),
     )
     .await
-    .map_err(|_| AppError::Network(format!("DocList request to {peer_id} timed out")))?
-    .map_err(|e| AppError::Network(format!("DocList request to {peer_id} failed: {e}")))?;
+    .map_err(|_| AppError::SwarmIo {
+        context: "send_request DocList",
+        reason: format!("timed out for peer {peer_id}"),
+    })?
+    .map_err(|e| AppError::SwarmIo {
+        context: "send_request DocList",
+        reason: format!("peer {peer_id}: {e}"),
+    })?;
 
     match response {
         AppResponse::Sync(SyncResponse::DocList { docs }) => Ok(docs),
-        other => Err(AppError::Network(format!(
-            "Unexpected response to DocList: {other:?}"
-        ))),
+        other => Err(AppError::SwarmIo {
+            context: "DocList response",
+            reason: format!("unexpected response: {other:?}"),
+        }),
     }
 }
 

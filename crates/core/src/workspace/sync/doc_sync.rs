@@ -57,7 +57,7 @@ async fn sync_closed_doc(
     let doc_model = documents::Entity::find_by_id(doc_uuid)
         .one(db)
         .await?
-        .ok_or_else(|| AppError::Yjs(format!("Document {doc_uuid} not found in DB")))?;
+        .ok_or(AppError::DocRowMissing(doc_uuid))?;
 
     let doc = create_doc();
 
@@ -115,8 +115,14 @@ pub async fn sync_via_state_vector(
         client.send_request(peer_id, request),
     )
     .await
-    .map_err(|_| AppError::Network(format!("SV request timed out for {doc_id}")))?
-    .map_err(|e| AppError::Network(format!("SV request failed: {e}")))?;
+    .map_err(|_| AppError::SwarmIo {
+        context: "send_request StateVector",
+        reason: format!("timed out for {doc_id}"),
+    })?
+    .map_err(|e| AppError::SwarmIo {
+        context: "send_request StateVector",
+        reason: e.to_string(),
+    })?;
 
     match response {
         AppResponse::Sync(SyncResponse::Updates { doc_id: _, updates }) => {
@@ -148,15 +154,22 @@ pub async fn sync_via_full_pull(
         client.send_request(peer_id, request),
     )
     .await
-    .map_err(|_| AppError::Network(format!("FullSync timed out for {doc_id}")))?
-    .map_err(|e| AppError::Network(format!("FullSync failed: {e}")))?;
+    .map_err(|_| AppError::SwarmIo {
+        context: "send_request FullSync",
+        reason: format!("timed out for {doc_id}"),
+    })?
+    .map_err(|e| AppError::SwarmIo {
+        context: "send_request FullSync",
+        reason: e.to_string(),
+    })?;
 
     let updates = match response {
         AppResponse::Sync(SyncResponse::Updates { doc_id: _, updates }) => updates,
         other => {
-            return Err(AppError::Network(format!(
-                "Unexpected FullSync response: {other:?}"
-            )));
+            return Err(AppError::SwarmIo {
+                context: "FullSync response",
+                reason: format!("unexpected response: {other:?}"),
+            });
         }
     };
 
@@ -226,7 +239,10 @@ pub async fn handle_state_vector_request(
     client
         .send_response(pending_id, resp)
         .await
-        .map_err(|e| AppError::Network(format!("send SV response: {e}")))?;
+        .map_err(|e| AppError::SwarmIo {
+            context: "send_response StateVector",
+            reason: e.to_string(),
+        })?;
 
     Ok(())
 }
@@ -248,7 +264,10 @@ pub async fn handle_full_sync_request(
     client
         .send_response(pending_id, resp)
         .await
-        .map_err(|e| AppError::Network(format!("send FullSync response: {e}")))?;
+        .map_err(|e| AppError::SwarmIo {
+            context: "send_response FullSync",
+            reason: e.to_string(),
+        })?;
 
     Ok(())
 }
@@ -478,7 +497,7 @@ async fn load_local_state_vector(
     let doc = documents::Entity::find_by_id(doc_id)
         .one(db)
         .await?
-        .ok_or_else(|| AppError::Yjs(format!("Doc {doc_id} not found")))?;
+        .ok_or(AppError::DocRowMissing(doc_id))?;
 
     if let Some(ref sv) = doc.state_vector {
         return Ok(sv.clone());
@@ -503,8 +522,10 @@ async fn compute_update_for_peer(
     doc_id: Uuid,
     remote_sv_bytes: &[u8],
 ) -> AppResult<Vec<u8>> {
-    let remote_sv = StateVector::decode_v1(remote_sv_bytes)
-        .map_err(|e| AppError::Yjs(format!("decode SV: {e}")))?;
+    let remote_sv = StateVector::decode_v1(remote_sv_bytes).map_err(|e| AppError::YjsDecode {
+        context: "state vector",
+        reason: e.to_string(),
+    })?;
 
     let ws = core
         .get_workspace(&workspace_uuid)
@@ -523,7 +544,7 @@ async fn compute_update_for_peer(
     let doc_model = documents::Entity::find_by_id(doc_id)
         .one(db)
         .await?
-        .ok_or_else(|| AppError::Yjs(format!("Doc {doc_id} not found")))?;
+        .ok_or(AppError::DocRowMissing(doc_id))?;
 
     if let Some(ref yjs_state) = doc_model.yjs_state {
         let tmp_doc = create_doc();
@@ -559,7 +580,7 @@ async fn load_full_doc_state(
     let doc_model = documents::Entity::find_by_id(doc_id)
         .one(db)
         .await?
-        .ok_or_else(|| AppError::Yjs(format!("Doc {doc_id} not found")))?;
+        .ok_or(AppError::DocRowMissing(doc_id))?;
 
     Ok(doc_model.yjs_state.unwrap_or_default())
 }

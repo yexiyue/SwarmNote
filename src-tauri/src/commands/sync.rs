@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use swarm_p2p_core::libp2p::PeerId;
-use swarmnote_core::AppCore;
+use swarmnote_core::api::AppCore;
 use tauri::State;
 use uuid::Uuid;
 
@@ -17,10 +17,10 @@ pub async fn trigger_workspace_sync(
 ) -> AppResult<()> {
     let coordinator = core.sync_coordinator_or_err().await?;
     let uuid = Uuid::parse_str(&workspace_uuid)
-        .map_err(|e| AppError::Config(format!("Invalid UUID: {e}")))?;
+        .map_err(|e| AppError::InvalidPath(format!("Invalid UUID: {e}")))?;
     let pid: PeerId = peer_id
         .parse()
-        .map_err(|e| AppError::Config(format!("Invalid PeerId: {e}")))?;
+        .map_err(|e| AppError::InvalidPath(format!("Invalid PeerId: {e}")))?;
     coordinator.spawn_full_sync(pid, uuid).await;
     Ok(())
 }

@@ -268,11 +268,7 @@ impl YDocManager {
                 }
                 let row = find_doc_row(&self.db, self.workspace_id, rel_path)
                     .await?
-                    .ok_or_else(|| {
-                        AppError::Yjs(format!(
-                            "Document record missing after upsert for {rel_path}"
-                        ))
-                    })?;
+                    .ok_or(AppError::DocRowMissing(new_id))?;
                 if row.id == new_id {
                     tracing::info!("Auto-created DB record for {rel_path} → {new_id}");
                 }
@@ -371,7 +367,7 @@ impl YDocManager {
         let entry = self
             .docs
             .get(&doc_uuid)
-            .ok_or_else(|| AppError::DocNotOpen(doc_uuid.to_string()))?;
+            .ok_or(AppError::DocNotOpen(doc_uuid))?;
 
         entry.apply_update(update).await?;
         entry.mark_dirty();
@@ -471,13 +467,16 @@ impl YDocManager {
     ///
     /// The sequence is:
     /// 1. Signal the writeback loop to exit via `writeback_cancel`.
-    /// 2. Wait for it to drain — the loop's cancel arm runs one final
-    ///    `flush_all_dirty` before breaking, so **all unsaved edits are
-    ///    persisted before this method returns** (the core invariant this
-    ///    refactor gives us — previously `handle.abort()` could drop a
-    ///    half-completed `.md` write).
-    /// 3. Clear the docs map.
-    pub async fn close_all(&self) {
+    /// 2. Wait for it to drain (the loop does one last in-flight flush then
+    ///    breaks; any docs it failed on leave their `dirty` flag set).
+    /// 3. `close_all` itself then sweeps every remaining dirty doc ignoring
+    ///    the debounce window, collecting per-doc errors.
+    /// 4. Clear the docs map regardless of errors so the manager is safe
+    ///    to drop.
+    ///
+    /// Returns a `Vec<(Uuid, AppError)>` with one entry per document that
+    /// failed to persist. Empty means every dirty doc was flushed successfully.
+    pub async fn close_all(&self) -> Vec<(Uuid, AppError)> {
         self.writeback_cancel.cancel();
 
         let handle = self
@@ -491,8 +490,18 @@ impl YDocManager {
             }
         }
 
+        // Final authoritative sweep — picks up anything the loop couldn't
+        // flush (retry dirty entries, or entries that arrived during the
+        // cancel race).
+        let failures = self.flush_all_dirty("close_all").await;
+
         self.docs.clear();
-        tracing::info!("YDocManager closed for workspace {}", self.workspace_id);
+        tracing::info!(
+            "YDocManager closed for workspace {} ({} failure(s))",
+            self.workspace_id,
+            failures.len(),
+        );
+        failures
     }
 
     // ── External file reload ─────────────────────────────────
@@ -543,7 +552,7 @@ impl YDocManager {
             .docs
             .get(&doc_uuid)
             .map(|e| Arc::clone(&*e))
-            .ok_or_else(|| AppError::DocNotOpen(doc_uuid.to_string()))?;
+            .ok_or(AppError::DocNotOpen(doc_uuid))?;
 
         let rel_path = entry.rel_path();
         let content = self.fs.read_text(&rel_path).await?;
@@ -609,7 +618,9 @@ impl YDocManager {
             tokio::select! {
                 biased;
                 _ = self.writeback_cancel.cancelled() => {
-                    self.flush_all_dirty("final flush before cancel").await;
+                    // Best-effort final flush; any failures leave dirty=true
+                    // for the authoritative sweep inside `close_all`.
+                    let _ = self.flush_all_dirty("final flush before cancel").await;
                     break;
                 }
                 _ = self.writeback_notify.notified() => {
@@ -648,9 +659,11 @@ impl YDocManager {
         }
     }
 
-    /// Flush every dirty doc regardless of debounce window. Used by the
-    /// cancel path so `close_all` never drops unsaved edits.
-    async fn flush_all_dirty(&self, ctx: &'static str) {
+    /// Flush every dirty doc regardless of debounce window. Used by both
+    /// the writeback loop's cancel arm and by `close_all` as the
+    /// authoritative final sweep. Returns the list of per-doc failures
+    /// (successful flushes are logged but not reported).
+    async fn flush_all_dirty(&self, ctx: &'static str) -> Vec<(Uuid, AppError)> {
         let targets: Vec<(Uuid, Arc<DocEntry>)> = self
             .docs
             .iter()
@@ -661,11 +674,14 @@ impl YDocManager {
         if !targets.is_empty() {
             tracing::info!("writeback: {ctx}: {} dirty doc(s)", targets.len());
         }
+        let mut failures = Vec::new();
         for (uuid, entry) in targets {
             if let Err(e) = self.flush_entry(uuid, &entry).await {
                 tracing::warn!("{ctx} failed for doc {uuid}: {e}");
+                failures.push((uuid, e));
             }
         }
+        failures
     }
 
     /// Snapshot, persist, and emit `DocFlushed` for a single dirty entry.

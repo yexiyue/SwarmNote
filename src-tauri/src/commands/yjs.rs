@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
-use swarmnote_core::yjs::doc_state::{HydrateProgress, HydrateProgressFn, HydrateResult};
-use swarmnote_core::{AppCore, OpenDocResult, WorkspaceCore};
+use swarmnote_core::api::{AppCore, OpenDocResult, WorkspaceCore};
+use swarmnote_core::internal::doc_state::{HydrateProgress, HydrateProgressFn, HydrateResult};
 use tauri::ipc::Channel;
 use tauri::{State, Window};
 use uuid::Uuid;
@@ -23,7 +23,7 @@ async fn workspace_from_label(map: &WorkspaceMap, label: &str) -> AppResult<Arc<
 fn parse_doc_uuid(doc_uuid: &str) -> AppResult<Uuid> {
     doc_uuid
         .parse()
-        .map_err(|e| AppError::Yjs(format!("invalid doc_uuid: {e}")))
+        .map_err(|e| AppError::InvalidPath(format!("invalid doc_uuid: {e}")))
 }
 
 #[tauri::command]
@@ -110,7 +110,7 @@ pub async fn hydrate_workspace(
         })
     };
 
-    swarmnote_core::yjs::doc_state::hydrate_workspace(
+    swarmnote_core::internal::doc_state::hydrate_workspace(
         ws.db(),
         ws.fs().as_ref(),
         workspace_uuid,

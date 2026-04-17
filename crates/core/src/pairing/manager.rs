@@ -19,8 +19,10 @@ use crate::protocol::{
 use super::code::PairingCodeInfo;
 
 fn parse_peer_id(s: &str) -> AppResult<PeerId> {
-    s.parse()
-        .map_err(|e| AppError::Pairing(format!("Invalid PeerId '{s}': {e}")))
+    s.parse().map_err(|e| AppError::PairingOther {
+        context: "parse PeerId",
+        reason: format!("'{s}': {e}"),
+    })
 }
 
 /// 入站配对请求的过期时间（秒）。大于前端展示的 90s 倒计时，作为后端缓存宽限。
@@ -148,7 +150,10 @@ impl PairingManager {
             .client
             .get_addrs()
             .await
-            .map_err(|e| AppError::Network(format!("get_addrs: {e}")))?;
+            .map_err(|e| AppError::SwarmIo {
+                context: "get_addrs",
+                reason: e.to_string(),
+            })?;
 
         // 构建 DHT 记录
         let record_data = ShareCodeRecord {
@@ -158,8 +163,10 @@ impl PairingManager {
         };
 
         let key = dht_key::share_code_key(&code_info.code);
-        let value = serde_json::to_vec(&record_data)
-            .map_err(|e| AppError::Pairing(format!("serialize ShareCodeRecord: {e}")))?;
+        let value = serde_json::to_vec(&record_data).map_err(|e| AppError::PairingOther {
+            context: "serialize ShareCodeRecord",
+            reason: e.to_string(),
+        })?;
 
         use swarm_p2p_core::libp2p::kad::Record;
         let record = Record {
@@ -174,7 +181,10 @@ impl PairingManager {
         self.client
             .put_record(record)
             .await
-            .map_err(|e| AppError::Network(format!("put_record: {e}")))?;
+            .map_err(|e| AppError::SwarmIo {
+                context: "put_record share_code",
+                reason: e.to_string(),
+            })?;
 
         // 存入 active_code
         {
@@ -196,7 +206,10 @@ impl PairingManager {
             .client
             .get_record(key)
             .await
-            .map_err(|e| AppError::Pairing(format!("DHT lookup failed for code: {e}")))?;
+            .map_err(|e| AppError::SwarmIo {
+                context: "get_record share_code",
+                reason: e.to_string(),
+            })?;
 
         let record = result.record;
 
@@ -205,24 +218,28 @@ impl PairingManager {
             .expires
             .is_some_and(|e| e < std::time::Instant::now())
         {
-            return Err(AppError::Pairing("Pairing code has expired".to_string()));
+            return Err(AppError::PairingCodeExpired);
         }
 
         // 提取发布者 PeerId
-        let publisher = record
-            .publisher
-            .ok_or_else(|| AppError::Pairing("No publisher in DHT record".to_string()))?;
+        let publisher = record.publisher.ok_or(AppError::PairingCodeInvalid)?;
 
         // 解析记录内容
-        let share_record: ShareCodeRecord = serde_json::from_slice(&record.value)
-            .map_err(|e| AppError::Pairing(format!("Invalid ShareCodeRecord: {e}")))?;
+        let share_record: ShareCodeRecord =
+            serde_json::from_slice(&record.value).map_err(|e| AppError::PairingOther {
+                context: "deserialize ShareCodeRecord",
+                reason: e.to_string(),
+            })?;
 
         // 注册对方地址到 Swarm，以便后续拨号
         if !share_record.listen_addrs.is_empty() {
             self.client
                 .add_peer_addrs(publisher, share_record.listen_addrs.clone())
                 .await
-                .map_err(|e| AppError::Network(format!("add_peer_addrs: {e}")))?;
+                .map_err(|e| AppError::SwarmIo {
+                    context: "add_peer_addrs",
+                    reason: e.to_string(),
+                })?;
         }
 
         Ok((publisher.to_string(), share_record))
@@ -251,7 +268,10 @@ impl PairingManager {
             .client
             .send_request(peer_id, AppRequest::Pairing(request))
             .await
-            .map_err(|e| AppError::Network(format!("send_request: {e}")))?;
+            .map_err(|e| AppError::SwarmIo {
+                context: "send_request pairing",
+                reason: e.to_string(),
+            })?;
 
         match response {
             AppResponse::Pairing(pairing_resp) => {
@@ -262,9 +282,10 @@ impl PairingManager {
 
                 Ok(pairing_resp)
             }
-            _ => Err(AppError::Pairing(
-                "Unexpected response type (expected Pairing)".to_string(),
-            )),
+            _ => Err(AppError::PairingOther {
+                context: "send_request response",
+                reason: "unexpected response type (expected Pairing)".to_string(),
+            }),
         }
     }
 
@@ -304,7 +325,7 @@ impl PairingManager {
         let (_, pending) = self
             .pending_inbound
             .remove(&pending_id)
-            .ok_or_else(|| AppError::Pairing(format!("No pending request for id {pending_id}")))?;
+            .ok_or(AppError::PairingPendingNotFound(pending_id))?;
 
         // H-2: 检查 pending 是否已超时
         if pending.created_at.elapsed() >= PENDING_TTL {
@@ -316,10 +337,11 @@ impl PairingManager {
                     }),
                 )
                 .await
-                .map_err(|e| AppError::Network(format!("send_response: {e}")))?;
-            return Err(AppError::Pairing(
-                "Pending pairing request has expired".to_string(),
-            ));
+                .map_err(|e| AppError::SwarmIo {
+                    context: "send_response pairing expired",
+                    reason: e.to_string(),
+                })?;
+            return Err(AppError::PairingCodeExpired);
         }
 
         if !accept {
@@ -331,7 +353,10 @@ impl PairingManager {
                     }),
                 )
                 .await
-                .map_err(|e| AppError::Network(format!("send_response: {e}")))?;
+                .map_err(|e| AppError::SwarmIo {
+                    context: "send_response pairing rejected",
+                    reason: e.to_string(),
+                })?;
             return Ok(None);
         }
 
@@ -356,10 +381,15 @@ impl PairingManager {
                         }),
                     )
                     .await
-                    .map_err(|e| AppError::Network(format!("send_response: {e}")))?;
-                return Err(AppError::Pairing(format!(
-                    "Pairing code verification failed: {reason:?}"
-                )));
+                    .map_err(|e| AppError::SwarmIo {
+                        context: "send_response pairing code refused",
+                        reason: e.to_string(),
+                    })?;
+                return Err(match reason {
+                    PairingRefuseReason::CodeExpired => AppError::PairingCodeExpired,
+                    PairingRefuseReason::CodeInvalid => AppError::PairingCodeInvalid,
+                    _ => AppError::PairingCodeInvalid,
+                });
             }
 
             // 消费配对码（一次性使用），仅 Code 模式
@@ -373,7 +403,10 @@ impl PairingManager {
         self.client
             .send_response(pending_id, AppResponse::Pairing(PairingResponse::Success))
             .await
-            .map_err(|e| AppError::Network(format!("send_response: {e}")))?;
+            .map_err(|e| AppError::SwarmIo {
+                context: "send_response pairing success",
+                reason: e.to_string(),
+            })?;
 
         // 持久化已配对设备
         let info = self

@@ -14,12 +14,10 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use swarmnote_core::{AppCore, FileSystem, FileWatcher, LocalFs, WorkspaceCore};
+use swarmnote_core::api::{AppCore, WorkspaceCore};
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 use uuid::Uuid;
-
-use super::NotifyFileWatcher;
 
 pub struct WorkspaceMap(Mutex<HashMap<String, Arc<WorkspaceCore>>>);
 
@@ -71,8 +69,8 @@ impl Default for WorkspaceMap {
     }
 }
 
-/// Construct a [`WorkspaceCore`] for `ws_path` with desktop platform impls
-/// ([`LocalFs`] + [`NotifyFileWatcher`]) and bind it to `label`.
+/// Build a workspace runtime for `ws_path` via the registered factories on
+/// `AppCore` (desktop: `LocalFs` + `NotifyFileWatcher`) and bind it to `label`.
 ///
 /// Returns the `Arc` so callers can chain additional wiring; the map
 /// binding has already happened when this returns `Ok`.
@@ -80,17 +78,14 @@ pub async fn start_core_workspace(
     app: &AppHandle,
     ws_path: &Path,
     label: &str,
-) -> Result<Arc<WorkspaceCore>, swarmnote_core::AppError> {
+) -> Result<Arc<WorkspaceCore>, swarmnote_core::api::AppError> {
     let app_core = app.try_state::<Arc<AppCore>>().ok_or_else(|| {
-        swarmnote_core::AppError::Config("AppCore not registered — host setup missing".into())
+        swarmnote_core::api::AppError::ConfigParse(
+            "AppCore not registered — host setup missing".into(),
+        )
     })?;
 
-    let fs: Arc<dyn FileSystem> = Arc::new(LocalFs::new(ws_path));
-    let watcher: Option<Arc<dyn FileWatcher>> = Some(Arc::new(NotifyFileWatcher::new(ws_path)));
-
-    let core = app_core
-        .open_workspace(ws_path.to_path_buf(), fs, watcher)
-        .await?;
+    let core = app_core.inner().clone().open_workspace(ws_path).await?;
 
     if let Some(map) = app.try_state::<WorkspaceMap>() {
         map.bind(label, Arc::clone(&core)).await;

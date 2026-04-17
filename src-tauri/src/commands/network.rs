@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use swarmnote_core::{AppCore, Device, DeviceFilter, NodeStatus};
+use swarmnote_core::api::{AppCore, Device, DeviceFilter, NodeStatus};
 use tauri::{AppHandle, Manager, State};
 
 use crate::error::AppResult;

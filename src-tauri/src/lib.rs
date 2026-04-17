@@ -7,13 +7,13 @@ pub mod tray;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use swarmnote_core::AppCore;
+use swarmnote_core::api::{AppCore, AppCoreBuilder};
 use tauri::Manager;
 
 /// Desktop config directory: `~/.swarmnote/`. Used both to bootstrap
 /// [`AppCore`] and by the `config::*` helpers inside the commands module.
-fn swarmnote_global_dir() -> Result<PathBuf, swarmnote_core::AppError> {
-    let home = directories::BaseDirs::new().ok_or(swarmnote_core::AppError::NoAppDataDir)?;
+fn swarmnote_global_dir() -> Result<PathBuf, swarmnote_core::api::AppError> {
+    let home = directories::BaseDirs::new().ok_or(swarmnote_core::api::AppError::NoAppDataDir)?;
     Ok(home.home_dir().join(".swarmnote"))
 }
 
@@ -137,8 +137,11 @@ pub fn run() {
             let app_data_dir = swarmnote_global_dir()?;
             let keychain = Arc::new(platform::DesktopKeychain::new());
             let event_bus = Arc::new(platform::TauriEventBus::new(app.handle().clone()));
-            let app_core =
-                tauri::async_runtime::block_on(AppCore::new(keychain, event_bus, app_data_dir))?;
+            let app_core = tauri::async_runtime::block_on(
+                AppCoreBuilder::new(keychain, event_bus, app_data_dir)
+                    .with_watcher_factory(|p| Arc::new(platform::NotifyFileWatcher::new(p)))
+                    .build(),
+            )?;
             app.manage(app_core.clone());
             app.manage(platform::WorkspaceMap::new());
 

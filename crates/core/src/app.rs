@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::config::{load_or_create_config, GlobalConfigState};
 use crate::error::{AppError, AppResult};
 use crate::events::{AppEvent, EventBus};
-use crate::fs::{FileSystem, FileWatcher};
+use crate::fs::{FileSystem, FileWatcher, LocalFs};
 use crate::identity::IdentityManager;
 use crate::keychain::KeychainProvider;
 use crate::network::config::create_node_config;
@@ -30,21 +30,37 @@ use crate::workspace::{
     WorkspaceInfo,
 };
 
-/// Device-level core. Construct once per process via [`AppCore::new`].
+/// Factory that produces a workspace-scoped [`FileSystem`] implementation
+/// bound to `path`. Registered on [`AppCoreBuilder`]; invoked once per
+/// [`AppCore::open_workspace`] call.
+pub type FsFactory = Arc<dyn Fn(&Path) -> Arc<dyn FileSystem> + Send + Sync + 'static>;
+
+/// Factory that produces a workspace-scoped [`FileWatcher`] implementation
+/// bound to `path`. Optional — mobile hosts with no watcher pass `None`.
+pub type WatcherFactory = Arc<dyn Fn(&Path) -> Arc<dyn FileWatcher> + Send + Sync + 'static>;
+
+/// Device-level core. Construct via [`AppCoreBuilder`].
 pub struct AppCore {
-    pub identity: Arc<IdentityManager>,
-    pub config: Arc<GlobalConfigState>,
-    pub event_bus: Arc<dyn EventBus>,
-    pub keychain: Arc<dyn KeychainProvider>,
+    pub(crate) identity: Arc<IdentityManager>,
+    pub(crate) config: Arc<GlobalConfigState>,
+    pub(crate) event_bus: Arc<dyn EventBus>,
+    pub(crate) keychain: Arc<dyn KeychainProvider>,
 
     /// Shared connection to `devices.db` (paired devices table). Always open
     /// for the lifetime of `AppCore` — does not track P2P lifecycle.
-    pub devices_db: Arc<DatabaseConnection>,
+    pub(crate) devices_db: Arc<DatabaseConnection>,
 
     /// Absolute path to the app data directory (`~/.swarmnote/` or
     /// platform-specific). Platform layers inject this; core stores for
     /// reference only.
-    pub app_data_dir: PathBuf,
+    pub(crate) app_data_dir: PathBuf,
+
+    /// Platform-supplied factory producing the per-workspace filesystem.
+    fs_factory: FsFactory,
+
+    /// Platform-supplied factory producing the per-workspace file watcher.
+    /// `None` on hosts that don't support file watching (mobile sandbox).
+    watcher_factory: Option<WatcherFactory>,
 
     /// Running P2P session. `None` until [`AppCore::start_network`]
     /// completes; reset to `None` by [`AppCore::stop_network`].
@@ -62,15 +78,72 @@ pub struct AppCore {
     workspaces: Mutex<HashMap<Uuid, Weak<WorkspaceCore>>>,
 }
 
-impl AppCore {
+/// Builder for [`AppCore`]. Collects the three required platform
+/// dependencies (`keychain`, `event_bus`, `app_data_dir`) and lets the host
+/// register workspace-scoped filesystem / watcher factories.
+///
+/// The default `fs_factory` produces [`LocalFs`] (works for both desktop
+/// user-chosen paths and mobile sandbox paths). The default
+/// `watcher_factory` is `None` — desktop hosts call
+/// [`AppCoreBuilder::with_watcher_factory`] to register `NotifyFileWatcher`.
+pub struct AppCoreBuilder {
+    keychain: Arc<dyn KeychainProvider>,
+    event_bus: Arc<dyn EventBus>,
+    app_data_dir: PathBuf,
+    fs_factory: FsFactory,
+    watcher_factory: Option<WatcherFactory>,
+}
+
+impl AppCoreBuilder {
+    /// Start configuring an `AppCore`. Supplies the three always-required
+    /// platform dependencies; filesystem / watcher factories default to
+    /// `LocalFs` / `None` respectively.
+    pub fn new(
+        keychain: Arc<dyn KeychainProvider>,
+        event_bus: Arc<dyn EventBus>,
+        app_data_dir: impl Into<PathBuf>,
+    ) -> Self {
+        Self {
+            keychain,
+            event_bus,
+            app_data_dir: app_data_dir.into(),
+            fs_factory: Arc::new(|p: &Path| Arc::new(LocalFs::new(p)) as Arc<dyn FileSystem>),
+            watcher_factory: None,
+        }
+    }
+
+    /// Override the filesystem factory. Rare — default `LocalFs` covers
+    /// both desktop and mobile sandbox use cases.
+    pub fn with_fs_factory<F>(mut self, factory: F) -> Self
+    where
+        F: Fn(&Path) -> Arc<dyn FileSystem> + Send + Sync + 'static,
+    {
+        self.fs_factory = Arc::new(factory);
+        self
+    }
+
+    /// Register a filesystem watcher factory. Desktop hosts pass a closure
+    /// that constructs `NotifyFileWatcher`; mobile hosts omit this entirely.
+    pub fn with_watcher_factory<F>(mut self, factory: F) -> Self
+    where
+        F: Fn(&Path) -> Arc<dyn FileWatcher> + Send + Sync + 'static,
+    {
+        self.watcher_factory = Some(Arc::new(factory));
+        self
+    }
+
     /// Bootstrap the device-level core: load config, initialize identity,
     /// open `devices.db`. P2P network stays stopped until the host calls
     /// [`AppCore::start_network`] explicitly.
-    pub async fn new(
-        keychain: Arc<dyn KeychainProvider>,
-        event_bus: Arc<dyn EventBus>,
-        app_data_dir: PathBuf,
-    ) -> AppResult<Arc<Self>> {
+    pub async fn build(self) -> AppResult<Arc<AppCore>> {
+        let Self {
+            keychain,
+            event_bus,
+            app_data_dir,
+            fs_factory,
+            watcher_factory,
+        } = self;
+
         // 1. Load (or create default) global config.
         let config_data = load_or_create_config(&app_data_dir)?;
         let config_state = Arc::new(GlobalConfigState::new(
@@ -84,17 +157,47 @@ impl AppCore {
         // 3. Open devices.db.
         let devices_db = Arc::new(init_devices_db(&app_data_dir).await?);
 
-        Ok(Arc::new(Self {
+        Ok(Arc::new(AppCore {
             identity,
             config: config_state,
             event_bus,
             keychain,
             devices_db,
             app_data_dir,
+            fs_factory,
+            watcher_factory,
             net: Mutex::new(None),
             sync_coordinator: Mutex::new(None),
             workspaces: Mutex::new(HashMap::new()),
         }))
+    }
+}
+
+impl AppCore {
+    // ── Accessors ─────────────────────────────────────────────
+
+    pub fn identity(&self) -> &Arc<IdentityManager> {
+        &self.identity
+    }
+
+    pub fn config(&self) -> &Arc<GlobalConfigState> {
+        &self.config
+    }
+
+    pub fn event_bus(&self) -> &Arc<dyn EventBus> {
+        &self.event_bus
+    }
+
+    pub fn keychain(&self) -> &Arc<dyn KeychainProvider> {
+        &self.keychain
+    }
+
+    pub fn devices_db(&self) -> &DatabaseConnection {
+        &self.devices_db
+    }
+
+    pub fn app_data_dir(&self) -> &Path {
+        &self.app_data_dir
     }
 
     /// Open (or return existing) workspace at `path`.
@@ -110,13 +213,15 @@ impl AppCore {
     /// instance so desktop windows still share one runtime per workspace.
     pub async fn open_workspace(
         self: &Arc<Self>,
-        path: PathBuf,
-        fs: Arc<dyn FileSystem>,
-        watcher: Option<Arc<dyn FileWatcher>>,
+        path: impl Into<PathBuf>,
     ) -> AppResult<Arc<WorkspaceCore>> {
+        let path: PathBuf = path.into();
         if !path.is_dir() {
             return Err(AppError::InvalidPath(path.to_string_lossy().into_owned()));
         }
+
+        let fs: Arc<dyn FileSystem> = (self.fs_factory)(&path);
+        let watcher: Option<Arc<dyn FileWatcher>> = self.watcher_factory.as_ref().map(|f| f(&path));
 
         // Peek UUID without holding any lock, so two calls to different
         // paths never serialize.
@@ -169,7 +274,11 @@ impl AppCore {
                     drop(guard);
                     // Close our orphan core so its YDocManager writeback
                     // tasks are cancelled and file watcher released.
-                    core.close().await;
+                    // The orphan has no user-visible state, so we swallow
+                    // any persistence error — logging only.
+                    if let Err(e) = core.close().await {
+                        tracing::warn!("orphan core close failed during open_workspace race: {e}");
+                    }
                     existing
                 } else {
                     guard.insert(workspace_id, Arc::downgrade(&core));
@@ -206,7 +315,7 @@ impl AppCore {
         // WorkspaceCore::close() tears down its WorkspaceSync (if any)
         // including GossipSub unsubscribe — no explicit unsubscribe needed here.
         if let Some(arc) = weak.upgrade() {
-            arc.close().await;
+            arc.close().await?;
         }
         Ok(())
     }
@@ -258,17 +367,31 @@ impl AppCore {
         }
     }
 
-    /// Start the P2P node. Idempotent: returns `Network("already running")`
-    /// if a session is already active.
+    /// Start the P2P node. Idempotent: returns
+    /// [`AppError::NetworkAlreadyRunning`] if a session is already active.
+    ///
+    /// Concurrency: the `net` mutex is only held during a brief existence
+    /// check and a final CAS-style install. Libp2p startup, GossipSub
+    /// subscribe, workspace-sync injection, and background task spawns all
+    /// run **without** holding the lock — so concurrent `net()` /
+    /// `network_status()` / `client()` / `pairing()` / `devices()` calls
+    /// never block for longer than a map lookup.
+    ///
+    /// If two tasks race here, the loser shuts down its freshly-built
+    /// `NetManager` before returning `NetworkAlreadyRunning` so no
+    /// libp2p session is leaked.
     pub async fn start_network(self: &Arc<Self>) -> AppResult<()> {
-        let mut net_guard = self.net.lock().await;
-        if net_guard.is_some() {
-            return Err(AppError::Network("P2P node is already running".to_string()));
+        // 1. Short-lived existence check — early-exit if clearly running.
+        //    (The authoritative check is the CAS in step 3; this is just a
+        //    fast-path so common callers don't waste an I/O round trip.)
+        if self.net.lock().await.is_some() {
+            return Err(AppError::NetworkAlreadyRunning);
         }
 
+        // 2. I/O — all of this runs WITHOUT the `net` lock held.
         let keypair_bytes = self.identity.keypair_protobuf()?;
         let keypair = Keypair::from_protobuf_encoding(&keypair_bytes)
-            .map_err(|e| AppError::Identity(format!("keypair decode: {e}")))?;
+            .map_err(|e| AppError::KeypairDecode(e.to_string()))?;
         let peer_id = keypair.public().to_peer_id();
 
         // Build agent_version from current device name.
@@ -282,8 +405,12 @@ impl AppCore {
 
         // Start the libp2p swarm + req/resp channels.
         let (client, receiver): (AppNetClient, _) =
-            swarm_p2p_core::start::<AppRequest, AppResponse>(keypair, config)
-                .map_err(|e| AppError::Network(format!("Failed to start P2P: {e}")))?;
+            swarm_p2p_core::start::<AppRequest, AppResponse>(keypair, config).map_err(|e| {
+                AppError::SwarmIo {
+                    context: "swarm_p2p_core::start",
+                    reason: e.to_string(),
+                }
+            })?;
 
         let net_manager = Arc::new(NetManager::new(
             client.clone(),
@@ -315,7 +442,23 @@ impl AppCore {
             tracing::warn!("Failed to subscribe to ctrl topic: {e}");
         }
 
-        // Retroactively inject WorkspaceSync into already-open workspaces.
+        // 3. CAS install. If the `net` slot is already Some, another task won
+        //    the race — shut down our locally-built NetManager (which also
+        //    cancels the event loop + SV compensation via the shared token)
+        //    before returning the "already running" error.
+        {
+            let mut guard = self.net.lock().await;
+            if guard.is_some() {
+                drop(guard);
+                net_manager.shutdown().await;
+                return Err(AppError::NetworkAlreadyRunning);
+            }
+            *guard = Some(net_manager.clone());
+        }
+        *self.sync_coordinator.lock().await = Some(coordinator);
+
+        // 4. Post-install wiring. Locks are released; free to await.
+        //    Retroactively inject WorkspaceSync into already-open workspaces.
         for ws in self.list_workspaces().await {
             self.install_workspace_sync(&ws, &client, false).await;
         }
@@ -349,34 +492,39 @@ impl AppCore {
             .clone()
             .spawn_renewal_task(cancel_token);
 
-        *net_guard = Some(net_manager);
-        drop(net_guard);
-
-        *self.sync_coordinator.lock().await = Some(coordinator);
-
         self.event_bus.emit(AppEvent::NodeStarted);
         info!("P2P node started, PeerId: {peer_id}");
         Ok(())
     }
 
     /// Stop the P2P node. No-op if already stopped.
+    ///
+    /// Concurrency: the `net` lock is released before the (potentially
+    /// long-running) `NetManager::shutdown().await` call so concurrent
+    /// readers see `None` immediately.
     pub async fn stop_network(&self) -> AppResult<()> {
-        let mut net_guard = self.net.lock().await;
-        if let Some(manager) = net_guard.take() {
-            manager.shutdown().await;
-            drop(net_guard);
+        // Take the manager out under the lock, then release before awaiting.
+        let manager = self.net.lock().await.take();
+        let Some(manager) = manager else {
+            return Ok(());
+        };
 
-            // Tear down per-workspace sync runtimes.
-            for ws in self.list_workspaces().await {
-                if let Some(sync) = ws.take_sync().await {
-                    sync.close().await;
-                }
+        // Clear the coordinator slot too — same short-hold pattern.
+        let _ = self.sync_coordinator.lock().await.take();
+
+        manager.shutdown().await;
+
+        // Tear down per-workspace sync runtimes now that the coordinator
+        // is gone. Lock on `workspaces` is brief and no longer competes
+        // with `net`.
+        for ws in self.list_workspaces().await {
+            if let Some(sync) = ws.take_sync().await {
+                sync.close().await;
             }
-            *self.sync_coordinator.lock().await = None;
-
-            self.event_bus.emit(AppEvent::NodeStopped);
-            info!("P2P node stopped");
         }
+
+        self.event_bus.emit(AppEvent::NodeStopped);
+        info!("P2P node stopped");
         Ok(())
     }
 
@@ -385,7 +533,7 @@ impl AppCore {
         self.net()
             .await
             .map(|n| n.client.clone())
-            .ok_or_else(AppError::node_not_running)
+            .ok_or(AppError::NetworkNotRunning)
     }
 
     /// Convenience: get `PairingManager` if P2P is running.
@@ -393,7 +541,7 @@ impl AppCore {
         self.net()
             .await
             .map(|n| n.pairing_manager.clone())
-            .ok_or_else(AppError::node_not_running)
+            .ok_or(AppError::NetworkNotRunning)
     }
 
     /// Convenience: get `DeviceManager` if P2P is running.
@@ -401,14 +549,14 @@ impl AppCore {
         self.net()
             .await
             .map(|n| n.device_manager.clone())
-            .ok_or_else(AppError::node_not_running)
+            .ok_or(AppError::NetworkNotRunning)
     }
 
     /// Convenience: get `AppSyncCoordinator` if P2P is running.
     pub async fn sync_coordinator_or_err(&self) -> AppResult<Arc<AppSyncCoordinator>> {
         self.sync_coordinator()
             .await
-            .ok_or_else(AppError::node_not_running)
+            .ok_or(AppError::NetworkNotRunning)
     }
 
     /// Create a [`WorkspaceSync`], subscribe to GossipSub, and install it

@@ -97,8 +97,14 @@ pub async fn sync_doc_assets(
         client.send_request(peer_id, request),
     )
     .await
-    .map_err(|_| AppError::Network("AssetManifest request timed out".into()))?
-    .map_err(|e| AppError::Network(format!("AssetManifest request failed: {e}")))?;
+    .map_err(|_| AppError::SwarmIo {
+        context: "send_request AssetManifest",
+        reason: "timed out".into(),
+    })?
+    .map_err(|e| AppError::SwarmIo {
+        context: "send_request AssetManifest",
+        reason: e.to_string(),
+    })?;
 
     let remote_assets = match response {
         AppResponse::Sync(SyncResponse::AssetManifest { assets, .. }) => assets,
@@ -223,9 +229,10 @@ async fn pull_asset(
 
     if any_error {
         tokio::fs::remove_file(&part_path).await.ok();
-        return Err(AppError::Network(format!(
-            "Failed to pull all chunks for {name}"
-        )));
+        return Err(AppError::SwarmIo {
+            context: "pull asset chunks",
+            reason: format!("failed to pull all chunks for {name}"),
+        });
     }
 
     // Verify integrity
@@ -233,11 +240,14 @@ async fn pull_asset(
     let actual_hash = blake3::hash(&data);
     if actual_hash.as_bytes() != expected_hash {
         tokio::fs::remove_file(&part_path).await.ok();
-        return Err(AppError::Network(format!(
-            "Hash mismatch for {name}: expected {:?}, got {:?}",
-            &expected_hash[..4],
-            &actual_hash.as_bytes()[..4]
-        )));
+        return Err(AppError::SwarmIo {
+            context: "asset hash verify",
+            reason: format!(
+                "hash mismatch for {name}: expected {:?}, got {:?}",
+                &expected_hash[..4],
+                &actual_hash.as_bytes()[..4]
+            ),
+        });
     }
 
     // Rename .part → final
@@ -274,9 +284,10 @@ async fn pull_single_chunk(
                 return Ok(data);
             }
             Ok(Ok(other)) => {
-                return Err(AppError::Network(format!(
-                    "Unexpected chunk response: {other:?}"
-                )));
+                return Err(AppError::SwarmIo {
+                    context: "pull chunk response",
+                    reason: format!("unexpected response: {other:?}"),
+                });
             }
             Ok(Err(e)) => format!("{e}"),
             Err(_) => "timeout".to_string(),
@@ -284,9 +295,12 @@ async fn pull_single_chunk(
 
         retries += 1;
         if retries > MAX_RETRIES {
-            return Err(AppError::Network(format!(
-                "Chunk {chunk_index} of {name} failed after {MAX_RETRIES} retries: {err_msg}"
-            )));
+            return Err(AppError::SwarmIo {
+                context: "pull chunk retry exhausted",
+                reason: format!(
+                    "chunk {chunk_index} of {name} failed after {MAX_RETRIES} retries: {err_msg}"
+                ),
+            });
         }
 
         let delay = Duration::from_millis(100 * 2u64.pow(retries));
@@ -315,7 +329,10 @@ pub async fn handle_asset_manifest_request(
     client
         .send_response(pending_id, resp)
         .await
-        .map_err(|e| AppError::Network(format!("send AssetManifest response: {e}")))?;
+        .map_err(|e| AppError::SwarmIo {
+            context: "send_response AssetManifest",
+            reason: e.to_string(),
+        })?;
 
     Ok(())
 }
@@ -359,7 +376,10 @@ pub async fn handle_asset_chunk_request(
     client
         .send_response(pending_id, resp)
         .await
-        .map_err(|e| AppError::Network(format!("send AssetChunk response: {e}")))?;
+        .map_err(|e| AppError::SwarmIo {
+            context: "send_response AssetChunk",
+            reason: e.to_string(),
+        })?;
 
     Ok(())
 }

@@ -78,7 +78,7 @@ pub fn load_or_create_config(app_data_dir: &Path) -> AppResult<GlobalConfig> {
     if path.exists() {
         let content = fs::read_to_string(&path)?;
         let config: GlobalConfig = serde_json::from_str(&content)
-            .map_err(|e| AppError::Config(format!("invalid config JSON: {e}")))?;
+            .map_err(|e| AppError::ConfigParse(format!("invalid config JSON: {e}")))?;
         info!("Loaded global config from {}", path.display());
         return Ok(config);
     }
@@ -106,7 +106,7 @@ pub fn save_config(path: &Path, config: &GlobalConfig) -> AppResult<()> {
     }
 
     let json = serde_json::to_string_pretty(config)
-        .map_err(|e| AppError::Config(format!("serialize config: {e}")))?;
+        .map_err(|e| AppError::ConfigParse(format!("serialize config: {e}")))?;
 
     fs::write(path, json)?;
     Ok(())

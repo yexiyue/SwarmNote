@@ -162,11 +162,11 @@ impl TrayManager {
     fn load_recent_workspaces_sync(
         app: &AppHandle,
     ) -> Vec<swarmnote_core::config::RecentWorkspace> {
-        let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::AppCore>>() else {
+        let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::api::AppCore>>() else {
             return Vec::new();
         };
         tauri::async_runtime::block_on(async {
-            core.config
+            core.config()
                 .read()
                 .await
                 .recent_workspaces
@@ -181,10 +181,10 @@ impl TrayManager {
     async fn load_recent_workspaces(
         app: &AppHandle,
     ) -> Vec<swarmnote_core::config::RecentWorkspace> {
-        let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::AppCore>>() else {
+        let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::api::AppCore>>() else {
             return Vec::new();
         };
-        let config = core.config.read().await;
+        let config = core.config().read().await;
         let result = config
             .recent_workspaces
             .iter()
@@ -288,7 +288,7 @@ impl TrayManager {
             let path = path.to_string();
             let handle = app.clone();
             tauri::async_runtime::spawn(async move {
-                let Some(core) = handle.try_state::<std::sync::Arc<swarmnote_core::AppCore>>()
+                let Some(core) = handle.try_state::<std::sync::Arc<swarmnote_core::api::AppCore>>()
                 else {
                     warn!("open_workspace_window: AppCore not registered");
                     return;
@@ -354,7 +354,7 @@ impl TrayManager {
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Some(core) =
-                        handle.try_state::<std::sync::Arc<swarmnote_core::AppCore>>()
+                        handle.try_state::<std::sync::Arc<swarmnote_core::api::AppCore>>()
                     {
                         let _ = core.stop_network().await;
                     }
@@ -396,7 +396,7 @@ pub async fn refresh_tray_menu(app: &AppHandle) {
 // ── 私有辅助 ──
 
 async fn toggle_sync(app: &AppHandle) {
-    let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::AppCore>>() else {
+    let Some(core) = app.try_state::<std::sync::Arc<swarmnote_core::api::AppCore>>() else {
         warn!("toggle_sync: AppCore not registered");
         return;
     };

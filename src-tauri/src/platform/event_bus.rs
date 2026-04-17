@@ -6,7 +6,7 @@
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
 
-use swarmnote_core::{AppEvent, EventBus};
+use swarmnote_core::api::{AppEvent, EventBus};
 
 /// `EventBus` implementation backed by Tauri's `AppHandle::emit`. Broadcasts
 /// to all windows — the frontend filters by the business keys in the payload
@@ -152,12 +152,6 @@ impl EventBus for TauriEventBus {
                         "result": if cancelled { "cancelled" } else { "success" },
                     }),
                 );
-            }
-
-            // ── Navigation ──
-            AppEvent::NavigateTo { target, route } => {
-                // Precision target-routing — explicit window label.
-                let _ = self.app.emit_to(target.as_str(), "navigate", route);
             }
         }
     }

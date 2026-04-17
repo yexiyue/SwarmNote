@@ -9,8 +9,7 @@ use std::path::PathBuf;
 
 use entity::workspace::{documents, folders};
 use serde::{Deserialize, Serialize};
-use swarmnote_core::events::AppEvent;
-use swarmnote_core::{CreateFolderInput, UpsertDocumentInput};
+use swarmnote_core::api::{AppEvent, CreateFolderInput, UpsertDocumentInput};
 use tauri::{State, Window};
 use uuid::Uuid;
 
@@ -20,7 +19,7 @@ use crate::platform::WorkspaceMap;
 async fn workspace_from_label(
     map: &WorkspaceMap,
     label: &str,
-) -> AppResult<std::sync::Arc<swarmnote_core::WorkspaceCore>> {
+) -> AppResult<std::sync::Arc<swarmnote_core::api::WorkspaceCore>> {
     map.get(label).await.ok_or(AppError::NoWorkspaceOpen)
 }
 
@@ -184,7 +183,7 @@ pub async fn move_document(
     // Structural tree change — fire immediately so the frontend refreshes
     // without waiting for the watcher debounce.
     ws.event_bus().emit(AppEvent::FileTreeChanged {
-        workspace_id: ws.info.id,
+        workspace_id: ws.info().id,
     });
 
     // Silence unused import when the module compiles without it — PathBuf is

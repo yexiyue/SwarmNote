@@ -51,7 +51,7 @@ impl IdentityManager {
     ) -> AppResult<Self> {
         let keypair_bytes = keychain.get_or_create_keypair().await?;
         let keypair = Keypair::from_protobuf_encoding(&keypair_bytes)
-            .map_err(|e| AppError::Identity(format!("keypair decode: {e}")))?;
+            .map_err(|e| AppError::KeypairDecode(e.to_string()))?;
         let peer_id = keypair.public().to_peer_id().to_string();
 
         let device_info = DeviceInfo {
@@ -79,7 +79,7 @@ impl IdentityManager {
         let guard = self
             .device_info
             .read()
-            .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
+            .expect("device_info RwLock poisoned");
         Ok(f(&guard))
     }
 
@@ -97,7 +97,7 @@ impl IdentityManager {
         let mut info = self
             .device_info
             .write()
-            .map_err(|e| AppError::Identity(format!("lock error: {e}")))?;
+            .expect("device_info RwLock poisoned");
         info.device_name = name;
         Ok(())
     }
@@ -108,7 +108,7 @@ impl IdentityManager {
     pub(crate) fn keypair_protobuf(&self) -> AppResult<Vec<u8>> {
         self.keypair
             .to_protobuf_encoding()
-            .map_err(|e| AppError::Identity(format!("keypair encode: {e}")))
+            .map_err(|e| AppError::KeypairEncode(e.to_string()))
     }
 }
 
@@ -138,7 +138,7 @@ mod tests {
             let kp = Keypair::generate_ed25519();
             let bytes = kp
                 .to_protobuf_encoding()
-                .map_err(|e| AppError::Keychain(e.to_string()))?;
+                .map_err(|e| AppError::KeychainUnavailable(e.to_string()))?;
             *guard = Some(bytes.clone());
             Ok(bytes)
         }

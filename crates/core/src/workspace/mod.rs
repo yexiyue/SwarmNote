@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 use crate::app::AppCore;
 use crate::document::DocumentCrud;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::events::{AppEvent, EventBus};
 use crate::fs::{FileEvent, FileEventCallback, FileSystem, FileWatcher};
 use crate::workspace::sync::WorkspaceSync;
@@ -48,7 +48,7 @@ pub struct WorkspaceInfo {
 /// tasks as a best-effort fallback but does NOT flush pending writes —
 /// `close().await` is the only path that guarantees persistence.
 pub struct WorkspaceCore {
-    pub info: WorkspaceInfo,
+    pub(crate) info: WorkspaceInfo,
     /// Shared DB connection. Wrapped in `Arc` so `DocumentCrud`,
     /// `YDocManager`, and future `WorkspaceSync` can hold it without
     /// cloning the underlying pool.
@@ -113,6 +113,10 @@ impl WorkspaceCore {
         self.info.id
     }
 
+    pub fn info(&self) -> &WorkspaceInfo {
+        &self.info
+    }
+
     pub fn db(&self) -> &DatabaseConnection {
         &self.db
     }
@@ -160,16 +164,33 @@ impl WorkspaceCore {
 
     /// Flush every open Y.Doc, tear down sync + file watcher. Must be
     /// called before the last `Arc<WorkspaceCore>` reference drops.
-    pub async fn close(&self) {
+    ///
+    /// Returns `Err(AppError::WorkspaceCloseFailed)` if one or more dirty
+    /// Y.Docs failed to persist. Even on error, all resources (sync,
+    /// watcher, writeback loop, doc registry) ARE torn down — the workspace
+    /// is safe to drop. The host's only job on error is to surface the
+    /// failure to the user (e.g. a toast) so unsaved edits are not silent.
+    pub async fn close(&self) -> AppResult<()> {
         // Tear down sync first (unsubscribe GossipSub, abort buffer flush).
         if let Some(sync) = self.take_sync().await {
             sync.close().await;
         }
-        self.ydoc.close_all().await;
+        let ydoc_failures = self.ydoc.close_all().await;
         if let Some(w) = &self.watcher {
             w.unwatch().await;
         }
         tracing::info!("WorkspaceCore closed: {}", self.info.id);
+
+        if !ydoc_failures.is_empty() {
+            return Err(AppError::WorkspaceCloseFailed {
+                workspace_id: self.info.id,
+                failures: ydoc_failures
+                    .into_iter()
+                    .map(|(uuid, err)| (uuid, err.to_string()))
+                    .collect(),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -228,7 +249,7 @@ fn build_watcher_callback(
 /// running migrations or keeping the connection open. Used by
 /// [`AppCore::open_workspace`] to dedup concurrent opens of the same
 /// workspace across multiple windows.
-pub async fn peek_workspace_uuid(path: &Path) -> AppResult<Option<Uuid>> {
+pub(crate) async fn peek_workspace_uuid(path: &Path) -> AppResult<Option<Uuid>> {
     let db_path = path.join(".swarmnote").join("workspace.db");
     if !db_path.exists() {
         return Ok(None);
@@ -243,7 +264,7 @@ pub async fn peek_workspace_uuid(path: &Path) -> AppResult<Option<Uuid>> {
 
 /// Load or create the workspace row in `workspace.db`. Returns the
 /// [`WorkspaceInfo`] populated with runtime fields (`path`).
-pub async fn load_or_create_workspace_info(
+pub(crate) async fn load_or_create_workspace_info(
     db: &DatabaseConnection,
     path: &Path,
     peer_id: &str,

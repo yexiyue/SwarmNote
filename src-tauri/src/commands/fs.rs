@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use serde::Serialize;
-use swarmnote_core::{FileTreeNode, WorkspaceCore};
+use swarmnote_core::api::{FileTreeNode, WorkspaceCore};
 use tauri::{State, Window};
 
 use crate::error::{AppError, AppResult};

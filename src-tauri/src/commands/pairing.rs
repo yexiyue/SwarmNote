@@ -9,9 +9,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use swarmnote_core::events::AppEvent;
-use swarmnote_core::{
-    AppCore, Device, DeviceFilter, DeviceListResult, DeviceStatus, PairedDeviceInfo,
+use swarmnote_core::api::{
+    AppCore, AppEvent, Device, DeviceFilter, DeviceListResult, DeviceStatus, PairedDeviceInfo,
     PairingCodeInfo,
 };
 use tauri::State;
@@ -72,7 +71,7 @@ pub async fn request_pairing(
         .await?;
 
     if matches!(resp, PairingResponse::Success) {
-        core.event_bus
+        core.event_bus()
             .emit(AppEvent::PairedDeviceAdded { info: None });
         emit_devices(&core).await;
     }
@@ -92,7 +91,7 @@ pub async fn respond_pairing_request(
         .handle_pairing_request(pending_id, accept)
         .await?;
     if let Some(info) = result {
-        core.event_bus
+        core.event_bus()
             .emit(AppEvent::PairedDeviceAdded { info: Some(info) });
         emit_devices(&core).await;
     }
@@ -110,7 +109,7 @@ pub async fn get_paired_devices(core: State<'_, Arc<AppCore>>) -> AppResult<Vec<
 #[tauri::command]
 pub async fn unpair_device(core: State<'_, Arc<AppCore>>, peer_id: String) -> AppResult<()> {
     core.pairing().await?.unpair(&peer_id).await?;
-    core.event_bus
+    core.event_bus()
         .emit(AppEvent::PairedDeviceRemoved { peer_id });
     emit_devices(&core).await;
     Ok(())
@@ -208,7 +207,7 @@ pub async fn get_remote_workspaces(
         .list_workspaces()
         .await
         .into_iter()
-        .map(|w| w.info.id)
+        .map(|w| w.info().id)
         .collect();
 
     let mut results = Vec::new();
@@ -235,6 +234,6 @@ pub async fn get_remote_workspaces(
 async fn emit_devices(core: &Arc<AppCore>) {
     if let Ok(dm) = core.devices().await {
         let devices = dm.get_devices(DeviceFilter::All);
-        core.event_bus.emit(AppEvent::DevicesChanged { devices });
+        core.event_bus().emit(AppEvent::DevicesChanged { devices });
     }
 }
