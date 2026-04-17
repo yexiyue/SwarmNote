@@ -15,12 +15,12 @@ pub async fn trigger_workspace_sync(
     peer_id: String,
     core: State<'_, Arc<AppCore>>,
 ) -> AppResult<()> {
-    let sync_mgr = core.sync_manager().await?;
+    let coordinator = core.sync_coordinator_or_err().await?;
     let uuid = Uuid::parse_str(&workspace_uuid)
         .map_err(|e| AppError::Config(format!("Invalid UUID: {e}")))?;
     let pid: PeerId = peer_id
         .parse()
         .map_err(|e| AppError::Config(format!("Invalid PeerId: {e}")))?;
-    sync_mgr.spawn_full_sync(pid, uuid).await;
+    coordinator.spawn_full_sync(pid, uuid).await;
     Ok(())
 }

@@ -17,7 +17,9 @@ use crate::pairing::PairingManager;
 use crate::protocol::{
     AppRequest, AppResponse, WorkspaceMeta, WorkspaceRequest, WorkspaceResponse,
 };
-use crate::workspace::sync::{decode_ws_gossip, parse_sync_topic, parse_ws_topic, SyncManager};
+use crate::workspace::sync::{
+    decode_ws_gossip, parse_sync_topic, parse_ws_topic, AppSyncCoordinator,
+};
 
 /// 启动事件循环，持续读取 NodeEvent 并分发到 DeviceManager + EventBus。
 ///
@@ -29,12 +31,13 @@ pub fn spawn_event_loop(
     client: AppNetClient,
     device_manager: Arc<DeviceManager>,
     pairing_manager: Arc<PairingManager>,
-    sync_manager: Arc<SyncManager>,
+    coordinator: Arc<AppSyncCoordinator>,
     cancel_token: CancellationToken,
 ) {
     tokio::spawn(async move {
         loop {
             tokio::select! {
+                biased;
                 _ = cancel_token.cancelled() => {
                     info!("Event loop cancelled");
                     break;
@@ -47,7 +50,7 @@ pub fn spawn_event_loop(
                             &client,
                             &device_manager,
                             &pairing_manager,
-                            &sync_manager,
+                            &coordinator,
                         ).await,
                         None => {
                             info!("Event receiver closed, exiting event loop");
@@ -66,7 +69,7 @@ async fn handle_event(
     client: &AppNetClient,
     device_manager: &DeviceManager,
     pairing_manager: &PairingManager,
-    sync_manager: &Arc<SyncManager>,
+    coordinator: &Arc<AppSyncCoordinator>,
 ) {
     // 统一更新设备状态
     device_manager.handle_event(&event);
@@ -103,7 +106,7 @@ async fn handle_event(
 
             // If the identified peer is a paired device, trigger full sync
             if device_manager.is_paired(peer_id) {
-                sync_manager.on_paired_peer_connected(*peer_id).await;
+                coordinator.on_paired_peer_connected(*peer_id).await;
             }
         }
         NodeEvent::PingSuccess { .. } => {
@@ -148,7 +151,7 @@ async fn handle_event(
                 core,
                 client,
                 pairing_manager,
-                sync_manager,
+                coordinator,
                 peer_id,
                 pending_id,
                 request,
@@ -167,13 +170,13 @@ async fn handle_event(
                     (source, crate::workspace::sync::decode_ctrl_message(&data))
                 {
                     if device_manager.is_paired(&peer) {
-                        sync_manager.handle_ctrl_message(peer, msg).await;
+                        coordinator.handle_ctrl_message(peer, msg).await;
                     }
                 }
             } else if let Some(ws_uuid) = parse_ws_topic(&topic) {
                 // Workspace-level topic: decode doc_uuid from payload
                 if let Some((doc_uuid, update)) = decode_ws_gossip(&data) {
-                    sync_manager
+                    coordinator
                         .handle_ws_gossip_update(source, ws_uuid, doc_uuid, update.to_vec())
                         .await;
                 } else {
@@ -206,7 +209,7 @@ async fn handle_inbound_request(
     core: &Arc<AppCore>,
     client: &AppNetClient,
     pairing_manager: &PairingManager,
-    sync_manager: &SyncManager,
+    coordinator: &AppSyncCoordinator,
     peer_id: PeerId,
     pending_id: u64,
     request: AppRequest,
@@ -238,7 +241,7 @@ async fn handle_inbound_request(
         }
 
         AppRequest::Sync(sync_req) => {
-            sync_manager
+            coordinator
                 .handle_inbound_request(peer_id, pending_id, sync_req.clone())
                 .await;
         }

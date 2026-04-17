@@ -43,7 +43,6 @@ pub async fn apply_ydoc_update(
     doc_uuid: String,
     update: Vec<u8>,
     ws_map: State<'_, WorkspaceMap>,
-    core: State<'_, Arc<AppCore>>,
 ) -> AppResult<()> {
     let uuid = parse_doc_uuid(&doc_uuid)?;
     let ws = workspace_from_label(&ws_map, window.label()).await?;
@@ -52,8 +51,8 @@ pub async fn apply_ydoc_update(
     // Broadcast local edit to the workspace GossipSub topic (best-effort).
     // Safe from loops: local edit only — remote updates arrive via the
     // event_loop's GossipSub handler, which routes to a different path.
-    if let Ok(sync_mgr) = core.sync_manager().await {
-        sync_mgr.publish_doc_update(ws.info.id, uuid, update).await;
+    if let Some(ws_sync) = ws.sync().await {
+        ws_sync.publish_doc_update(uuid, update).await;
     }
     Ok(())
 }

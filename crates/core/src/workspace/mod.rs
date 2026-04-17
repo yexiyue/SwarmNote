@@ -24,6 +24,7 @@ use crate::document::DocumentCrud;
 use crate::error::AppResult;
 use crate::events::{AppEvent, EventBus};
 use crate::fs::{FileEvent, FileEventCallback, FileSystem, FileWatcher};
+use crate::workspace::sync::WorkspaceSync;
 use crate::yjs::manager::YDocManager;
 
 /// Runtime + DB record of an open workspace. Returned to the frontend by
@@ -58,9 +59,11 @@ pub struct WorkspaceCore {
     documents: Arc<DocumentCrud>,
     event_bus: Arc<dyn EventBus>,
     /// Weak back-reference to the owning [`AppCore`] — avoids the obvious
-    /// AppCore ↔ WorkspaceCore ownership cycle. Unused in PR #2; PR #3's
-    /// `WorkspaceSync` uses it to reach `NetManager`.
+    /// AppCore ↔ WorkspaceCore ownership cycle.
     _app: Weak<AppCore>,
+    /// Per-workspace sync runtime. `None` until P2P starts; torn down when
+    /// the workspace closes or P2P stops.
+    sync: tokio::sync::RwLock<Option<Arc<WorkspaceSync>>>,
 }
 
 impl WorkspaceCore {
@@ -102,6 +105,7 @@ impl WorkspaceCore {
             documents,
             event_bus,
             _app: app,
+            sync: tokio::sync::RwLock::new(None),
         }))
     }
 
@@ -133,11 +137,34 @@ impl WorkspaceCore {
         &self.event_bus
     }
 
-    /// Flush every open Y.Doc, stop the file watcher, and tear down
-    /// background tasks. Must be called before the last `Arc<WorkspaceCore>`
-    /// reference drops — otherwise pending writeback tasks are aborted
-    /// mid-flight and data can be lost.
+    /// Current per-workspace sync runtime (if P2P is running).
+    pub async fn sync(&self) -> Option<Arc<WorkspaceSync>> {
+        self.sync.read().await.clone()
+    }
+
+    /// Install or replace the per-workspace sync runtime. Closes the
+    /// previous instance (if any) to avoid leaking flush tasks / GossipSub
+    /// subscriptions.
+    pub(crate) async fn set_sync(&self, sync: Option<Arc<WorkspaceSync>>) {
+        let old = std::mem::replace(&mut *self.sync.write().await, sync);
+        if let Some(prev) = old {
+            prev.close().await;
+        }
+    }
+
+    /// Take the sync runtime out (returns the Arc if present, leaves None).
+    /// Called by [`AppCore::stop_network`].
+    pub(crate) async fn take_sync(&self) -> Option<Arc<WorkspaceSync>> {
+        self.sync.write().await.take()
+    }
+
+    /// Flush every open Y.Doc, tear down sync + file watcher. Must be
+    /// called before the last `Arc<WorkspaceCore>` reference drops.
     pub async fn close(&self) {
+        // Tear down sync first (unsubscribe GossipSub, abort buffer flush).
+        if let Some(sync) = self.take_sync().await {
+            sync.close().await;
+        }
         self.ydoc.close_all().await;
         if let Some(w) = &self.watcher {
             w.unwatch().await;

@@ -1,9 +1,9 @@
-//! In-memory buffer for GossipSub updates targeting closed documents.
+//! Per-workspace in-memory buffer for GossipSub updates targeting closed
+//! documents.
 //!
-//! Accumulates raw yrs updates per (workspace_uuid, doc_uuid) and flushes
-//! them in batch after a configurable debounce interval (default 3 s).
-//! Enforces a per-doc update cap to prevent unbounded memory growth.
-//! After flush, triggers asset sync for the affected documents.
+//! Accumulates raw yrs updates keyed by `doc_uuid` and flushes them in
+//! batch after a configurable debounce interval (3 s). Enforces a per-doc
+//! cap to prevent unbounded memory growth.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,9 +17,6 @@ use uuid::Uuid;
 
 use super::{asset_sync, doc_sync};
 
-/// (doc_uuid, workspace_uuid, source_peer, updates) ready to flush.
-type FlushBatch = Vec<(Uuid, Uuid, Option<PeerId>, Vec<Vec<u8>>)>;
-
 /// Debounce interval: flush pending updates 3 s after the last write.
 const FLUSH_DEBOUNCE: Duration = Duration::from_secs(3);
 /// Tick interval for the background flush task.
@@ -29,15 +26,16 @@ const MAX_UPDATES_PER_DOC: usize = 500;
 
 #[derive(Debug)]
 struct PendingEntry {
-    workspace_uuid: Uuid,
-    /// Most recent source peer (for asset sync after flush).
     source_peer: Option<PeerId>,
     updates: Vec<Vec<u8>>,
     last_write: Instant,
 }
 
-/// Thread-safe buffer that accumulates yrs updates for closed documents
-/// and periodically flushes them to DB + filesystem.
+/// (doc_uuid, source_peer, updates) ready to flush.
+type FlushBatch = Vec<(Uuid, Option<PeerId>, Vec<Vec<u8>>)>;
+
+/// Thread-safe buffer scoped to a single workspace. One instance per
+/// [`super::WorkspaceSync`].
 pub struct PendingUpdateBuffer {
     entries: Arc<Mutex<HashMap<Uuid, PendingEntry>>>,
 }
@@ -51,47 +49,48 @@ impl PendingUpdateBuffer {
 
     /// Push a raw yrs update for a closed document.
     ///
-    /// If the per-doc update count exceeds [`MAX_UPDATES_PER_DOC`], the entry
-    /// is drained and returned for immediate flushing by the caller.
+    /// If the per-doc count exceeds [`MAX_UPDATES_PER_DOC`], the entry is
+    /// drained and returned for immediate flushing by the caller.
+    /// Returns `Some((source_peer, updates))` when the cap is exceeded,
+    /// so the caller can flush immediately and schedule an asset check.
     pub async fn push(
         &self,
-        workspace_uuid: Uuid,
         doc_uuid: Uuid,
         update: Vec<u8>,
         source: Option<PeerId>,
-    ) -> Option<(Uuid, Option<PeerId>, Vec<Vec<u8>>)> {
+    ) -> Option<(Option<PeerId>, Vec<Vec<u8>>)> {
         let mut map = self.entries.lock().await;
         let entry = map.entry(doc_uuid).or_insert_with(|| PendingEntry {
-            workspace_uuid,
             source_peer: source,
             updates: Vec::new(),
             last_write: Instant::now(),
         });
         entry.updates.push(update);
         entry.last_write = Instant::now();
-        // Keep the most recent source peer for asset sync
         if source.is_some() {
             entry.source_peer = source;
         }
 
         if entry.updates.len() >= MAX_UPDATES_PER_DOC {
             let drained = map.remove(&doc_uuid).unwrap();
-            Some((drained.workspace_uuid, drained.source_peer, drained.updates))
+            Some((drained.source_peer, drained.updates))
         } else {
             None
         }
     }
 
     /// Spawn a background task that periodically flushes stale entries.
-    /// Returns an `AbortHandle` the caller can use to stop the task.
-    pub fn spawn_flush_task(&self, core: Arc<crate::app::AppCore>) -> AbortHandle {
+    pub fn spawn_flush_task(
+        &self,
+        workspace_id: Uuid,
+        core: Arc<crate::app::AppCore>,
+    ) -> AbortHandle {
         let entries = Arc::clone(&self.entries);
         let handle = tokio::spawn(async move {
             let mut interval = tokio::time::interval(TICK_INTERVAL);
             loop {
                 interval.tick().await;
 
-                // Collect entries that are ready to flush (move, not clone)
                 let ready: FlushBatch = {
                     let mut map = entries.lock().await;
                     let now = Instant::now();
@@ -108,30 +107,21 @@ impl PendingUpdateBuffer {
                         if let Some(mut entry) = map.remove(key) {
                             to_flush.push((
                                 *key,
-                                entry.workspace_uuid,
                                 entry.source_peer,
                                 std::mem::take(&mut entry.updates),
                             ));
                         }
                     }
-
                     to_flush
                 };
 
-                // Apply each batch outside the lock
-                for (doc_uuid, workspace_uuid, source_peer, updates) in ready {
+                for (doc_uuid, source_peer, updates) in ready {
                     let flushed =
-                        flush_updates(&core, workspace_uuid, doc_uuid, updates, &entries).await;
+                        flush_updates(&core, workspace_id, doc_uuid, updates, &entries).await;
 
-                    // Trigger asset sync after successful flush
                     if flushed {
-                        schedule_closed_doc_asset_sync(
-                            &core,
-                            source_peer,
-                            workspace_uuid,
-                            doc_uuid,
-                        )
-                        .await;
+                        schedule_closed_doc_asset_sync(&core, source_peer, workspace_id, doc_uuid)
+                            .await;
                     }
                 }
             }
@@ -140,9 +130,8 @@ impl PendingUpdateBuffer {
     }
 }
 
-/// Flush a batch of updates for a single document.
-/// On failure, remaining updates are re-inserted into the buffer for retry.
-/// Returns `true` if at least one update was applied successfully.
+/// Flush a batch of updates for a single document. Re-buffers remaining
+/// updates on failure for retry on the next tick.
 async fn flush_updates(
     core: &Arc<crate::app::AppCore>,
     workspace_uuid: Uuid,
@@ -155,28 +144,25 @@ async fn flush_updates(
         if let Err(e) = doc_sync::apply_remote_update(core, workspace_uuid, doc_uuid, update).await
         {
             warn!("Pending buffer flush failed for doc {doc_uuid} at update {i}/{total}: {e}");
-
-            // Re-buffer remaining updates for next tick
             let remaining: Vec<Vec<u8>> = updates[i..].to_vec();
             let mut map = entries.lock().await;
             let entry = map.entry(doc_uuid).or_insert_with(|| PendingEntry {
-                workspace_uuid,
                 source_peer: None,
                 updates: Vec::new(),
                 last_write: Instant::now(),
             });
-            // Prepend remaining before any new updates that arrived since
             let mut merged = remaining;
             merged.append(&mut entry.updates);
             entry.updates = merged;
-            return i > 0; // true if at least one update succeeded before failure
+            return i > 0;
         }
     }
     info!("Flushed {total} pending updates for closed doc {doc_uuid}");
     true
 }
 
-/// Trigger asset sync for a closed document after its pending updates are flushed.
+/// Trigger asset sync for a closed document after its pending updates are
+/// flushed.
 async fn schedule_closed_doc_asset_sync(
     core: &Arc<crate::app::AppCore>,
     source_peer: Option<PeerId>,
@@ -184,8 +170,6 @@ async fn schedule_closed_doc_asset_sync(
     doc_uuid: Uuid,
 ) {
     let Some(peer) = source_peer else { return };
-
-    // Look up rel_path from the workspace DB
     let Some(ws) = core.get_workspace(&workspace_uuid).await else {
         return;
     };
@@ -198,10 +182,7 @@ async fn schedule_closed_doc_asset_sync(
         _ => return,
     };
 
-    // Need a NetClient for asset sync
-    let Some(net) = core.net().await else {
-        return;
-    };
+    let Some(net) = core.net().await else { return };
     let client = net.client.clone();
 
     if let Err(e) =

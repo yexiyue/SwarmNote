@@ -24,7 +24,7 @@ use crate::network::config::create_node_config;
 use crate::network::event_loop::spawn_event_loop;
 use crate::network::{AppNetClient, NetManager, NodeStatus};
 use crate::protocol::{AppRequest, AppResponse, OsInfo};
-use crate::workspace::sync::SyncManager;
+use crate::workspace::sync::{AppSyncCoordinator, WorkspaceSync};
 use crate::workspace::{
     self, db::init_devices_db, db::init_workspace_db, load_or_create_workspace_info, WorkspaceCore,
     WorkspaceInfo,
@@ -50,9 +50,10 @@ pub struct AppCore {
     /// completes; reset to `None` by [`AppCore::stop_network`].
     net: Mutex<Option<Arc<NetManager>>>,
 
-    /// Per-process sync runner. Populated together with `net` — starts /
-    /// stops with the P2P session.
-    sync: Mutex<Option<Arc<SyncManager>>>,
+    /// Global sync coordinator. Populated together with `net` — starts /
+    /// stops with the P2P session. Per-workspace sync state lives in
+    /// [`WorkspaceCore::sync`].
+    sync_coordinator: Mutex<Option<Arc<AppSyncCoordinator>>>,
 
     /// Registry of active workspace runtimes keyed by workspace UUID.
     /// Stored as `Weak` so dropping the last external `Arc<WorkspaceCore>`
@@ -91,7 +92,7 @@ impl AppCore {
             devices_db,
             app_data_dir,
             net: Mutex::new(None),
-            sync: Mutex::new(None),
+            sync_coordinator: Mutex::new(None),
             workspaces: Mutex::new(HashMap::new()),
         }))
     }
@@ -182,11 +183,10 @@ impl AppCore {
             }
         };
 
-        // If P2P is running, subscribe to the workspace GossipSub topic so
-        // incremental updates flow in.
-        if let Some(sync) = self.sync().await {
-            sync.subscribe_workspace(workspace_id).await;
-            sync.publish_workspace_opened(workspace_id).await;
+        // If P2P is running, install per-workspace sync + subscribe.
+        if let Some(coordinator) = self.sync_coordinator().await {
+            self.install_workspace_sync(&winner, coordinator.client(), true)
+                .await;
         }
 
         Ok(winner)
@@ -203,10 +203,8 @@ impl AppCore {
         };
         drop(guard);
 
-        if let Some(sync) = self.sync().await {
-            sync.unsubscribe_workspace(uuid).await;
-        }
-
+        // WorkspaceCore::close() tears down its WorkspaceSync (if any)
+        // including GossipSub unsubscribe — no explicit unsubscribe needed here.
         if let Some(arc) = weak.upgrade() {
             arc.close().await;
         }
@@ -246,9 +244,9 @@ impl AppCore {
         self.net.lock().await.clone()
     }
 
-    /// Current sync runner, if P2P is running.
-    pub async fn sync(&self) -> Option<Arc<SyncManager>> {
-        self.sync.lock().await.clone()
+    /// Current global sync coordinator, if P2P is running.
+    pub async fn sync_coordinator(&self) -> Option<Arc<AppSyncCoordinator>> {
+        self.sync_coordinator.lock().await.clone()
     }
 
     /// Node-level status for frontend display.
@@ -295,8 +293,8 @@ impl AppCore {
         ));
         let cancel_token = net_manager.cancel_token();
 
-        // Per-session sync runner.
-        let sync_manager = Arc::new(SyncManager::new(self.clone(), client.clone()));
+        // Global sync coordinator (full-sync de-dup, SV compensation, inbound routing).
+        let coordinator = Arc::new(AppSyncCoordinator::new(self.clone(), client.clone()));
 
         // Event loop.
         spawn_event_loop(
@@ -305,21 +303,21 @@ impl AppCore {
             net_manager.client.clone(),
             net_manager.device_manager.clone(),
             net_manager.pairing_manager.clone(),
-            sync_manager.clone(),
+            coordinator.clone(),
             cancel_token.clone(),
         );
 
         // Periodic SV compensation.
-        sync_manager.start_sv_compensation(cancel_token.clone());
+        coordinator.start_sv_compensation(cancel_token.clone());
 
         // Subscribe to global ctrl topic for workspace-opened notifications.
         if let Err(e) = client.subscribe(crate::workspace::sync::CTRL_TOPIC).await {
             tracing::warn!("Failed to subscribe to ctrl topic: {e}");
         }
 
-        // Retroactively subscribe to GossipSub topics for already-open workspaces.
+        // Retroactively inject WorkspaceSync into already-open workspaces.
         for ws in self.list_workspaces().await {
-            sync_manager.subscribe_workspace(ws.info.id).await;
+            self.install_workspace_sync(&ws, &client, false).await;
         }
 
         // Background: announce online, bootstrap DHT, reload paired devices,
@@ -354,7 +352,7 @@ impl AppCore {
         *net_guard = Some(net_manager);
         drop(net_guard);
 
-        *self.sync.lock().await = Some(sync_manager);
+        *self.sync_coordinator.lock().await = Some(coordinator);
 
         self.event_bus.emit(AppEvent::NodeStarted);
         info!("P2P node started, PeerId: {peer_id}");
@@ -367,7 +365,15 @@ impl AppCore {
         if let Some(manager) = net_guard.take() {
             manager.shutdown().await;
             drop(net_guard);
-            *self.sync.lock().await = None;
+
+            // Tear down per-workspace sync runtimes.
+            for ws in self.list_workspaces().await {
+                if let Some(sync) = ws.take_sync().await {
+                    sync.close().await;
+                }
+            }
+            *self.sync_coordinator.lock().await = None;
+
             self.event_bus.emit(AppEvent::NodeStopped);
             info!("P2P node stopped");
         }
@@ -398,8 +404,27 @@ impl AppCore {
             .ok_or_else(AppError::node_not_running)
     }
 
-    /// Convenience: get `SyncManager` if P2P is running.
-    pub async fn sync_manager(&self) -> AppResult<Arc<SyncManager>> {
-        self.sync().await.ok_or_else(AppError::node_not_running)
+    /// Convenience: get `AppSyncCoordinator` if P2P is running.
+    pub async fn sync_coordinator_or_err(&self) -> AppResult<Arc<AppSyncCoordinator>> {
+        self.sync_coordinator()
+            .await
+            .ok_or_else(AppError::node_not_running)
+    }
+
+    /// Create a [`WorkspaceSync`], subscribe to GossipSub, and install it
+    /// on the workspace. If `publish_opened` is true, also broadcast a
+    /// `WorkspaceOpened` ctrl message to connected peers.
+    async fn install_workspace_sync(
+        self: &Arc<Self>,
+        ws: &Arc<WorkspaceCore>,
+        client: &AppNetClient,
+        publish_opened: bool,
+    ) {
+        let ws_sync = Arc::new(WorkspaceSync::new(ws.info.id, self.clone(), client.clone()));
+        ws_sync.subscribe().await;
+        if publish_opened {
+            ws_sync.publish_workspace_opened().await;
+        }
+        ws.set_sync(Some(ws_sync)).await;
     }
 }

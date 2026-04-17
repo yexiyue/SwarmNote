@@ -11,36 +11,37 @@ Cargo workspace 根在仓库根 `Cargo.toml`，成员：
 
 进行中的 change `extract-swarmnote-core`：把业务层从 `src-tauri/src/` 逐步搬到 `crates/core/`，桌面壳只留 IPC + 平台 impl。Phase 1 PR 已落地 identity + config + fs traits + 事件骨架。
 
-### `crates/core/` 模块（平台无关）
+### `crates/core/` 模块（平台无关，全部业务逻辑）
 
 | 模块 | 职责 |
 | ---- | ---- |
-| `app.rs` | `AppCore` 设备级单例（identity + keychain + event_bus + config） |
-| `workspace.rs` + `workspace/db.rs` | `WorkspaceInfo` DTO + DB 初始化；PR #2 加 `WorkspaceCore` |
-| `identity.rs` | `IdentityManager`、`DeviceInfo` |
+| `app.rs` | `AppCore` 设备级单例（identity + config + event_bus + keychain + devices_db + net + sync_coordinator + workspaces 注册表） |
+| `workspace/mod.rs` + `workspace/db.rs` | `WorkspaceCore`（per-workspace 资源容器）+ `WorkspaceInfo` DTO + DB 初始化 |
+| `workspace/sync/coordinator.rs` | `AppSyncCoordinator`：全局 full-sync 去重、SV 补偿、ctrl topic 路由、入站请求分发 |
+| `workspace/sync/workspace_sync.rs` | `WorkspaceSync`：per-workspace GossipSub 订阅/发布、pending buffer、asset check |
+| `workspace/sync/{doc_sync,full_sync,asset_sync,pending_buffer}.rs` | 同步子模块（自由函数，接收 `&Arc<AppCore>` 或 workspace 参数） |
+| `device/` | `DeviceManager`、`Device` DTO、连接类型推断 |
+| `pairing/` | `PairingManager`、配对码、DHT 发布/查找 |
+| `network/` | `NetManager`（P2P 会话包）、`AppNetClient` 类型别名、事件循环、DHT 在线宣告、节点配置 |
+| `identity.rs` | `IdentityManager`、`DeviceInfo`、keypair protobuf 编码 |
 | `config.rs` | `GlobalConfig`、`GlobalConfigState`、持久化 |
-| `fs.rs` | `FileSystem` trait、`LocalFs` 实现、`FileWatcher` trait、`FileTreeNode`、`FileEvent` |
-| `events.rs` | `EventBus` trait、`AppEvent` enum（15 个变体）、`NetworkStatus` |
+| `fs/mod.rs` + `fs/ops.rs` | `FileSystem` trait、`LocalFs`、`FileWatcher` trait、业务层操作（auto-numbering / sidecar / move） |
+| `events.rs` | `EventBus` trait、`AppEvent` enum（14 个变体） |
 | `keychain.rs` | `KeychainProvider` trait |
-| `protocol.rs` + `protocol/{os_info,pairing,sync,workspace}.rs` | P2P 协议定义 |
+| `protocol/` | P2P 协议定义（AppRequest/AppResponse + os_info/pairing/sync/workspace 子协议） |
+| `yjs/mod.rs` + `yjs/{manager,doc_state}.rs` | YDocManager（per-workspace Y.Doc 生命周期 + Notify-driven writeback）、hydrate、closed-doc merge |
+| `document.rs` | `DocumentCrud`（per-workspace 文档/文件夹 CRUD） |
 | `error.rs` | `AppError` / `AppResult` |
 
-### `src-tauri/src/` 模块（桌面壳 + 未迁移业务）
+### `src-tauri/src/` 模块（桌面壳，薄封装）
 
 | 模块 | 职责 |
 | ---- | ---- |
-| `platform/` | `TauriEventBus`、`DesktopKeychain`（实现 core trait） |
-| `identity/` | 旧 `IdentityState`（PR #3 删）+ 命令 wrapper |
-| `workspace/` | 多窗口工作区管理、per-window DB 绑定（PR #2 迁移中） |
-| `document/` | 文档/文件夹 CRUD（SeaORM） |
-| `fs/` | notify debounce、媒体保存（PR #2 迁移到 WorkspaceCore） |
-| `network/` | P2P 节点生命周期、事件循环分发、DHT 宣告（PR #3 迁移） |
-| `pairing/` | 设备配对（PR #3 迁移） |
-| `sync/` | 同步逻辑（PR #3 迁移到 WorkspaceSync） |
-| `yjs/` | Y.Doc 生命周期（PR #2 迁移到 WorkspaceCore） |
-| `config/` | 路径解析 wrapper（核心类型已 re-export 自 core） |
-| `tray.rs` | 系统托盘（桌面端 only，不迁移） |
-| `error.rs` | 旧 `AppError` + `From<swarmnote_core::AppError>` 桥接（PR #3 删） |
+| `commands/` | 8 个子模块（identity / workspace / document / fs / yjs / network / pairing / sync），每个是 `#[tauri::command]` 薄 wrapper → `Arc<AppCore>` / `WorkspaceMap` |
+| `platform/` | `TauriEventBus`、`DesktopKeychain`、`NotifyFileWatcher`、`WorkspaceMap`（实现 core trait） |
+| `tray.rs` | 系统托盘（桌面端 only） |
+| `error.rs` | re-export `swarmnote_core::{AppError, AppResult}` |
+| `lib.rs` | Tauri Builder setup、`generate_handler![]`、startup window dispatch |
 
 ## Rust 模块组织规范
 
@@ -231,9 +232,26 @@ while let Some(event) = receiver.recv().await {
 
 ### 事件循环在 `network/event_loop.rs`
 
-`NodeEvent` 被分发给 `DeviceManager`、`PairingManager`，并通过 Tauri `emit` 广播到前端。前端通过 `listen()` 订阅。
+`NodeEvent` 被分发给 `DeviceManager`、`AppSyncCoordinator`，并通过 `EventBus` 广播到前端。event_loop 的 `select!` 必须用 `biased;` 保证 `cancel_token.cancelled()` 优先。
 
-**相关文件**：`src-tauri/src/network/event_loop.rs`、`libs/core/`（submodule）
+**相关文件**：`crates/core/src/network/event_loop.rs`、`libs/core/`（submodule）
+
+### Sync 两层拆分
+
+同步模块拆为 AppCore 层和 WorkspaceCore 层：
+
+- **`AppSyncCoordinator`**（全局）：full-sync 去重（`DashMap<(PeerId, Uuid), CancellationToken>`）、SV 补偿定时任务、ctrl topic 消息路由、入站 sync RPC 分发。跟随 P2P 生命周期（start_network 创建、stop_network 销毁）。
+- **`WorkspaceSync`**（per-workspace）：GossipSub topic 订阅/退订、pending buffer（closed-doc 缓冲 + 3s debounce flush）、asset check handles。跟随 WorkspaceCore 生命周期。
+
+**正确做法**：
+
+- `WorkspaceCore::set_sync()` 在替换时先 close 旧实例，避免 flush task + subscription 泄漏
+- `handle_gossip_update` 接受 `&Arc<WorkspaceCore>` 参数而非内部重新 lookup，避免每条 gossip 消息走全局 Mutex
+- `pending_buffer::push()` 溢出时返回 `(source_peer, updates)` 给 caller，确保 overflow 路径也能触发 asset sync
+
+**不要做**：把 per-workspace 状态（pending_buffer、asset_check_handles）放在 AppCore 级别用 workspace_uuid key 区分——workspace 关闭时不会自然清理。
+
+**相关文件**：`crates/core/src/workspace/sync/{coordinator,workspace_sync,pending_buffer}.rs`
 
 ## YDocManager — Y.Doc 生命周期
 
