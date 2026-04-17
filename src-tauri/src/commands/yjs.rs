@@ -7,8 +7,8 @@
 
 use std::sync::Arc;
 
-use swarmnote_core::api::{AppCore, OpenDocResult, WorkspaceCore};
-use swarmnote_core::internal::doc_state::{HydrateProgress, HydrateProgressFn, HydrateResult};
+use swarmnote_core::{AppCore, OpenDocResult, WorkspaceCore};
+use swarmnote_core::{HydrateProgress, HydrateProgressFn, HydrateResult};
 use tauri::ipc::Channel;
 use tauri::{State, Window};
 use uuid::Uuid;
@@ -110,11 +110,5 @@ pub async fn hydrate_workspace(
         })
     };
 
-    swarmnote_core::internal::doc_state::hydrate_workspace(
-        ws.db(),
-        ws.fs().as_ref(),
-        workspace_uuid,
-        &progress,
-    )
-    .await
+    swarmnote_core::hydrate_workspace(ws.db(), ws.fs().as_ref(), workspace_uuid, &progress).await
 }

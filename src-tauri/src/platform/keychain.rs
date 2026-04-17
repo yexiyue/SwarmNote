@@ -4,7 +4,7 @@
 use async_trait::async_trait;
 use keyring::Entry;
 use swarm_p2p_core::libp2p::identity::Keypair;
-use swarmnote_core::api::{AppError, AppResult, KeychainProvider};
+use swarmnote_core::{AppError, AppResult, KeychainProvider};
 use tracing::{info, warn};
 
 const SERVICE: &str = "com.swarmnote";

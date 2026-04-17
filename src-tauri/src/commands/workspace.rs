@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use serde::Serialize;
-use swarmnote_core::api::{AppCore, WorkspaceInfo};
 use swarmnote_core::config::{save_config, RecentWorkspace};
+use swarmnote_core::{AppCore, WorkspaceInfo};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use uuid::Uuid;
 
@@ -343,9 +343,7 @@ pub async fn create_workspace_for_sync(
         }
     };
 
-    if let Err(e) =
-        swarmnote_core::internal::ensure_workspace_row(&conn, ws_uuid, &name, &peer_id).await
-    {
+    if let Err(e) = swarmnote_core::ensure_workspace_row(&conn, ws_uuid, &name, &peer_id).await {
         let _ = tokio::fs::remove_dir_all(&ws_path).await;
         return Err(e);
     }

@@ -7,13 +7,13 @@ pub mod tray;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use swarmnote_core::api::{AppCore, AppCoreBuilder};
+use swarmnote_core::{AppCore, AppCoreBuilder};
 use tauri::Manager;
 
 /// Desktop config directory: `~/.swarmnote/`. Used both to bootstrap
 /// [`AppCore`] and by the `config::*` helpers inside the commands module.
-fn swarmnote_global_dir() -> Result<PathBuf, swarmnote_core::api::AppError> {
-    let home = directories::BaseDirs::new().ok_or(swarmnote_core::api::AppError::NoAppDataDir)?;
+fn swarmnote_global_dir() -> Result<PathBuf, swarmnote_core::AppError> {
+    let home = directories::BaseDirs::new().ok_or(swarmnote_core::AppError::NoAppDataDir)?;
     Ok(home.home_dir().join(".swarmnote"))
 }
 

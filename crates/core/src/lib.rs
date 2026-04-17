@@ -22,15 +22,23 @@
 //! host-specific dependency — those live in the desktop `src-tauri/src/platform/`
 //! and the mobile `mobile-core/` wrapper crate.
 //!
-//! ## Re-export layering
+//! ## Flat public surface
 //!
-//! Public API is organized into two namespaces:
+//! The crate root re-exports every host-facing type via a single flat
+//! `pub use` list below. Any host shell (`src-tauri`, `mobile-core`, future
+//! CLI / server harnesses) imports core types via `use swarmnote_core::{...}`
+//! — there is no `api` / `internal` split, and no host-specific subpath.
 //!
-//! * [`api`] — the normal host-facing API surface. Both desktop and mobile
-//!   wrappers should consume only this namespace.
-//! * [`internal`] — deep access for the desktop shell's command layer
-//!   (network / pairing / sync internals, fs business ops, yjs hydrate).
-//!   **Not** intended for FFI wrappers.
+//! A handful of categories stay behind their submodule as namespaces, because
+//! the `xxx::yyy` path is more informative than flattening would be:
+//!
+//! * [`protocol`] — P2P wire types (`AppRequest`, `AppResponse`, `OsInfo`, …)
+//! * [`config`] — global config I/O (`save_config`, `RecentWorkspace`, …)
+//! * [`fs::ops`] — filesystem business operations (functions, not types)
+//! * [`yjs::doc_state`] — low-level yjs doc-state helpers
+//!
+//! New pub items must be registered in the root `pub use` list below; that
+//! list is the stable API contract of the crate.
 
 pub mod app;
 pub mod config;
@@ -47,37 +55,38 @@ pub mod protocol;
 pub mod workspace;
 pub mod yjs;
 
-/// Host-facing API surface. Both `src-tauri` and `mobile-core` should import
-/// from here. Stable across patch versions.
-pub mod api {
-    pub use crate::app::{AppCore, AppCoreBuilder, FsFactory, WatcherFactory};
-    pub use crate::device::{ConnectionType, Device, DeviceFilter, DeviceListResult, DeviceStatus};
-    pub use crate::document::{
-        title_from_rel_path, CreateFolderInput, DocumentCrud, UpsertDocumentInput,
-    };
-    pub use crate::error::{AppError, AppResult};
-    pub use crate::events::{AppEvent, EventBus};
-    pub use crate::fs::{
-        FileEvent, FileEventCallback, FileSystem, FileTreeNode, FileWatcher, LocalFs,
-    };
-    pub use crate::identity::{DeviceInfo, IdentityManager};
-    pub use crate::keychain::KeychainProvider;
-    pub use crate::network::NodeStatus;
-    pub use crate::pairing::{PairedDeviceInfo, PairingCodeInfo};
-    pub use crate::workspace::{WorkspaceCore, WorkspaceInfo};
-    pub use crate::yjs::manager::{OpenDocResult, ReloadStatus, YDocManager};
-}
+// ── Host core ──────────────────────────────────────────────────────────────
+pub use app::{AppCore, AppCoreBuilder, FsFactory, WatcherFactory};
+pub use workspace::{ensure_workspace_row, WorkspaceCore, WorkspaceInfo};
 
-/// Deep-access module for the desktop shell. Exposes concrete network /
-/// pairing / sync types and raw fs / yjs operations that FFI wrappers
-/// should NOT depend on. Keeping this namespaced forces deliberate
-/// `use swarmnote_core::internal::...` imports in `src-tauri`.
-pub mod internal {
-    pub use crate::device::DeviceManager;
-    pub use crate::fs::ops;
-    pub use crate::network::{AppNetClient, NetManager};
-    pub use crate::pairing::{PairingManager, ShareCodeRecord};
-    pub use crate::workspace::ensure_workspace_row;
-    pub use crate::workspace::sync::{AppSyncCoordinator, WorkspaceSync};
-    pub use crate::yjs::doc_state;
-}
+// ── Errors & events ────────────────────────────────────────────────────────
+pub use error::{AppError, AppResult};
+pub use events::{AppEvent, EventBus};
+
+// ── Identity & keychain ────────────────────────────────────────────────────
+pub use identity::{DeviceInfo, IdentityManager};
+pub use keychain::KeychainProvider;
+
+// ── Devices ────────────────────────────────────────────────────────────────
+pub use device::{
+    ConnectionType, Device, DeviceFilter, DeviceListResult, DeviceManager, DeviceStatus,
+};
+
+// ── Pairing ────────────────────────────────────────────────────────────────
+pub use pairing::{PairedDeviceInfo, PairingCodeInfo, PairingManager, ShareCodeRecord};
+
+// ── Network ────────────────────────────────────────────────────────────────
+pub use network::{AppNetClient, NetManager, NodeStatus};
+
+// ── Documents ──────────────────────────────────────────────────────────────
+pub use document::{title_from_rel_path, CreateFolderInput, DocumentCrud, UpsertDocumentInput};
+
+// ── Filesystem ─────────────────────────────────────────────────────────────
+pub use fs::{FileEvent, FileEventCallback, FileSystem, FileTreeNode, FileWatcher, LocalFs};
+
+// ── Yjs (manager + hydrate entry points) ───────────────────────────────────
+pub use yjs::doc_state::{hydrate_workspace, HydrateProgress, HydrateProgressFn, HydrateResult};
+pub use yjs::manager::{OpenDocResult, ReloadStatus, YDocManager};
+
+// ── Workspace sync ─────────────────────────────────────────────────────────
+pub use workspace::sync::{AppSyncCoordinator, WorkspaceSync};

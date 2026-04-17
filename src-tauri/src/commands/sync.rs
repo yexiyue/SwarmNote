@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use swarm_p2p_core::libp2p::PeerId;
-use swarmnote_core::api::AppCore;
+use swarmnote_core::AppCore;
 use tauri::State;
 use uuid::Uuid;
 

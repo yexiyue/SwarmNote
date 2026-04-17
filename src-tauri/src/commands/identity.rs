@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use swarmnote_core::api::{AppCore, DeviceInfo};
+use swarmnote_core::{AppCore, DeviceInfo};
 use tauri::State;
 use tracing::info;
 

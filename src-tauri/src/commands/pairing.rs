@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use swarmnote_core::api::{
+use swarmnote_core::{
     AppCore, AppEvent, Device, DeviceFilter, DeviceListResult, DeviceStatus, PairedDeviceInfo,
     PairingCodeInfo,
 };

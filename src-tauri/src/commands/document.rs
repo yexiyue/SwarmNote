@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use entity::workspace::{documents, folders};
 use serde::{Deserialize, Serialize};
-use swarmnote_core::api::{AppEvent, CreateFolderInput, UpsertDocumentInput};
+use swarmnote_core::{AppEvent, CreateFolderInput, UpsertDocumentInput};
 use tauri::{State, Window};
 use uuid::Uuid;
 
@@ -19,7 +19,7 @@ use crate::platform::WorkspaceMap;
 async fn workspace_from_label(
     map: &WorkspaceMap,
     label: &str,
-) -> AppResult<std::sync::Arc<swarmnote_core::api::WorkspaceCore>> {
+) -> AppResult<std::sync::Arc<swarmnote_core::WorkspaceCore>> {
     map.get(label).await.ok_or(AppError::NoWorkspaceOpen)
 }
 

@@ -6,7 +6,7 @@
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
 
-use swarmnote_core::api::{AppEvent, EventBus};
+use swarmnote_core::{AppEvent, EventBus};
 
 /// `EventBus` implementation backed by Tauri's `AppHandle::emit`. Broadcasts
 /// to all windows — the frontend filters by the business keys in the payload

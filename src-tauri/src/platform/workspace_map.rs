@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use swarmnote_core::api::{AppCore, WorkspaceCore};
+use swarmnote_core::{AppCore, WorkspaceCore};
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -78,11 +78,9 @@ pub async fn start_core_workspace(
     app: &AppHandle,
     ws_path: &Path,
     label: &str,
-) -> Result<Arc<WorkspaceCore>, swarmnote_core::api::AppError> {
+) -> Result<Arc<WorkspaceCore>, swarmnote_core::AppError> {
     let app_core = app.try_state::<Arc<AppCore>>().ok_or_else(|| {
-        swarmnote_core::api::AppError::ConfigParse(
-            "AppCore not registered — host setup missing".into(),
-        )
+        swarmnote_core::AppError::ConfigParse("AppCore not registered — host setup missing".into())
     })?;
 
     let core = app_core.inner().clone().open_workspace(ws_path).await?;

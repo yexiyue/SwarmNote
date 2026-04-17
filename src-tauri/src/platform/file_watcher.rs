@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use notify_debouncer_mini::{new_debouncer, DebouncedEventKind, Debouncer};
-use swarmnote_core::api::{AppError, AppResult, FileEvent, FileEventCallback, FileWatcher};
+use swarmnote_core::{AppError, AppResult, FileEvent, FileEventCallback, FileWatcher};
 
 type FsNotifyWatcher = notify::RecommendedWatcher;
 
