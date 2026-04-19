@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::config::{load_or_create_config, GlobalConfigState};
+use crate::config::{apply_workspace_update, load_or_create_config, GlobalConfigState, RecentWorkspace};
 use crate::error::{AppError, AppResult};
 use crate::events::{AppEvent, EventBus};
 use crate::fs::{FileSystem, FileWatcher, LocalFs};
@@ -298,6 +298,19 @@ impl AppCore {
                 .await;
         }
 
+        // Persist to recent_workspaces so hosts can surface MRU lists without
+        // needing their own book-keeping layer. Failure is logged but does
+        // not fail the open — recent is auxiliary metadata.
+        let path_str = winner.info.path.clone();
+        let name = winner.info.name.clone();
+        let uuid_str = winner.info.id.to_string();
+        if let Err(e) = self
+            .touch_recent_workspace(&path_str, &name, Some(&uuid_str))
+            .await
+        {
+            tracing::warn!("touch_recent_workspace failed after open: {e}");
+        }
+
         Ok(winner)
     }
 
@@ -344,6 +357,45 @@ impl AppCore {
     /// Read access to the underlying app_data_dir-relative config path.
     pub fn config_path(&self) -> &Path {
         self.config.path()
+    }
+
+    // ── Recent workspaces (MRU persisted list) ──
+
+    /// Snapshot of recent workspaces (MRU-ordered, capped at 10). Pure read;
+    /// does not touch disk.
+    pub async fn recent_workspaces(&self) -> Vec<RecentWorkspace> {
+        self.config.read().await.recent_workspaces.clone()
+    }
+
+    /// Insert or bump a workspace to the top of the MRU list and persist.
+    /// `open_workspace` calls this automatically; exposed publicly so hosts
+    /// that bypass `open_workspace` (e.g. pre-seeded recent from config
+    /// migration) can record entries too.
+    pub async fn touch_recent_workspace(
+        &self,
+        path: &str,
+        name: &str,
+        uuid: Option<&str>,
+    ) -> AppResult<()> {
+        let mut guard = self.config.write().await;
+        apply_workspace_update(&mut guard, path, name, uuid);
+        crate::config::save_config(self.config.path(), &guard)
+    }
+
+    /// Remove a path from the MRU list and persist. No-op if the path is not
+    /// present. Does not delete any files on disk — hosts that want to wipe
+    /// the workspace directory must do so themselves.
+    pub async fn remove_recent_workspace(&self, path: &str) -> AppResult<()> {
+        let mut guard = self.config.write().await;
+        let before = guard.recent_workspaces.len();
+        guard.recent_workspaces.retain(|w| w.path != path);
+        if guard.recent_workspaces.len() == before {
+            return Ok(());
+        }
+        if guard.last_workspace_path.as_deref() == Some(path) {
+            guard.last_workspace_path = guard.recent_workspaces.first().map(|w| w.path.clone());
+        }
+        crate::config::save_config(self.config.path(), &guard)
     }
 
     // ── Network lifecycle ──

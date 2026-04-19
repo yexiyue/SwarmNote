@@ -135,7 +135,12 @@ pub fn update_last_workspace_with_uuid(
     save_config(state.path(), config)
 }
 
-fn apply_workspace_update(config: &mut GlobalConfig, path: &str, name: &str, uuid: Option<&str>) {
+pub(crate) fn apply_workspace_update(
+    config: &mut GlobalConfig,
+    path: &str,
+    name: &str,
+    uuid: Option<&str>,
+) {
     let now = chrono::Utc::now().to_rfc3339();
 
     config.last_workspace_path = Some(path.to_owned());
