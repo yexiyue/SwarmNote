@@ -7,6 +7,9 @@ export interface WorkspaceInfo {
   created_by: string;
   created_at: string;
   updated_at: string;
+  /** Document row count. Populated on-demand by callers that use `fresh_info`;
+   *  defaults to 0 for the cached snapshot returned by `info()`. */
+  doc_count: number;
 }
 
 export interface RecentWorkspace {

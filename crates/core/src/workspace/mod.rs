@@ -12,9 +12,10 @@ use std::path::Path;
 use std::sync::{Arc, Weak};
 
 use chrono::{DateTime, Utc};
-use entity::workspace::{workspaces, workspaces::Entity as WorkspacesEntity};
+use entity::workspace::{documents, workspaces, workspaces::Entity as WorkspacesEntity};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
+    PaginatorTrait, QueryFilter,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -38,6 +39,11 @@ pub struct WorkspaceInfo {
     pub created_by: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// Number of document rows in this workspace's DB. Populated at construction
+    /// time (0) and refreshed on demand via [`WorkspaceCore::fresh_info`] — the
+    /// `info()` getter returns the last-cached snapshot without hitting the DB.
+    #[serde(default)]
+    pub doc_count: u32,
 }
 
 /// Workspace-level unit. Constructed only by [`AppCore::open_workspace`] —
@@ -115,6 +121,17 @@ impl WorkspaceCore {
 
     pub fn info(&self) -> &WorkspaceInfo {
         &self.info
+    }
+
+    /// Return a `WorkspaceInfo` clone with `doc_count` populated from the
+    /// current DB row count. Use this when the UI surface needs an accurate
+    /// document count; `info()` returns the cached snapshot whose
+    /// `doc_count` is always 0.
+    pub async fn fresh_info(&self) -> AppResult<WorkspaceInfo> {
+        let doc_count = documents::Entity::find().count(&*self.db).await? as u32;
+        let mut info = self.info.clone();
+        info.doc_count = doc_count;
+        Ok(info)
     }
 
     pub fn db(&self) -> &DatabaseConnection {
@@ -277,6 +294,7 @@ pub(crate) async fn load_or_create_workspace_info(
             created_by: row.created_by,
             created_at: row.created_at,
             updated_at: row.updated_at,
+            doc_count: 0,
         });
     }
 
@@ -302,6 +320,7 @@ pub(crate) async fn load_or_create_workspace_info(
         created_by: created.created_by,
         created_at: created.created_at,
         updated_at: created.updated_at,
+        doc_count: 0,
     })
 }
 
@@ -321,6 +340,7 @@ pub async fn ensure_workspace_row(
             created_by: existing.created_by,
             created_at: existing.created_at,
             updated_at: existing.updated_at,
+            doc_count: 0,
         });
     }
     // Skip matching on name — the UUID is authoritative.
@@ -345,5 +365,6 @@ pub async fn ensure_workspace_row(
         created_by: created.created_by,
         created_at: created.created_at,
         updated_at: created.updated_at,
+        doc_count: 0,
     })
 }
